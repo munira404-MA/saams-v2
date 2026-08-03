@@ -205,6 +205,13 @@ const copy = {
     uploadRejected: 'تم رفض المرفق',
     reviewNeeded: 'الفاتورة واضحة، لكن بعض البيانات تحتاج مراجعة أو إدخالًا يدويًا.',
     blockedSave: 'لا يمكن حفظ الفاتورة قبل استكمال الحقول المطلوبة أو إرفاق إيصال البطاقة عند الدفع بالبطاقة.',
+    manualInvoice: 'فاتورة يدوية / غير ضريبية',
+    manualInvoiceHint: 'فعّلي هذا الخيار للفواتير اليدوية التي لا تحتوي رقمًا ضريبيًا. يجب إدخال البيانات الأساسية يدويًا.',
+    receiptAttachment: 'إرفاق إيصال الخصم / البطاقة',
+    receiptHint: 'يجب أن يكون الإيصال منفصلًا عن الفاتورة، وليس فوقها.',
+    chooseReceipt: 'اختيار إيصال',
+    removeReceipt: 'حذف الإيصال',
+    receiptAttached: 'تم إرفاق إيصال البطاقة منفصلًا',
   },
   en: {
     title: 'Invoice Management',
@@ -278,7 +285,14 @@ const copy = {
     needs_review: 'Needs Review',
     rejected: 'Rejected',
     uploadRejected: 'Attachment Rejected',
-    blockedSave: 'This invoice cannot be saved. Upload the full clear invoice and keep the card receipt on a separate page or file.',
+    blockedSave: 'This invoice cannot be saved. Complete the required fields and attach a separate card receipt when payment is by card.',
+    manualInvoice: 'Handwritten / Non-tax Invoice',
+    manualInvoiceHint: 'Enable for handwritten invoices without a TRN. Enter the core details manually.',
+    receiptAttachment: 'Attach Card / Debit Receipt',
+    receiptHint: 'The receipt must be separate from the invoice and must not cover it.',
+    chooseReceipt: 'Choose Receipt',
+    removeReceipt: 'Remove Receipt',
+    receiptAttached: 'Separate card receipt attached',
   },
 };
 
@@ -302,6 +316,9 @@ export default function Invoices({ lang }) {
   const [ocr, setOcr] = useState(null);
   const [uploadNursery, setUploadNursery] = useState('');
   const [uploadAdvance, setUploadAdvance] = useState('');
+  const [manualInvoice, setManualInvoice] = useState(false);
+  const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptFileUrl, setReceiptFileUrl] = useState('');
   const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
   useEffect(() => {
@@ -313,6 +330,16 @@ export default function Invoices({ lang }) {
     setSelectedFileUrl(nextUrl);
     return () => URL.revokeObjectURL(nextUrl);
   }, [selectedFile]);
+
+  useEffect(() => {
+    if (!receiptFile) {
+      setReceiptFileUrl('');
+      return undefined;
+    }
+    const nextUrl = URL.createObjectURL(receiptFile);
+    setReceiptFileUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [receiptFile]);
 
   const nurseries = [...new Set(rows.map((item) => ar ? item.nurseryAr : item.nurseryEn))];
 
@@ -366,7 +393,7 @@ export default function Invoices({ lang }) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || t.readFailed);
-      setOcr({ ...emptyOcr, ...payload.data });
+      setOcr(applyValidation({ ...emptyOcr, ...payload.data }, manualInvoice, Boolean(receiptFile)));
       console.info('SAAMS OCR request completed:', payload.requestId || '');
     } catch (error) {
       setOcrError(error.message || t.readFailed);
@@ -375,27 +402,50 @@ export default function Invoices({ lang }) {
     }
   }
 
+  function applyValidation(next, isManual = manualInvoice, hasSeparateReceipt = Boolean(receiptFile)) {
+    const required = [
+      ['supplier_name', next.supplier_name],
+      ['invoice_number', next.invoice_number],
+      ['invoice_date', next.invoice_date],
+      ['amount_before_vat', next.amount_before_vat],
+      ['vat_amount', next.vat_amount],
+      ['total_amount', next.total_amount],
+      ...(!isManual ? [['trn', next.trn]] : []),
+      ['payment_method', next.payment_method === 'unknown' ? '' : next.payment_method],
+    ];
+    const missing = required
+      .filter(([, item]) => item === '' || item === null || item === undefined)
+      .map(([name]) => name);
+    const receiptAvailable = Boolean(next.card_receipt_detected || hasSeparateReceipt);
+    const cardReceiptMissing = next.payment_method === 'card' && !receiptAvailable;
+    const visuallyRejected = next.document_quality === 'rejected';
+    return {
+      ...next,
+      card_receipt_detected: receiptAvailable,
+      missing_fields: missing,
+      can_save: !visuallyRejected && !cardReceiptMissing && missing.length === 0,
+      document_quality: visuallyRejected ? 'rejected' : (!cardReceiptMissing && missing.length === 0 ? 'clear' : 'needs_review'),
+    };
+  }
+
   function updateOcr(field, value) {
-    setOcr((current) => {
-      if (!current) return current;
-      const next = { ...current, [field]: value };
-      const missing = [
-        ['supplier_name', next.supplier_name],
-        ['invoice_number', next.invoice_number],
-        ['invoice_date', next.invoice_date],
-        ['amount_before_vat', next.amount_before_vat],
-        ['vat_amount', next.vat_amount],
-        ['total_amount', next.total_amount],
-        ['trn', next.trn],
-        ['payment_method', next.payment_method === 'unknown' ? '' : next.payment_method],
-      ].filter(([, item]) => item === '' || item === null || item === undefined).map(([name]) => name);
-      const cardReceiptMissing = next.payment_method === 'card' && !next.card_receipt_detected;
-      const visuallyRejected = next.document_quality === 'rejected';
-      next.missing_fields = missing;
-      next.can_save = !visuallyRejected && !cardReceiptMissing && missing.length === 0;
-      if (!visuallyRejected) next.document_quality = next.can_save ? 'clear' : 'needs_review';
-      return next;
-    });
+    setOcr((current) => current ? applyValidation({ ...current, [field]: value }) : current);
+  }
+
+  function toggleManualInvoice(checked) {
+    setManualInvoice(checked);
+    setOcr((current) => current ? applyValidation(current, checked, Boolean(receiptFile)) : current);
+  }
+
+  function handleReceiptFile(file) {
+    if (!file) return;
+    setReceiptFile(file);
+    setOcr((current) => current ? applyValidation({ ...current, card_receipt_detected: true }, manualInvoice, true) : current);
+  }
+
+  function removeReceiptFile() {
+    setReceiptFile(null);
+    setOcr((current) => current ? applyValidation({ ...current, card_receipt_detected: false }, manualInvoice, false) : current);
   }
 
   function removeSelectedFile() {
@@ -411,6 +461,8 @@ export default function Invoices({ lang }) {
     setOcrError('');
     setUploadNursery('');
     setUploadAdvance('');
+    setManualInvoice(false);
+    setReceiptFile(null);
   }
 
   function savePreviewInvoice() {
@@ -444,7 +496,7 @@ export default function Invoices({ lang }) {
     <section className="invoice-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.5</span>
+          <span className="eyebrow">SAAMS v3.6</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -634,17 +686,38 @@ export default function Invoices({ lang }) {
                         <span>{t.reviewNeeded}</span>
                       </div>
                     )}
+                    <label className="manual-invoice-option">
+                      <input type="checkbox" checked={manualInvoice} onChange={(e) => toggleManualInvoice(e.target.checked)} />
+                      <span><strong>{t.manualInvoice}</strong><small>{t.manualInvoiceHint}</small></span>
+                    </label>
                     <div className={`ocr-form-grid ${ocr.document_quality === 'rejected' ? 'ocr-form-blocked' : ''}`}>
                       <label><span>{t.supplier}</span><input value={ocr.supplier_name} onChange={(e) => updateOcr('supplier_name', e.target.value)} /></label>
                       <label><span>{t.invoiceNo}</span><input value={ocr.invoice_number} onChange={(e) => updateOcr('invoice_number', e.target.value)} /></label>
                       <label><span>{t.invoiceDate}</span><input value={ocr.invoice_date} onChange={(e) => updateOcr('invoice_date', e.target.value)} /></label>
-                      <label><span>{t.trn}</span><input value={ocr.trn} onChange={(e) => updateOcr('trn', e.target.value)} /></label>
+                      <label><span>{t.trn}{manualInvoice ? ` (${ar ? 'اختياري' : 'Optional'})` : ''}</span><input value={ocr.trn} onChange={(e) => updateOcr('trn', e.target.value)} /></label>
                       <label><span>{t.beforeVat}</span><input type="number" step="0.01" value={ocr.amount_before_vat} onChange={(e) => updateOcr('amount_before_vat', e.target.value)} /></label>
                       <label><span>{t.vat}</span><input type="number" step="0.01" value={ocr.vat_amount} onChange={(e) => updateOcr('vat_amount', e.target.value)} /></label>
                       <label><span>{t.totalAmount}</span><input type="number" step="0.01" value={ocr.total_amount} onChange={(e) => updateOcr('total_amount', e.target.value)} /></label>
                       <label><span>{t.payment}</span><select value={ocr.payment_method} onChange={(e) => updateOcr('payment_method', e.target.value)}><option value="unknown">{t.unknown}</option><option value="card">{t.card}</option><option value="cash">{t.cash}</option></select></label>
                     </div>
-                    <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? t.receiptFound : t.receiptMissing}</div>
+                    {ocr.payment_method === 'card' && (
+                      <div className="receipt-upload-card">
+                        <div className="receipt-upload-head">
+                          <div><strong>{t.receiptAttachment}</strong><small>{t.receiptHint}</small></div>
+                          {!receiptFile && <label className="receipt-file-button">＋ {t.chooseReceipt}<input type="file" accept=".pdf,image/*" onChange={(e) => handleReceiptFile(e.target.files?.[0])} /></label>}
+                        </div>
+                        {receiptFile && (
+                          <div className="receipt-file-preview">
+                            <div className="receipt-thumb">
+                              {receiptFile.type?.startsWith('image/') ? <img src={receiptFileUrl} alt="receipt" /> : <span>PDF</span>}
+                            </div>
+                            <div><strong>{receiptFile.name}</strong><small>{(receiptFile.size / (1024 * 1024)).toFixed(2)} MB</small></div>
+                            <button type="button" onClick={removeReceiptFile}>× {t.removeReceipt}</button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? (receiptFile ? t.receiptAttached : t.receiptFound) : t.receiptMissing}</div>
                     {!!ocr.rejection_reasons?.length && <div className="ocr-reasons">{ocr.rejection_reasons.map((reason) => <span key={reason}>! {reason}</span>)}</div>}
                     {ocrError && <div className="ocr-error">! {ocrError}</div>}
                     <div className="ocr-actions">
