@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 const initialData = [
   {
@@ -173,6 +173,13 @@ const copy = {
     reason: 'سبب الإرجاع',
     bankReceipt: 'إيصال البطاقة مرفق',
     preview: 'معاينة المستند',
+    attachmentPreview: 'المرفق المختار',
+    noAttachment: 'لم يتم اختيار مرفق بعد',
+    removeAttachment: 'حذف المرفق',
+    openFull: 'فتح بالحجم الكامل',
+    fileName: 'اسم الملف',
+    fileSize: 'حجم الملف',
+    fileType: 'نوع الملف',
     analyze: 'قراءة الفاتورة بالذكاء الاصطناعي',
     analyzing: 'جاري قراءة الفاتورة...',
     selectFile: 'اختاري ملفًا أولًا.',
@@ -238,6 +245,13 @@ const copy = {
     reason: 'Return Reason',
     bankReceipt: 'Card receipt attached',
     preview: 'Document Preview',
+    attachmentPreview: 'Selected Attachment',
+    noAttachment: 'No attachment selected yet',
+    removeAttachment: 'Remove Attachment',
+    openFull: 'Open Full Size',
+    fileName: 'File Name',
+    fileSize: 'File Size',
+    fileType: 'File Type',
     analyze: 'Read Invoice with AI',
     analyzing: 'Reading invoice...',
     selectFile: 'Choose a file first.',
@@ -271,12 +285,23 @@ export default function Invoices({ lang }) {
   const [showUpload, setShowUpload] = useState(false);
   const [rows, setRows] = useState(initialData);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFileUrl, setSelectedFileUrl] = useState('');
   const [reading, setReading] = useState(false);
   const [ocrError, setOcrError] = useState('');
   const [ocr, setOcr] = useState(null);
   const [uploadNursery, setUploadNursery] = useState('');
   const [uploadAdvance, setUploadAdvance] = useState('');
   const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setSelectedFileUrl('');
+      return undefined;
+    }
+    const nextUrl = URL.createObjectURL(selectedFile);
+    setSelectedFileUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [selectedFile]);
 
   const nurseries = [...new Set(rows.map((item) => ar ? item.nurseryAr : item.nurseryEn))];
 
@@ -343,6 +368,12 @@ export default function Invoices({ lang }) {
     setOcr((current) => ({ ...current, [field]: value }));
   }
 
+  function removeSelectedFile() {
+    setSelectedFile(null);
+    setOcr(null);
+    setOcrError('');
+  }
+
   function resetUpload() {
     setShowUpload(false);
     setSelectedFile(null);
@@ -379,7 +410,7 @@ export default function Invoices({ lang }) {
     <section className="invoice-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.2</span>
+          <span className="eyebrow">SAAMS v3.3</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -502,41 +533,81 @@ export default function Invoices({ lang }) {
               <label><span>{t.chooseNursery}</span><select value={uploadNursery} onChange={(e) => setUploadNursery(e.target.value)}><option value="">{t.nursery}</option>{nurseries.map((name) => <option key={name}>{name}</option>)}</select></label>
               <label><span>{t.chooseAdvance}</span><select value={uploadAdvance} onChange={(e) => setUploadAdvance(e.target.value)}><option value="">{t.advance}</option><option>{ar ? 'فواتير أغسطس 2026' : 'August 2026 Invoices'}</option><option>{ar ? 'سلفة نشاط التخرج 2026' : 'Graduation Advance 2026'}</option></select></label>
             </div>
-            <label className={`drop-zone ${selectedFile ? 'has-file' : ''}`}>
-              <input type="file" accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setOcr(null); setOcrError(''); }} />
-              <span className="drop-icon">{selectedFile ? '✓' : '⇧'}</span>
-              <strong>{selectedFile ? selectedFile.name : t.drag}</strong>
-              <small>{selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : 'PDF, JPG, PNG, WEBP — Max 3 MB'}</small>
-              <b>{t.browse}</b>
-            </label>
-            {ocrError && <div className="ocr-error">! {ocrError}</div>}
-            {!ocr && <button className="primary-action upload-save" type="button" disabled={reading} onClick={analyzeInvoice}>{reading ? `◌ ${t.analyzing}` : `✦ ${t.analyze}`}</button>}
 
-            {ocr && (
-              <div className="ocr-results">
-                <div className="ocr-results-head">
-                  <div><small>AI OCR</small><h3>{t.extracted}</h3></div>
-                  <span className={`quality-pill ${ocr.document_quality}`}>{t[ocr.document_quality] || ocr.document_quality}</span>
+            <div className={`attachment-workspace ${ocr ? 'with-results' : ''}`}>
+              <section className="attachment-preview-panel">
+                <div className="attachment-panel-head">
+                  <div><small>{t.attachmentPreview}</small><strong>{selectedFile?.name || t.noAttachment}</strong></div>
+                  {selectedFileUrl && <a href={selectedFileUrl} target="_blank" rel="noreferrer">↗ {t.openFull}</a>}
                 </div>
-                <div className="ocr-confidence"><span>{t.confidence}</span><div><i style={{ width: `${Math.round((Number(ocr.confidence) || 0) * 100)}%` }} /></div><b>{Math.round((Number(ocr.confidence) || 0) * 100)}%</b></div>
-                <div className="ocr-form-grid">
-                  <label><span>{t.supplier}</span><input value={ocr.supplier_name} onChange={(e) => updateOcr('supplier_name', e.target.value)} /></label>
-                  <label><span>{t.invoiceNo}</span><input value={ocr.invoice_number} onChange={(e) => updateOcr('invoice_number', e.target.value)} /></label>
-                  <label><span>{t.invoiceDate}</span><input value={ocr.invoice_date} onChange={(e) => updateOcr('invoice_date', e.target.value)} /></label>
-                  <label><span>{t.trn}</span><input value={ocr.trn} onChange={(e) => updateOcr('trn', e.target.value)} /></label>
-                  <label><span>{t.beforeVat}</span><input type="number" step="0.01" value={ocr.amount_before_vat} onChange={(e) => updateOcr('amount_before_vat', e.target.value)} /></label>
-                  <label><span>{t.vat}</span><input type="number" step="0.01" value={ocr.vat_amount} onChange={(e) => updateOcr('vat_amount', e.target.value)} /></label>
-                  <label><span>{t.totalAmount}</span><input type="number" step="0.01" value={ocr.total_amount} onChange={(e) => updateOcr('total_amount', e.target.value)} /></label>
-                  <label><span>{t.payment}</span><select value={ocr.payment_method} onChange={(e) => updateOcr('payment_method', e.target.value)}><option value="unknown">{t.unknown}</option><option value="card">{t.card}</option><option value="cash">{t.cash}</option></select></label>
-                </div>
-                <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? t.receiptFound : t.receiptMissing}</div>
-                {!!ocr.rejection_reasons?.length && <div className="ocr-reasons">{ocr.rejection_reasons.map((reason) => <span key={reason}>! {reason}</span>)}</div>}
-                <div className="ocr-actions">
-                  <button className="secondary-action" type="button" onClick={analyzeInvoice}>↻ {t.analyze}</button>
-                  <button className="primary-action" type="button" onClick={savePreviewInvoice}>✓ {t.savePreview}</button>
-                </div>
-              </div>
-            )}
+
+                {!selectedFile && (
+                  <label className="drop-zone attachment-drop-zone">
+                    <input type="file" accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setOcr(null); setOcrError(''); }} />
+                    <span className="drop-icon">⇧</span>
+                    <strong>{t.drag}</strong>
+                    <small>PDF, JPG, PNG, WEBP — Max 3 MB</small>
+                    <b>{t.browse}</b>
+                  </label>
+                )}
+
+                {selectedFile && (
+                  <>
+                    <div className="attachment-viewer">
+                      {selectedFile.type === 'application/pdf' ? (
+                        <iframe src={`${selectedFileUrl}#toolbar=1&navpanes=0&view=FitH`} title={selectedFile.name} />
+                      ) : (
+                        <img src={selectedFileUrl} alt={selectedFile.name} />
+                      )}
+                    </div>
+                    <div className="attachment-meta">
+                      <div><small>{t.fileName}</small><strong>{selectedFile.name}</strong></div>
+                      <div><small>{t.fileSize}</small><strong>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</strong></div>
+                      <div><small>{t.fileType}</small><strong>{selectedFile.type || '—'}</strong></div>
+                    </div>
+                    <button className="remove-attachment" type="button" onClick={removeSelectedFile}>× {t.removeAttachment}</button>
+                  </>
+                )}
+              </section>
+
+              <section className="attachment-data-panel">
+                {!ocr && (
+                  <div className="attachment-read-panel">
+                    <span className="ai-orb">✦</span>
+                    <h3>{t.analyze}</h3>
+                    <p>{ar ? 'بعد اختيار المرفق، سيقرأ النظام البيانات ويعرضها هنا بجانب الفاتورة للمراجعة.' : 'After choosing an attachment, the system will extract and display its data here beside the invoice.'}</p>
+                    {ocrError && <div className="ocr-error">! {ocrError}</div>}
+                    <button className="primary-action upload-save" type="button" disabled={reading || !selectedFile} onClick={analyzeInvoice}>{reading ? `◌ ${t.analyzing}` : `✦ ${t.analyze}`}</button>
+                  </div>
+                )}
+
+                {ocr && (
+                  <div className="ocr-results embedded-results">
+                    <div className="ocr-results-head">
+                      <div><small>AI OCR</small><h3>{t.extracted}</h3></div>
+                      <span className={`quality-pill ${ocr.document_quality}`}>{t[ocr.document_quality] || ocr.document_quality}</span>
+                    </div>
+                    <div className="ocr-confidence"><span>{t.confidence}</span><div><i style={{ width: `${Math.round((Number(ocr.confidence) || 0) * 100)}%` }} /></div><b>{Math.round((Number(ocr.confidence) || 0) * 100)}%</b></div>
+                    <div className="ocr-form-grid">
+                      <label><span>{t.supplier}</span><input value={ocr.supplier_name} onChange={(e) => updateOcr('supplier_name', e.target.value)} /></label>
+                      <label><span>{t.invoiceNo}</span><input value={ocr.invoice_number} onChange={(e) => updateOcr('invoice_number', e.target.value)} /></label>
+                      <label><span>{t.invoiceDate}</span><input value={ocr.invoice_date} onChange={(e) => updateOcr('invoice_date', e.target.value)} /></label>
+                      <label><span>{t.trn}</span><input value={ocr.trn} onChange={(e) => updateOcr('trn', e.target.value)} /></label>
+                      <label><span>{t.beforeVat}</span><input type="number" step="0.01" value={ocr.amount_before_vat} onChange={(e) => updateOcr('amount_before_vat', e.target.value)} /></label>
+                      <label><span>{t.vat}</span><input type="number" step="0.01" value={ocr.vat_amount} onChange={(e) => updateOcr('vat_amount', e.target.value)} /></label>
+                      <label><span>{t.totalAmount}</span><input type="number" step="0.01" value={ocr.total_amount} onChange={(e) => updateOcr('total_amount', e.target.value)} /></label>
+                      <label><span>{t.payment}</span><select value={ocr.payment_method} onChange={(e) => updateOcr('payment_method', e.target.value)}><option value="unknown">{t.unknown}</option><option value="card">{t.card}</option><option value="cash">{t.cash}</option></select></label>
+                    </div>
+                    <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? t.receiptFound : t.receiptMissing}</div>
+                    {!!ocr.rejection_reasons?.length && <div className="ocr-reasons">{ocr.rejection_reasons.map((reason) => <span key={reason}>! {reason}</span>)}</div>}
+                    <div className="ocr-actions">
+                      <button className="secondary-action" type="button" onClick={analyzeInvoice}>↻ {t.analyze}</button>
+                      <button className="primary-action" type="button" onClick={savePreviewInvoice}>✓ {t.savePreview}</button>
+                    </div>
+                  </div>
+                )}
+              </section>
+            </div>
           </div>
         </div>
       )}

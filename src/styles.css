@@ -409,3 +409,31 @@ html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:mi
 .receipt-warning{background:#fff2e5!important;color:#c86a17!important}.ocr-reasons{display:grid;gap:6px;margin-top:9px}.ocr-reasons span{padding:8px 10px;border-radius:10px;background:#fff0f1;color:#d44151;font-size:10px;font-weight:700}
 .ocr-actions{display:grid;grid-template-columns:.8fr 1.2fr;gap:9px;margin-top:13px}
 @media(max-width:620px){.ocr-form-grid{grid-template-columns:1fr}.ocr-actions{grid-template-columns:1fr}}
+
+/* =========================
+   SAAMS v3.3 ATTACHMENT PREVIEW
+   ========================= */
+.ocr-modal{width:min(1180px,96vw);max-height:94vh;overflow:auto}
+.attachment-workspace{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);gap:15px;margin-top:15px;align-items:stretch}
+.attachment-preview-panel,.attachment-data-panel{min-width:0;background:#fff;border:1px solid #dce8ef;border-radius:18px;padding:14px}
+.attachment-panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:11px}
+.attachment-panel-head small{display:block;color:#8395a6;font-size:10px;margin-bottom:3px}
+.attachment-panel-head strong{display:block;max-width:430px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#213b54;font-size:12px}
+.attachment-panel-head a{flex:none;text-decoration:none;color:#3565d8;background:#eef3ff;border:1px solid #d6e1fb;border-radius:10px;padding:7px 9px;font-size:9px;font-weight:800}
+.attachment-drop-zone{min-height:440px;margin:0}
+.attachment-viewer{height:500px;border:1px solid #d9e6ee;border-radius:14px;overflow:hidden;background:linear-gradient(145deg,#eef5f9,#fff);display:grid;place-items:center}
+.attachment-viewer iframe{width:100%;height:100%;border:0;background:#fff}
+.attachment-viewer img{width:100%;height:100%;object-fit:contain;background:#f7fafc}
+.attachment-meta{display:grid;grid-template-columns:1.4fr .65fr .9fr;gap:8px;margin-top:10px}
+.attachment-meta>div{min-width:0;background:#f7fafc;border:1px solid #e3ebf0;border-radius:11px;padding:8px 9px}
+.attachment-meta small{display:block;color:#8999a8;font-size:8px;margin-bottom:3px}
+.attachment-meta strong{display:block;color:#365069;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.remove-attachment{width:100%;margin-top:9px;min-height:35px;border:1px solid #f1d2d7;background:#fff5f6;color:#d84b5b;border-radius:11px;font-weight:800;font-size:10px;cursor:pointer}
+.attachment-data-panel{display:flex;flex-direction:column}
+.attachment-read-panel{margin:auto;text-align:center;padding:30px 22px;color:#6f8397}
+.ai-orb{width:66px;height:66px;border-radius:22px;margin:0 auto 15px;display:grid;place-items:center;font-size:29px;color:#fff;background:linear-gradient(145deg,#0ba6a1,#405df5);box-shadow:0 17px 30px rgba(48,103,216,.22)}
+.attachment-read-panel h3{color:#203a55;font-size:18px;margin:0 0 8px}.attachment-read-panel p{max-width:380px;margin:0 auto 18px;line-height:1.8;font-size:11px}
+.attachment-read-panel .upload-save{width:100%}.attachment-read-panel .upload-save:disabled{opacity:.48;cursor:not-allowed;transform:none;box-shadow:none}
+.embedded-results{margin:0;border:0;padding:0;background:transparent;box-shadow:none}
+@media(max-width:980px){.attachment-workspace{grid-template-columns:1fr}.attachment-viewer{height:430px}.attachment-data-panel{min-height:300px}}
+@media(max-width:620px){.ocr-modal{width:96vw;padding:16px}.attachment-viewer{height:360px}.attachment-meta{grid-template-columns:1fr}.attachment-panel-head{flex-direction:column}.attachment-panel-head strong{max-width:78vw}}
