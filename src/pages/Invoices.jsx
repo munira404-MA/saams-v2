@@ -109,6 +109,11 @@ const emptyOcr = {
   trn: '',
   payment_method: 'unknown',
   card_receipt_detected: false,
+  bank_receipt_over_invoice: false,
+  multiple_documents_same_page: false,
+  invoice_cropped: false,
+  important_fields_obscured: false,
+  can_save: false,
   currency: 'AED',
   document_quality: 'clear',
   rejection_reasons: [],
@@ -196,6 +201,8 @@ const copy = {
     clear: 'واضح',
     unclear: 'غير واضح',
     rejected: 'مرفوض',
+    uploadRejected: 'تم رفض المرفق',
+    blockedSave: 'لا يمكن حفظ الفاتورة. ارفعي صورة واضحة للفاتورة كاملة، واجعلي إيصال البطاقة في صفحة أو ملف منفصل.',
   },
   en: {
     title: 'Invoice Management',
@@ -268,6 +275,8 @@ const copy = {
     clear: 'Clear',
     unclear: 'Unclear',
     rejected: 'Rejected',
+    uploadRejected: 'Attachment Rejected',
+    blockedSave: 'This invoice cannot be saved. Upload the full clear invoice and keep the card receipt on a separate page or file.',
   },
 };
 
@@ -385,6 +394,10 @@ export default function Invoices({ lang }) {
 
   function savePreviewInvoice() {
     if (!ocr) return;
+    if (!ocr.can_save || ocr.document_quality !== 'clear' || Number(ocr.confidence || 0) < 0.9) {
+      setOcrError(t.blockedSave);
+      return;
+    }
     const nurseryName = uploadNursery || (ar ? 'غير محددة' : 'Not selected');
     const next = {
       id: ocr.invoice_number || `INV-${Date.now().toString().slice(-6)}`,
@@ -410,7 +423,7 @@ export default function Invoices({ lang }) {
     <section className="invoice-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.3</span>
+          <span className="eyebrow">SAAMS v3.4</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -588,7 +601,13 @@ export default function Invoices({ lang }) {
                       <span className={`quality-pill ${ocr.document_quality}`}>{t[ocr.document_quality] || ocr.document_quality}</span>
                     </div>
                     <div className="ocr-confidence"><span>{t.confidence}</span><div><i style={{ width: `${Math.round((Number(ocr.confidence) || 0) * 100)}%` }} /></div><b>{Math.round((Number(ocr.confidence) || 0) * 100)}%</b></div>
-                    <div className="ocr-form-grid">
+                    {!ocr.can_save && (
+                      <div className="ocr-blocked-banner">
+                        <strong>✕ {t.uploadRejected}</strong>
+                        <span>{t.blockedSave}</span>
+                      </div>
+                    )}
+                    <div className={`ocr-form-grid ${!ocr.can_save ? 'ocr-form-blocked' : ''}`}>
                       <label><span>{t.supplier}</span><input value={ocr.supplier_name} onChange={(e) => updateOcr('supplier_name', e.target.value)} /></label>
                       <label><span>{t.invoiceNo}</span><input value={ocr.invoice_number} onChange={(e) => updateOcr('invoice_number', e.target.value)} /></label>
                       <label><span>{t.invoiceDate}</span><input value={ocr.invoice_date} onChange={(e) => updateOcr('invoice_date', e.target.value)} /></label>
@@ -600,9 +619,10 @@ export default function Invoices({ lang }) {
                     </div>
                     <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? t.receiptFound : t.receiptMissing}</div>
                     {!!ocr.rejection_reasons?.length && <div className="ocr-reasons">{ocr.rejection_reasons.map((reason) => <span key={reason}>! {reason}</span>)}</div>}
+                    {ocrError && <div className="ocr-error">! {ocrError}</div>}
                     <div className="ocr-actions">
                       <button className="secondary-action" type="button" onClick={analyzeInvoice}>↻ {t.analyze}</button>
-                      <button className="primary-action" type="button" onClick={savePreviewInvoice}>✓ {t.savePreview}</button>
+                      <button className="primary-action" type="button" disabled={!ocr.can_save} onClick={savePreviewInvoice}>✓ {t.savePreview}</button>
                     </div>
                   </div>
                 )}

@@ -437,3 +437,6 @@ html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:mi
 .embedded-results{margin:0;border:0;padding:0;background:transparent;box-shadow:none}
 @media(max-width:980px){.attachment-workspace{grid-template-columns:1fr}.attachment-viewer{height:430px}.attachment-data-panel{min-height:300px}}
 @media(max-width:620px){.ocr-modal{width:96vw;padding:16px}.attachment-viewer{height:360px}.attachment-meta{grid-template-columns:1fr}.attachment-panel-head{flex-direction:column}.attachment-panel-head strong{max-width:78vw}}
+
+/* SAAMS v3.4 strict document validation */
+.ocr-blocked-banner{margin:12px 0;padding:13px 14px;border:1px solid #facbd1;border-radius:14px;background:#fff0f2;color:#c93449;display:grid;gap:5px}.ocr-blocked-banner strong{font-size:14px}.ocr-blocked-banner span{font-size:11px;line-height:1.65}.ocr-form-blocked{opacity:.62}.ocr-actions .primary-action:disabled{cursor:not-allowed;filter:grayscale(.45);opacity:.48;transform:none;box-shadow:none}.quality-pill.rejected{background:#ffe8ec!important;color:#cf3047!important;border-color:#f8c8d0!important}.ocr-reasons span{background:#fff1f3!important;border-color:#fad4da!important;color:#c63c4e!important}

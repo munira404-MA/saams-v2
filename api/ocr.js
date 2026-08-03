@@ -28,6 +28,11 @@ const schema = {
     trn: { type: 'string' },
     payment_method: { type: 'string', enum: ['card', 'cash', 'unknown'] },
     card_receipt_detected: { type: 'boolean' },
+    bank_receipt_over_invoice: { type: 'boolean' },
+    multiple_documents_same_page: { type: 'boolean' },
+    invoice_cropped: { type: 'boolean' },
+    important_fields_obscured: { type: 'boolean' },
+    can_save: { type: 'boolean' },
     currency: { type: 'string' },
     document_quality: { type: 'string', enum: ['clear', 'unclear', 'rejected'] },
     rejection_reasons: { type: 'array', items: { type: 'string' } },
@@ -43,6 +48,11 @@ const schema = {
     'trn',
     'payment_method',
     'card_receipt_detected',
+    'bank_receipt_over_invoice',
+    'multiple_documents_same_page',
+    'invoice_cropped',
+    'important_fields_obscured',
+    'can_save',
     'currency',
     'document_quality',
     'rejection_reasons',
@@ -138,29 +148,40 @@ export default async function handler(req, res) {
         detail: 'high',
       };
 
-  const prompt = `You are an invoice extraction engine for UAE nursery petty-cash invoices.
-Read the attached invoice in Arabic or English and return only the requested structured data.
+  const prompt = `You are a strict invoice validation and extraction engine for UAE nursery petty-cash invoices.
+FIRST inspect the entire page for document-validity problems. Only after validation may you extract invoice data.
 
-Extraction rules:
-- Copy only values visibly present in the document. Never invent missing information.
-- supplier_name: the legal or displayed supplier name.
-- invoice_number: the invoice/reference number, not the card terminal receipt number.
-- invoice_date: format as DD/MM/YYYY when readable.
-- trn: the supplier Tax Registration Number, normally 15 digits in the UAE.
-- amount_before_vat, vat_amount, and total_amount: return numeric values only.
-- Copy VAT from the invoice. Do not calculate it unless the document clearly shows the equivalent values.
-- payment_method is card when the invoice or attached receipt contains Visa, Mastercard, Card, Debit, Credit, POS, or terminal-payment evidence; cash when clearly stated; otherwise unknown.
-- card_receipt_detected is true only when a separate bank/POS/card receipt is visibly attached.
-- currency should usually be AED when shown; otherwise return an empty string.
+NON-NEGOTIABLE REJECTION RULES:
+1. If a bank/POS/card receipt, cover sheet, paper, hand, sticker, or any other document is placed on top of, overlaps, covers, or hides any part of the invoice, set bank_receipt_over_invoice=true, document_quality="rejected", can_save=false. This is true even if some values can still be guessed.
+2. If two unrelated invoices or two unrelated documents are visible on the same page/image, set multiple_documents_same_page=true, document_quality="rejected", can_save=false.
+3. If the invoice is cropped, cut off, blurred, too faint, skewed so important fields cannot be read, or key fields are obscured, set the relevant flags, document_quality="rejected", can_save=false.
+4. Handwriting alone is not a reason to reject, unless it covers or obscures printed invoice information.
+5. A card receipt may be accepted only when it is a separate clearly visible attachment/page that does not cover the invoice. If payment is by card and no separate receipt is visible, reject and can_save=false.
+6. When rejected, do not confidently infer hidden values. Leave unreadable fields empty/null and list every specific reason in rejection_reasons.
+7. can_save may be true only when document_quality is clear, confidence is at least 0.90, the full invoice is visible, exactly one invoice is present, no receipt/document covers it, and all mandatory fields are readable.
 
-Validation rules:
-- Set document_quality to rejected when a cover sheet hides the invoice, two unrelated invoices appear on one page, or the document is unusable.
-- Set document_quality to unclear when important fields cannot be read reliably.
-- Add short rejection_reasons for every detected problem.
-- If payment_method is card and no receipt is visible, add a rejection reason explaining that the card receipt is missing, but do not mark rejected solely for that reason.
-- confidence is the overall confidence from 0 to 1.
+MANDATORY FIELDS:
+- supplier_name
+- invoice_number
+- invoice_date
+- amount_before_vat
+- vat_amount
+- total_amount
+- trn
+- payment_method
 
-Return the structured result only.`;
+EXTRACTION RULES:
+- Copy only values visibly present. Never invent or reconstruct hidden information.
+- invoice_number means the invoice number, not a POS terminal receipt/reference number.
+- invoice_date format DD/MM/YYYY when readable.
+- trn is normally a 15-digit UAE Tax Registration Number.
+- Return numeric amounts only.
+- payment_method is card when invoice/receipt shows Visa, Mastercard, Card, Debit, Credit, POS or terminal evidence; cash only when clearly stated; otherwise unknown.
+- card_receipt_detected=true only for a separate visible bank/POS receipt.
+- confidence is overall confidence from 0 to 1.
+
+Be conservative. A readable payment receipt placed over an invoice is still a rejected upload because the invoice underneath is not fully visible.
+Return only the requested structured result.`;
 
   try {
     const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
@@ -218,6 +239,57 @@ Return the structured result only.`;
         'INVALID_MODEL_RESPONSE',
       );
     }
+
+    const reasons = Array.isArray(extracted.rejection_reasons)
+      ? extracted.rejection_reasons.filter(Boolean)
+      : [];
+
+    const addReason = (reason) => {
+      if (!reasons.includes(reason)) reasons.push(reason);
+    };
+
+    if (extracted.bank_receipt_over_invoice) {
+      addReason('A bank/POS receipt or another paper is covering or overlapping the invoice. Upload the full invoice and receipt as separate pages/files.');
+    }
+    if (extracted.multiple_documents_same_page) {
+      addReason('More than one unrelated document is visible on the same page. Upload one invoice per page.');
+    }
+    if (extracted.invoice_cropped) {
+      addReason('The invoice is cropped or not fully visible.');
+    }
+    if (extracted.important_fields_obscured) {
+      addReason('Important invoice fields are covered or unreadable.');
+    }
+    if (extracted.payment_method === 'card' && !extracted.card_receipt_detected) {
+      addReason('Card payment detected but a separate card receipt was not found.');
+    }
+
+    const mandatoryMissing = [
+      extracted.supplier_name,
+      extracted.invoice_number,
+      extracted.invoice_date,
+      extracted.amount_before_vat,
+      extracted.vat_amount,
+      extracted.total_amount,
+      extracted.trn,
+    ].some((value) => value === '' || value === null || value === undefined);
+
+    if (mandatoryMissing) addReason('One or more mandatory invoice fields are unreadable or missing.');
+
+    const hardReject = Boolean(
+      extracted.bank_receipt_over_invoice ||
+      extracted.multiple_documents_same_page ||
+      extracted.invoice_cropped ||
+      extracted.important_fields_obscured ||
+      mandatoryMissing ||
+      (extracted.payment_method === 'card' && !extracted.card_receipt_detected) ||
+      Number(extracted.confidence || 0) < 0.9 ||
+      extracted.document_quality !== 'clear'
+    );
+
+    extracted.rejection_reasons = reasons;
+    extracted.document_quality = hardReject ? 'rejected' : 'clear';
+    extracted.can_save = !hardReject;
 
     return res.status(200).json({
       data: extracted,
