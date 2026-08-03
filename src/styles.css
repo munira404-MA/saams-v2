@@ -8,16 +8,16 @@ button,input{font:inherit}
 .login-page::before{width:340px;height:340px;background:#bfe8ff;top:-120px;left:-100px}
 .login-page::after{width:300px;height:300px;background:#bdf4e9;right:-110px;bottom:-120px}
 .login-layout{width:min(1040px,100%);display:grid;grid-template-columns:minmax(360px,1.1fr) minmax(360px,.9fr);align-items:stretch;background:rgba(255,255,255,.56);border:1px solid rgba(207,224,237,.95);border-radius:32px;box-shadow:0 30px 85px rgba(30,58,138,.14);backdrop-filter:blur(10px);overflow:hidden;position:relative;z-index:1}
-.login-brand-panel{padding:46px 42px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(145deg,rgba(239,248,255,.92),rgba(235,253,250,.9));border-inline-end:1px solid #dce8f2}
+.login-brand-panel{padding:46px 42px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(145deg,rgba(229,244,255,.96),rgba(226,250,247,.94));border-inline-end:1px solid #dce8f2}
 .login-logos{display:flex;justify-content:center;align-items:center;gap:30px;min-height:198px}
 .login-logo{display:block;object-fit:contain;max-width:44%;filter:drop-shadow(0 8px 18px rgba(31,76,124,.08))}
 .nurseries-logo{height:168px}
 .academy-logo{height:160px}
 .logo-divider{width:1px;height:120px;background:rgba(166,198,218,.58);flex:0 0 auto}
 .brand-copy{text-align:center;margin-top:12px}
-.brand-kicker{display:inline-flex;padding:7px 12px;border-radius:999px;background:#dff8f2;color:#04786f;font-size:12px;font-weight:900;letter-spacing:.03em}
+.brand-kicker{display:inline-flex;padding:6px 10px;border-radius:999px;background:#dff8f2;color:#04786f;font-size:11px;font-weight:900;letter-spacing:.03em}
 .brand-copy h2{margin:16px 0 9px;font-size:25px}
-.brand-copy p{margin:0 auto;max-width:540px;color:#64748b;line-height:1.85;font-size:15px}
+.brand-copy p{margin:0 auto;max-width:540px;color:#5f7088;line-height:1.85;font-size:16px}
 .login-card{width:100%;background:white;padding:48px 42px;display:flex;flex-direction:column;justify-content:center}
 .login-card h1{font-size:28px;margin:18px 0 8px;line-height:1.45}
 .login-card p{color:#64748b;margin:0 0 22px}
@@ -51,3 +51,5 @@ html[dir="ltr"] .floating{right:18px;left:auto}
   .login-card{padding:28px 22px}
   .login-card h1{font-size:23px}
 }
+
+.login-card input::placeholder{color:#9aa9bb;opacity:1}

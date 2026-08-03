@@ -30,7 +30,7 @@ export default function Login({ lang, setLang, onLogin, busy, error }) {
             />
           </div>
           <div className="brand-copy">
-            <span className="brand-kicker">SAAMS v2.2</span>
+            <span className="brand-kicker">SAAMS v2.3</span>
             <h2>{ar ? 'إدارة أكثر ذكاءً ودقة' : 'Smarter, more accurate management'}</h2>
             <p>
               {ar
@@ -55,6 +55,7 @@ export default function Login({ lang, setLang, onLogin, busy, error }) {
             value={form.username}
             onChange={(e) => setForm({ ...form, username: e.target.value })}
             autoComplete="username"
+            placeholder={ar ? 'اسم المستخدم' : 'Username'}
             required
           />
 
@@ -64,6 +65,7 @@ export default function Login({ lang, setLang, onLogin, busy, error }) {
             value={form.password}
             onChange={(e) => setForm({ ...form, password: e.target.value })}
             autoComplete="current-password"
+            placeholder={ar ? 'كلمة المرور' : 'Password'}
             required
           />
 
