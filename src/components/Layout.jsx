@@ -64,7 +64,7 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v2.7</small>
+          <small>SAAMS v3.0</small>
         </div>
 
         <nav className="side-nav">
