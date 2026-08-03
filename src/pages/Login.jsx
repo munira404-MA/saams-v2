@@ -30,12 +30,12 @@ export default function Login({ lang, setLang, onLogin, busy, error }) {
             />
           </div>
           <div className="brand-copy">
-            <span className="brand-kicker">SAAMS v2.4</span>
+            <span className="brand-kicker">SAAMS v2.5</span>
             <h2>{ar ? 'إدارة أكثر ذكاءً ودقة' : 'Smarter, more accurate management'}</h2>
             <p>
               {ar
-                ? 'منصة موحدة لإدارة الأصول والسلف والفواتير الخاصة بحضانات الشارقة.'
-                : 'A unified platform for managing assets, advances, and nursery invoices.'}
+                ? 'منصة موحدة لإدارة الأصول والسلف والفواتير الخاصة بحضانات الشارقة وأكاديمية الشارقة للتعليم.'
+                : 'A unified platform for managing assets, advances, and invoices for Sharjah Nurseries and Sharjah Education Academy.'}
             </p>
           </div>
         </section>

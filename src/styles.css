@@ -11,10 +11,10 @@ button,input,textarea,select{font:inherit}
 .login-layout{width:min(1040px,100%);display:grid;grid-template-columns:minmax(360px,1.1fr) minmax(360px,.9fr);align-items:stretch;background:rgba(255,255,255,.56);border:1px solid rgba(207,224,237,.95);border-radius:32px;box-shadow:0 30px 85px rgba(30,58,138,.14);backdrop-filter:blur(10px);overflow:hidden;position:relative;z-index:1}
 .login-brand-panel{padding:46px 42px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(145deg,rgba(229,244,255,.96),rgba(226,250,247,.94));border-inline-end:1px solid #dce8f2}
 .login-logos{display:flex;justify-content:center;align-items:center;gap:30px;min-height:198px}
-.login-logo{display:block;object-fit:contain;max-width:44%;filter:drop-shadow(0 8px 18px rgba(31,76,124,.08))}
-.nurseries-logo{height:168px}
-.academy-logo{height:160px}
-.logo-divider{width:1px;height:120px;background:rgba(166,198,218,.58);flex:0 0 auto}
+.login-logo{display:block;object-fit:contain;max-width:44%;filter:drop-shadow(0 8px 18px rgba(31,76,124,.08));opacity:0;animation:logoReveal .62s cubic-bezier(.2,.75,.25,1) forwards}
+.nurseries-logo{height:168px;animation-delay:.09s}
+.academy-logo{height:160px;animation-delay:.17s}
+.logo-divider{width:1px;height:120px;background:rgba(166,198,218,.58);flex:0 0 auto;opacity:0;animation:dividerReveal .45s ease .12s forwards}
 .brand-copy{text-align:center;margin-top:12px}
 .brand-kicker{display:inline-flex;padding:6px 10px;border-radius:999px;background:#dff8f2;color:#04786f;font-size:10.5px;font-weight:800;letter-spacing:.035em}
 .brand-copy h2{margin:16px 0 9px;font-size:26px;font-weight:800;letter-spacing:-.01em}
@@ -24,7 +24,7 @@ button,input,textarea,select{font:inherit}
 .login-card p{color:#64748b;margin:0 0 24px;font-size:15px;line-height:1.8}
 .login-card label{display:block;font-weight:700;margin:15px 0 8px;font-size:16px}
 .login-card input{width:100%;min-height:48px;padding:14px 16px;border:1px solid #cbd9e6;border-radius:14px;outline:none;background:#fff;font-weight:500}
-.login-card input:focus{border-color:#3565f2;box-shadow:0 0 0 3px rgba(53,101,242,.1)}
+.login-card input:focus{border-color:#11a7a5;box-shadow:0 0 0 4px rgba(17,167,165,.11)}
 .primary{width:100%;margin-top:22px;border:0;color:white;min-height:51px;padding:14px 18px;border-radius:15px;background:linear-gradient(90deg,#0aa6a6 0%,#2b80da 52%,#405cf5 100%);font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 12px 24px rgba(47,101,222,.2);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
 .primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 15px 28px rgba(47,101,222,.25);filter:saturate(1.05)}.primary:active:not(:disabled){transform:translateY(0)}.primary:disabled{opacity:.62;cursor:not-allowed}
 .pill{display:inline-flex;align-self:flex-start;padding:8px 12px;border-radius:999px;background:#e7fbf7;color:#04786f;font-weight:900}
@@ -54,3 +54,17 @@ html[dir="ltr"] .floating{right:18px;left:auto}
 }
 
 .login-card input::placeholder{color:#9aa9bb;opacity:1;font-weight:400}
+
+
+@keyframes logoReveal{
+  from{opacity:0;transform:scale(.97) translateY(4px)}
+  to{opacity:1;transform:scale(1) translateY(0)}
+}
+@keyframes dividerReveal{
+  from{opacity:0;transform:scaleY(.72)}
+  to{opacity:1;transform:scaleY(1)}
+}
+@media (prefers-reduced-motion:reduce){
+  .login-logo,.logo-divider{animation:none!important;opacity:1!important;transform:none!important}
+  .primary{transition:none!important}
+}
