@@ -1,0 +1,5 @@
+import { useState } from 'react';
+export default function Login({lang,setLang,onLogin,busy,error}){
+ const ar=lang==='ar'; const [f,setF]=useState({username:'',password:''});
+ return <div className="login-page"><button className="lang floating" onClick={()=>setLang(ar?'en':'ar')}>{ar?'English':'العربية'}</button><form className="login-card" onSubmit={e=>{e.preventDefault();onLogin(f)}}><span className="pill">SAAMS v2</span><h1>{ar?'منظومة الأصول والسلف الذكية':'Smart Assets & Advances Management System'}</h1><p>{ar?'تسجيل الدخول باسم المستخدم وكلمة المرور':'Sign in with username and password'}</p><label>{ar?'اسم المستخدم':'Username'}</label><input value={f.username} onChange={e=>setF({...f,username:e.target.value})} required/><label>{ar?'كلمة المرور':'Password'}</label><input type="password" value={f.password} onChange={e=>setF({...f,password:e.target.value})} required/>{error&&<div className="error">{error}</div>}<button className="primary" disabled={busy}>{busy?(ar?'جاري الدخول...':'Signing in...'):(ar?'تسجيل الدخول':'Sign In')}</button></form></div>
+}

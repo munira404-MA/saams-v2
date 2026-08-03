@@ -1,0 +1,1 @@
+export default function Users({lang}){const ar=lang==='ar';return <section className="placeholder"><h2>{ar?'Users - قيد البناء':'Users - Under Construction'}</h2><p>{ar?'سيتم ربط هذه الشاشة في المرحلة التالية.':'This module will be connected in the next phase.'}</p></section>}

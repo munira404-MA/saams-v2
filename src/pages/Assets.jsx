@@ -1,0 +1,1 @@
+export default function Assets({lang}){const ar=lang==='ar';return <section className="placeholder"><h2>{ar?'Assets - قيد البناء':'Assets - Under Construction'}</h2><p>{ar?'سيتم ربط هذه الشاشة في المرحلة التالية.':'This module will be connected in the next phase.'}</p></section>}

@@ -1,0 +1,1 @@
+export default function Invoices({lang}){const ar=lang==='ar';return <section className="placeholder"><h2>{ar?'Invoices - قيد البناء':'Invoices - Under Construction'}</h2><p>{ar?'سيتم ربط هذه الشاشة في المرحلة التالية.':'This module will be connected in the next phase.'}</p></section>}

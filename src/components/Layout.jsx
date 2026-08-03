@@ -1,0 +1,6 @@
+export default function Layout({lang,setLang,profile,onLogout,active,setActive,children}){
+ const ar=lang==='ar';
+ const labels=ar?{dashboard:'لوحة التحكم',invoices:'الفواتير',advances:'السلف',assets:'الأصول',reports:'التقارير',users:'المستخدمون',settings:'الإعدادات',logout:'تسجيل الخروج'}:{dashboard:'Dashboard',invoices:'Invoices',advances:'Advances',assets:'Assets',reports:'Reports',users:'Users',settings:'Settings',logout:'Sign Out'};
+ const items=['dashboard','invoices','advances','assets','reports',...(profile?.role==='super_admin'?['users','settings']:[])];
+ return <div className="app-shell"><aside><div className="brand"><b>{ar?'منظومة الأصول والسلف الذكية':'Smart Assets & Advances Management System'}</b><small>SAAMS v2.0</small></div><nav>{items.map(i=><button key={i} className={active===i?'active':''} onClick={()=>setActive(i)}>{labels[i]}</button>)}</nav><button className="logout" onClick={onLogout}>{labels.logout}</button></aside><main><header><div><span className="pill">SAAMS v2</span><h1>{labels[active]}</h1><p>{ar?'مرحبًا':'Welcome'}, {profile?.full_name||profile?.username}</p></div><button className="lang" onClick={()=>setLang(ar?'en':'ar')}>{ar?'English':'العربية'}</button></header>{children}</main></div>
+}

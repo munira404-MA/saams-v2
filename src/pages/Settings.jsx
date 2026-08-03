@@ -1,0 +1,1 @@
+export default function Settings({lang}){const ar=lang==='ar';return <section className="placeholder"><h2>{ar?'Settings - قيد البناء':'Settings - Under Construction'}</h2><p>{ar?'سيتم ربط هذه الشاشة في المرحلة التالية.':'This module will be connected in the next phase.'}</p></section>}
