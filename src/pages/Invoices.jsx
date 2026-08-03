@@ -116,6 +116,7 @@ const emptyOcr = {
   can_save: false,
   currency: 'AED',
   document_quality: 'clear',
+  missing_fields: [],
   rejection_reasons: [],
   confidence: 0,
 };
@@ -199,10 +200,11 @@ const copy = {
     savePreview: 'حفظ الفاتورة تجريبيًا',
     unknown: 'غير محدد',
     clear: 'واضح',
-    unclear: 'غير واضح',
+    needs_review: 'تحتاج مراجعة',
     rejected: 'مرفوض',
     uploadRejected: 'تم رفض المرفق',
-    blockedSave: 'لا يمكن حفظ الفاتورة. ارفعي صورة واضحة للفاتورة كاملة، واجعلي إيصال البطاقة في صفحة أو ملف منفصل.',
+    reviewNeeded: 'الفاتورة واضحة، لكن بعض البيانات تحتاج مراجعة أو إدخالًا يدويًا.',
+    blockedSave: 'لا يمكن حفظ الفاتورة قبل استكمال الحقول المطلوبة أو إرفاق إيصال البطاقة عند الدفع بالبطاقة.',
   },
   en: {
     title: 'Invoice Management',
@@ -273,7 +275,7 @@ const copy = {
     savePreview: 'Save Invoice in Preview',
     unknown: 'Unknown',
     clear: 'Clear',
-    unclear: 'Unclear',
+    needs_review: 'Needs Review',
     rejected: 'Rejected',
     uploadRejected: 'Attachment Rejected',
     blockedSave: 'This invoice cannot be saved. Upload the full clear invoice and keep the card receipt on a separate page or file.',
@@ -374,7 +376,26 @@ export default function Invoices({ lang }) {
   }
 
   function updateOcr(field, value) {
-    setOcr((current) => ({ ...current, [field]: value }));
+    setOcr((current) => {
+      if (!current) return current;
+      const next = { ...current, [field]: value };
+      const missing = [
+        ['supplier_name', next.supplier_name],
+        ['invoice_number', next.invoice_number],
+        ['invoice_date', next.invoice_date],
+        ['amount_before_vat', next.amount_before_vat],
+        ['vat_amount', next.vat_amount],
+        ['total_amount', next.total_amount],
+        ['trn', next.trn],
+        ['payment_method', next.payment_method === 'unknown' ? '' : next.payment_method],
+      ].filter(([, item]) => item === '' || item === null || item === undefined).map(([name]) => name);
+      const cardReceiptMissing = next.payment_method === 'card' && !next.card_receipt_detected;
+      const visuallyRejected = next.document_quality === 'rejected';
+      next.missing_fields = missing;
+      next.can_save = !visuallyRejected && !cardReceiptMissing && missing.length === 0;
+      if (!visuallyRejected) next.document_quality = next.can_save ? 'clear' : 'needs_review';
+      return next;
+    });
   }
 
   function removeSelectedFile() {
@@ -394,7 +415,7 @@ export default function Invoices({ lang }) {
 
   function savePreviewInvoice() {
     if (!ocr) return;
-    if (!ocr.can_save || ocr.document_quality !== 'clear' || Number(ocr.confidence || 0) < 0.9) {
+    if (!ocr.can_save || ocr.document_quality === 'rejected') {
       setOcrError(t.blockedSave);
       return;
     }
@@ -423,7 +444,7 @@ export default function Invoices({ lang }) {
     <section className="invoice-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.4</span>
+          <span className="eyebrow">SAAMS v3.5</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -601,13 +622,19 @@ export default function Invoices({ lang }) {
                       <span className={`quality-pill ${ocr.document_quality}`}>{t[ocr.document_quality] || ocr.document_quality}</span>
                     </div>
                     <div className="ocr-confidence"><span>{t.confidence}</span><div><i style={{ width: `${Math.round((Number(ocr.confidence) || 0) * 100)}%` }} /></div><b>{Math.round((Number(ocr.confidence) || 0) * 100)}%</b></div>
-                    {!ocr.can_save && (
+                    {ocr.document_quality === 'rejected' && (
                       <div className="ocr-blocked-banner">
                         <strong>✕ {t.uploadRejected}</strong>
                         <span>{t.blockedSave}</span>
                       </div>
                     )}
-                    <div className={`ocr-form-grid ${!ocr.can_save ? 'ocr-form-blocked' : ''}`}>
+                    {ocr.document_quality === 'needs_review' && (
+                      <div className="ocr-review-banner">
+                        <strong>! {t.needs_review}</strong>
+                        <span>{t.reviewNeeded}</span>
+                      </div>
+                    )}
+                    <div className={`ocr-form-grid ${ocr.document_quality === 'rejected' ? 'ocr-form-blocked' : ''}`}>
                       <label><span>{t.supplier}</span><input value={ocr.supplier_name} onChange={(e) => updateOcr('supplier_name', e.target.value)} /></label>
                       <label><span>{t.invoiceNo}</span><input value={ocr.invoice_number} onChange={(e) => updateOcr('invoice_number', e.target.value)} /></label>
                       <label><span>{t.invoiceDate}</span><input value={ocr.invoice_date} onChange={(e) => updateOcr('invoice_date', e.target.value)} /></label>

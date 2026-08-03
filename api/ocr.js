@@ -34,7 +34,7 @@ const schema = {
     important_fields_obscured: { type: 'boolean' },
     can_save: { type: 'boolean' },
     currency: { type: 'string' },
-    document_quality: { type: 'string', enum: ['clear', 'unclear', 'rejected'] },
+    document_quality: { type: 'string', enum: ['clear', 'needs_review', 'rejected'] },
     rejection_reasons: { type: 'array', items: { type: 'string' } },
     confidence: { type: 'number', minimum: 0, maximum: 1 },
   },
@@ -156,9 +156,13 @@ NON-NEGOTIABLE REJECTION RULES:
 2. If two unrelated invoices or two unrelated documents are visible on the same page/image, set multiple_documents_same_page=true, document_quality="rejected", can_save=false.
 3. If the invoice is cropped, cut off, blurred, too faint, skewed so important fields cannot be read, or key fields are obscured, set the relevant flags, document_quality="rejected", can_save=false.
 4. Handwriting alone is not a reason to reject, unless it covers or obscures printed invoice information.
-5. A card receipt may be accepted only when it is a separate clearly visible attachment/page that does not cover the invoice. If payment is by card and no separate receipt is visible, reject and can_save=false.
-6. When rejected, do not confidently infer hidden values. Leave unreadable fields empty/null and list every specific reason in rejection_reasons.
-7. can_save may be true only when document_quality is clear, confidence is at least 0.90, the full invoice is visible, exactly one invoice is present, no receipt/document covers it, and all mandatory fields are readable.
+5. A card receipt may be accepted only when it is a separate clearly visible attachment/page that does not cover the invoice. If card payment is clearly detected but no separate receipt is visible, mark needs_review and can_save=false; do not classify the invoice image itself as rejected.
+6. When rejected, do not confidently infer hidden values. Leave unreadable fields empty/null and list every specific reason in rejection_reasons. When needs_review, extract all readable values and list only the missing or uncertain fields.
+7. Use three outcomes:
+- clear: the invoice image is valid and all important fields are readable.
+- needs_review: the invoice image itself is valid, but one or more fields such as TRN, payment method, VAT, or another value are missing, not printed, handwritten, or uncertain. Do NOT reject solely for missing fields.
+- rejected: only for visual/document problems such as overlap, multiple documents on one page, crop, blur, or important fields being obscured.
+8. can_save=false for rejected documents. For needs_review, can_save may remain false until the user completes the missing fields manually in the interface.
 
 MANDATORY FIELDS:
 - supplier_name
@@ -264,32 +268,51 @@ Return only the requested structured result.`;
       addReason('Card payment detected but a separate card receipt was not found.');
     }
 
-    const mandatoryMissing = [
-      extracted.supplier_name,
-      extracted.invoice_number,
-      extracted.invoice_date,
-      extracted.amount_before_vat,
-      extracted.vat_amount,
-      extracted.total_amount,
-      extracted.trn,
-    ].some((value) => value === '' || value === null || value === undefined);
+    const missingFields = [];
+    const requiredChecks = [
+      ['supplier_name', extracted.supplier_name],
+      ['invoice_number', extracted.invoice_number],
+      ['invoice_date', extracted.invoice_date],
+      ['amount_before_vat', extracted.amount_before_vat],
+      ['vat_amount', extracted.vat_amount],
+      ['total_amount', extracted.total_amount],
+      ['trn', extracted.trn],
+      ['payment_method', extracted.payment_method === 'unknown' ? '' : extracted.payment_method],
+    ];
 
-    if (mandatoryMissing) addReason('One or more mandatory invoice fields are unreadable or missing.');
+    for (const [field, value] of requiredChecks) {
+      if (value === '' || value === null || value === undefined) missingFields.push(field);
+    }
 
-    const hardReject = Boolean(
+    if (missingFields.length) {
+      addReason(`Needs review: missing or uncertain fields: ${missingFields.join(', ')}.`);
+    }
+
+    const visualReject = Boolean(
       extracted.bank_receipt_over_invoice ||
       extracted.multiple_documents_same_page ||
       extracted.invoice_cropped ||
       extracted.important_fields_obscured ||
-      mandatoryMissing ||
-      (extracted.payment_method === 'card' && !extracted.card_receipt_detected) ||
-      Number(extracted.confidence || 0) < 0.9 ||
-      extracted.document_quality !== 'clear'
+      extracted.document_quality === 'rejected'
+    );
+
+    const cardReceiptMissing = Boolean(
+      extracted.payment_method === 'card' && !extracted.card_receipt_detected
+    );
+
+    const needsReview = Boolean(
+      !visualReject && (
+        missingFields.length ||
+        cardReceiptMissing ||
+        Number(extracted.confidence || 0) < 0.9 ||
+        extracted.document_quality === 'needs_review'
+      )
     );
 
     extracted.rejection_reasons = reasons;
-    extracted.document_quality = hardReject ? 'rejected' : 'clear';
-    extracted.can_save = !hardReject;
+    extracted.missing_fields = missingFields;
+    extracted.document_quality = visualReject ? 'rejected' : needsReview ? 'needs_review' : 'clear';
+    extracted.can_save = !visualReject && !cardReceiptMissing && missingFields.length === 0;
 
     return res.status(200).json({
       data: extracted,
