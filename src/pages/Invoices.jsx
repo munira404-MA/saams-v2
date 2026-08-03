@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-const data = [
+const initialData = [
   {
     id: 'INV-2026-134',
     nurseryAr: 'الرحمانية الجديدة',
@@ -99,6 +99,31 @@ const data = [
   },
 ];
 
+const emptyOcr = {
+  supplier_name: '',
+  invoice_number: '',
+  invoice_date: '',
+  amount_before_vat: '',
+  vat_amount: '',
+  total_amount: '',
+  trn: '',
+  payment_method: 'unknown',
+  card_receipt_detected: false,
+  currency: 'AED',
+  document_quality: 'clear',
+  rejection_reasons: [],
+  confidence: 0,
+};
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 const copy = {
   ar: {
     title: 'إدارة الفواتير',
@@ -148,6 +173,22 @@ const copy = {
     reason: 'سبب الإرجاع',
     bankReceipt: 'إيصال البطاقة مرفق',
     preview: 'معاينة المستند',
+    analyze: 'قراءة الفاتورة بالذكاء الاصطناعي',
+    analyzing: 'جاري قراءة الفاتورة...',
+    selectFile: 'اختاري ملفًا أولًا.',
+    fileTooLarge: 'حجم الملف كبير. الحد الحالي 4 ميجابايت.',
+    readFailed: 'تعذر قراءة الفاتورة. راجعي الإعدادات أو جربي ملفًا أوضح.',
+    extracted: 'البيانات المقروءة — راجعيها قبل الحفظ',
+    confidence: 'درجة الثقة',
+    quality: 'جودة المستند',
+    currency: 'العملة',
+    receiptFound: 'تم اكتشاف إيصال البطاقة',
+    receiptMissing: 'لم يتم اكتشاف إيصال البطاقة',
+    savePreview: 'حفظ الفاتورة تجريبيًا',
+    unknown: 'غير محدد',
+    clear: 'واضح',
+    unclear: 'غير واضح',
+    rejected: 'مرفوض',
   },
   en: {
     title: 'Invoice Management',
@@ -197,6 +238,22 @@ const copy = {
     reason: 'Return Reason',
     bankReceipt: 'Card receipt attached',
     preview: 'Document Preview',
+    analyze: 'Read Invoice with AI',
+    analyzing: 'Reading invoice...',
+    selectFile: 'Choose a file first.',
+    fileTooLarge: 'File is too large. Current limit is 4 MB.',
+    readFailed: 'Invoice reading failed. Check setup or try a clearer file.',
+    extracted: 'Extracted Data — Review Before Saving',
+    confidence: 'Confidence',
+    quality: 'Document Quality',
+    currency: 'Currency',
+    receiptFound: 'Card receipt detected',
+    receiptMissing: 'Card receipt not detected',
+    savePreview: 'Save Invoice in Preview',
+    unknown: 'Unknown',
+    clear: 'Clear',
+    unclear: 'Unclear',
+    rejected: 'Rejected',
   },
 };
 
@@ -212,12 +269,19 @@ export default function Invoices({ lang }) {
   const [status, setStatus] = useState('all');
   const [selected, setSelected] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [rows, setRows] = useState(initialData);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [reading, setReading] = useState(false);
+  const [ocrError, setOcrError] = useState('');
+  const [ocr, setOcr] = useState(null);
+  const [uploadNursery, setUploadNursery] = useState('');
+  const [uploadAdvance, setUploadAdvance] = useState('');
 
-  const nurseries = [...new Set(data.map((item) => ar ? item.nurseryAr : item.nurseryEn))];
+  const nurseries = [...new Set(rows.map((item) => ar ? item.nurseryAr : item.nurseryEn))];
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return data.filter((item) => {
+    return rows.filter((item) => {
       const matchesText = !term || [
         item.id,
         item.supplierAr,
@@ -230,21 +294,90 @@ export default function Invoices({ lang }) {
       const matchesStatus = status === 'all' || item.status === status;
       return matchesText && matchesNursery && matchesStatus;
     });
-  }, [search, nursery, status, ar]);
+  }, [search, nursery, status, ar, rows]);
 
   const stats = [
-    { label: t.total, value: data.length, icon: '▤', tone: 'blue' },
-    { label: t.pending, value: data.filter((x) => x.status === 'review').length, icon: '◷', tone: 'orange' },
-    { label: t.approvedCount, value: data.filter((x) => x.status === 'approved').length, icon: '✓', tone: 'green' },
-    { label: t.returnedCount, value: data.filter((x) => x.status === 'returned').length, icon: '↩', tone: 'violet' },
-    { label: t.amount, value: `${data.reduce((sum, x) => sum + x.total, 0).toLocaleString(undefined, {minimumFractionDigits: 2})} AED`, icon: '◉', tone: 'teal' },
+    { label: t.total, value: rows.length, icon: '▤', tone: 'blue' },
+    { label: t.pending, value: rows.filter((x) => x.status === 'review').length, icon: '◷', tone: 'orange' },
+    { label: t.approvedCount, value: rows.filter((x) => x.status === 'approved').length, icon: '✓', tone: 'green' },
+    { label: t.returnedCount, value: rows.filter((x) => x.status === 'returned').length, icon: '↩', tone: 'violet' },
+    { label: t.amount, value: `${rows.reduce((sum, x) => sum + x.total, 0).toLocaleString(undefined, {minimumFractionDigits: 2})} AED`, icon: '◉', tone: 'teal' },
   ];
+
+  async function analyzeInvoice() {
+    setOcrError('');
+    if (!selectedFile) {
+      setOcrError(t.selectFile);
+      return;
+    }
+    if (selectedFile.size > 4 * 1024 * 1024) {
+      setOcrError(t.fileTooLarge);
+      return;
+    }
+
+    setReading(true);
+    try {
+      const fileData = await fileToDataUrl(selectedFile);
+      const response = await fetch('/api/ocr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          filename: selectedFile.name,
+          mimeType: selectedFile.type || 'application/octet-stream',
+          fileData,
+        }),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload?.error || t.readFailed);
+      setOcr({ ...emptyOcr, ...payload.data });
+    } catch (error) {
+      setOcrError(error.message || t.readFailed);
+    } finally {
+      setReading(false);
+    }
+  }
+
+  function updateOcr(field, value) {
+    setOcr((current) => ({ ...current, [field]: value }));
+  }
+
+  function resetUpload() {
+    setShowUpload(false);
+    setSelectedFile(null);
+    setOcr(null);
+    setOcrError('');
+    setUploadNursery('');
+    setUploadAdvance('');
+  }
+
+  function savePreviewInvoice() {
+    if (!ocr) return;
+    const nurseryName = uploadNursery || (ar ? 'غير محددة' : 'Not selected');
+    const next = {
+      id: ocr.invoice_number || `INV-${Date.now().toString().slice(-6)}`,
+      nurseryAr: ar ? nurseryName : 'حضانة مختارة',
+      nurseryEn: ar ? 'Selected Nursery' : nurseryName,
+      advanceAr: uploadAdvance || 'فواتير مرفوعة',
+      advanceEn: uploadAdvance || 'Uploaded Invoices',
+      supplierAr: ocr.supplier_name || 'مورد غير محدد',
+      supplierEn: ocr.supplier_name || 'Unknown Supplier',
+      date: ocr.invoice_date || new Date().toLocaleDateString('en-GB'),
+      total: Number(ocr.total_amount) || 0,
+      vat: Number(ocr.vat_amount) || 0,
+      payment: ocr.payment_method === 'card' ? 'card' : 'cash',
+      status: 'review',
+      pages: 1,
+      trn: ocr.trn || '',
+    };
+    setRows((current) => [next, ...current]);
+    resetUpload();
+  }
 
   return (
     <section className="invoice-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.0</span>
+          <span className="eyebrow">SAAMS v3.1</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -357,24 +490,51 @@ export default function Invoices({ lang }) {
       )}
 
       {showUpload && (
-        <div className="invoice-overlay" onClick={() => setShowUpload(false)}>
-          <div className="upload-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="invoice-overlay" onClick={resetUpload}>
+          <div className="upload-modal ocr-modal" onClick={(e) => e.stopPropagation()}>
             <div className="drawer-header">
-              <div><small>SAAMS</small><h2>{t.uploadTitle}</h2></div>
-              <button type="button" onClick={() => setShowUpload(false)}>×</button>
+              <div><small>SAAMS AI OCR</small><h2>{t.uploadTitle}</h2></div>
+              <button type="button" onClick={resetUpload}>×</button>
             </div>
             <div className="upload-form-grid">
-              <label><span>{t.chooseNursery}</span><select><option>{t.nursery}</option>{nurseries.map((name) => <option key={name}>{name}</option>)}</select></label>
-              <label><span>{t.chooseAdvance}</span><select><option>{t.advance}</option></select></label>
+              <label><span>{t.chooseNursery}</span><select value={uploadNursery} onChange={(e) => setUploadNursery(e.target.value)}><option value="">{t.nursery}</option>{nurseries.map((name) => <option key={name}>{name}</option>)}</select></label>
+              <label><span>{t.chooseAdvance}</span><select value={uploadAdvance} onChange={(e) => setUploadAdvance(e.target.value)}><option value="">{t.advance}</option><option>{ar ? 'فواتير أغسطس 2026' : 'August 2026 Invoices'}</option><option>{ar ? 'سلفة نشاط التخرج 2026' : 'Graduation Advance 2026'}</option></select></label>
             </div>
-            <label className="drop-zone">
-              <input type="file" accept=".pdf,image/*" />
-              <span className="drop-icon">⇧</span>
-              <strong>{t.drag}</strong>
-              <small>PDF, JPG, PNG — Max 20 MB</small>
+            <label className={`drop-zone ${selectedFile ? 'has-file' : ''}`}>
+              <input type="file" accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setOcr(null); setOcrError(''); }} />
+              <span className="drop-icon">{selectedFile ? '✓' : '⇧'}</span>
+              <strong>{selectedFile ? selectedFile.name : t.drag}</strong>
+              <small>{selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : 'PDF, JPG, PNG, WEBP — Max 4 MB'}</small>
               <b>{t.browse}</b>
             </label>
-            <button className="primary-action upload-save" type="button">✓ {t.save}</button>
+            {ocrError && <div className="ocr-error">! {ocrError}</div>}
+            {!ocr && <button className="primary-action upload-save" type="button" disabled={reading} onClick={analyzeInvoice}>{reading ? `◌ ${t.analyzing}` : `✦ ${t.analyze}`}</button>}
+
+            {ocr && (
+              <div className="ocr-results">
+                <div className="ocr-results-head">
+                  <div><small>AI OCR</small><h3>{t.extracted}</h3></div>
+                  <span className={`quality-pill ${ocr.document_quality}`}>{t[ocr.document_quality] || ocr.document_quality}</span>
+                </div>
+                <div className="ocr-confidence"><span>{t.confidence}</span><div><i style={{ width: `${Math.round((Number(ocr.confidence) || 0) * 100)}%` }} /></div><b>{Math.round((Number(ocr.confidence) || 0) * 100)}%</b></div>
+                <div className="ocr-form-grid">
+                  <label><span>{t.supplier}</span><input value={ocr.supplier_name} onChange={(e) => updateOcr('supplier_name', e.target.value)} /></label>
+                  <label><span>{t.invoiceNo}</span><input value={ocr.invoice_number} onChange={(e) => updateOcr('invoice_number', e.target.value)} /></label>
+                  <label><span>{t.invoiceDate}</span><input value={ocr.invoice_date} onChange={(e) => updateOcr('invoice_date', e.target.value)} /></label>
+                  <label><span>{t.trn}</span><input value={ocr.trn} onChange={(e) => updateOcr('trn', e.target.value)} /></label>
+                  <label><span>{t.beforeVat}</span><input type="number" step="0.01" value={ocr.amount_before_vat} onChange={(e) => updateOcr('amount_before_vat', e.target.value)} /></label>
+                  <label><span>{t.vat}</span><input type="number" step="0.01" value={ocr.vat_amount} onChange={(e) => updateOcr('vat_amount', e.target.value)} /></label>
+                  <label><span>{t.totalAmount}</span><input type="number" step="0.01" value={ocr.total_amount} onChange={(e) => updateOcr('total_amount', e.target.value)} /></label>
+                  <label><span>{t.payment}</span><select value={ocr.payment_method} onChange={(e) => updateOcr('payment_method', e.target.value)}><option value="unknown">{t.unknown}</option><option value="card">{t.card}</option><option value="cash">{t.cash}</option></select></label>
+                </div>
+                <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? t.receiptFound : t.receiptMissing}</div>
+                {!!ocr.rejection_reasons?.length && <div className="ocr-reasons">{ocr.rejection_reasons.map((reason) => <span key={reason}>! {reason}</span>)}</div>}
+                <div className="ocr-actions">
+                  <button className="secondary-action" type="button" onClick={analyzeInvoice}>↻ {t.analyze}</button>
+                  <button className="primary-action" type="button" onClick={savePreviewInvoice}>✓ {t.savePreview}</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

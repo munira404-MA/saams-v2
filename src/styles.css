@@ -393,3 +393,19 @@ html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:mi
 @media(max-width:1200px){.invoice-stats{grid-template-columns:repeat(3,1fr)}.invoice-toolbar{grid-template-columns:1fr 1fr}}
 @media(max-width:720px){.module-heading{align-items:flex-start;flex-direction:column}.module-actions{width:100%}.module-actions button{flex:1}.invoice-stats{grid-template-columns:1fr 1fr}.invoice-toolbar{grid-template-columns:1fr}.upload-form-grid{grid-template-columns:1fr}}
 @media(max-width:460px){.invoice-stats{grid-template-columns:1fr}.invoice-detail-grid{grid-template-columns:1fr}.detail-wide{grid-column:auto}}
+
+
+/* SAAMS v3.1 AI OCR */
+.ocr-modal{max-height:92vh;overflow:auto}
+.drop-zone.has-file{border-color:#71cfc5;background:#f1fcfa}
+.upload-save:disabled{opacity:.65;cursor:wait}
+.ocr-error{margin:10px 0;padding:11px 13px;border-radius:12px;background:#fff0f1;border:1px solid #ffd8dc;color:#d64252;font-size:11px;font-weight:700}
+.ocr-results{margin-top:15px;padding-top:15px;border-top:1px solid #dce8ef}
+.ocr-results-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.ocr-results-head small{color:#079b95;font-weight:900}.ocr-results-head h3{margin:3px 0 0;font-size:16px}
+.quality-pill{padding:6px 10px;border-radius:999px;font-size:9px;font-weight:900}.quality-pill.clear{background:#e5f8ec;color:#168b50}.quality-pill.unclear{background:#fff1e3;color:#c46a13}.quality-pill.rejected{background:#ffecef;color:#d44151}
+.ocr-confidence{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:9px;margin-bottom:12px;font-size:10px;color:#657b90}.ocr-confidence>div{height:7px;border-radius:999px;background:#e8eff4;overflow:hidden}.ocr-confidence i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#0aa6a6,#3f5df5)}
+.ocr-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.ocr-form-grid label span{display:block;font-size:10px;font-weight:800;color:#435b72;margin-bottom:5px}.ocr-form-grid input,.ocr-form-grid select{width:100%;height:42px;border:1px solid #d3e1eb;border-radius:12px;background:#fff;padding:0 11px;outline:0}.ocr-form-grid input:focus,.ocr-form-grid select:focus{border-color:#11a7a5;box-shadow:0 0 0 3px rgba(17,167,165,.1)}
+.receipt-warning{background:#fff2e5!important;color:#c86a17!important}.ocr-reasons{display:grid;gap:6px;margin-top:9px}.ocr-reasons span{padding:8px 10px;border-radius:10px;background:#fff0f1;color:#d44151;font-size:10px;font-weight:700}
+.ocr-actions{display:grid;grid-template-columns:.8fr 1.2fr;gap:9px;margin-top:13px}
+@media(max-width:620px){.ocr-form-grid{grid-template-columns:1fr}.ocr-actions{grid-template-columns:1fr}}
