@@ -179,6 +179,10 @@ const copy = {
     reason: 'سبب الإرجاع',
     bankReceipt: 'إيصال البطاقة مرفق',
     preview: 'معاينة المستند',
+    viewOriginal: 'عرض الفاتورة الأصلية',
+    originalInvoice: 'الفاتورة الأصلية',
+    noOriginalAttachment: 'لا يوجد مرفق أصلي لهذه الفاتورة التجريبية.',
+    openOriginal: 'فتح الفاتورة بالحجم الكامل',
     attachmentPreview: 'المرفق المختار',
     noAttachment: 'لم يتم اختيار مرفق بعد',
     removeAttachment: 'حذف المرفق',
@@ -261,6 +265,10 @@ const copy = {
     reason: 'Return Reason',
     bankReceipt: 'Card receipt attached',
     preview: 'Document Preview',
+    viewOriginal: 'View Original Invoice',
+    originalInvoice: 'Original Invoice',
+    noOriginalAttachment: 'No original attachment is available for this sample invoice.',
+    openOriginal: 'Open Full-Size Invoice',
     attachmentPreview: 'Selected Attachment',
     noAttachment: 'No attachment selected yet',
     removeAttachment: 'Remove Attachment',
@@ -465,13 +473,15 @@ export default function Invoices({ lang }) {
     setReceiptFile(null);
   }
 
-  function savePreviewInvoice() {
+  async function savePreviewInvoice() {
     if (!ocr) return;
     if (!ocr.can_save || ocr.document_quality === 'rejected') {
       setOcrError(t.blockedSave);
       return;
     }
     const nurseryName = uploadNursery || (ar ? 'غير محددة' : 'Not selected');
+    const attachmentDataUrl = selectedFile ? await fileToDataUrl(selectedFile) : '';
+    const receiptDataUrl = receiptFile ? await fileToDataUrl(receiptFile) : '';
     const next = {
       id: ocr.invoice_number || `INV-${Date.now().toString().slice(-6)}`,
       nurseryAr: ar ? nurseryName : 'حضانة مختارة',
@@ -487,6 +497,12 @@ export default function Invoices({ lang }) {
       status: 'review',
       pages: 1,
       trn: ocr.trn || '',
+      attachmentDataUrl,
+      attachmentName: selectedFile?.name || '',
+      attachmentType: selectedFile?.type || '',
+      receiptDataUrl,
+      receiptName: receiptFile?.name || '',
+      receiptType: receiptFile?.type || '',
     };
     setRows((current) => [next, ...current]);
     resetUpload();
@@ -496,7 +512,7 @@ export default function Invoices({ lang }) {
     <section className="invoice-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.6</span>
+          <span className="eyebrow">SAAMS v3.7</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -584,10 +600,26 @@ export default function Invoices({ lang }) {
               <div><small>{t.details}</small><h2>{selected.id}</h2></div>
               <button type="button" onClick={() => setSelected(null)}>×</button>
             </div>
-            <div className="document-preview">
-              <span>PDF</span>
-              <strong>{t.preview}</strong>
-              <small>{selected.pages} {t.pages}</small>
+            <div className={`saved-attachment-viewer ${selected.attachmentDataUrl ? 'has-file' : 'no-file'}`}>
+              <div className="saved-attachment-head">
+                <div><small>{t.originalInvoice}</small><strong>{selected.attachmentName || selected.id}</strong></div>
+                {selected.attachmentDataUrl && (
+                  <a href={selected.attachmentDataUrl} target="_blank" rel="noreferrer">↗ {t.openOriginal}</a>
+                )}
+              </div>
+              {selected.attachmentDataUrl ? (
+                selected.attachmentType === 'application/pdf' ? (
+                  <iframe src={`${selected.attachmentDataUrl}#toolbar=1&navpanes=0&view=FitH`} title={selected.attachmentName || selected.id} />
+                ) : (
+                  <img src={selected.attachmentDataUrl} alt={selected.attachmentName || selected.id} />
+                )
+              ) : (
+                <div className="saved-attachment-empty">
+                  <span>PDF</span>
+                  <strong>{t.preview}</strong>
+                  <small>{t.noOriginalAttachment}</small>
+                </div>
+              )}
             </div>
             <div className="invoice-detail-grid">
               <div><small>{t.supplier}</small><strong>{ar ? selected.supplierAr : selected.supplierEn}</strong></div>
@@ -599,7 +631,14 @@ export default function Invoices({ lang }) {
               <div className="detail-wide"><small>{t.totalAmount}</small><strong className="detail-total">{selected.total.toFixed(2)} AED</strong></div>
               <div className="detail-wide"><small>{t.trn}</small><strong>{selected.trn}</strong></div>
             </div>
-            {selected.payment === 'card' && <div className="receipt-check">✓ {t.bankReceipt}</div>}
+            {selected.payment === 'card' && (
+              <>
+                <div className="receipt-check">✓ {t.bankReceipt}</div>
+                {selected.receiptDataUrl && (
+                  <a className="saved-receipt-link" href={selected.receiptDataUrl} target="_blank" rel="noreferrer">↗ {ar ? 'عرض إيصال البطاقة' : 'View Card Receipt'}</a>
+                )}
+              </>
+            )}
             <div className="drawer-actions">
               <button className="return-button" type="button">↩ {t.return}</button>
               <button className="primary-action" type="button">✓ {t.approve}</button>
