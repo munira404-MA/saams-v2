@@ -176,7 +176,7 @@ const copy = {
     analyze: 'قراءة الفاتورة بالذكاء الاصطناعي',
     analyzing: 'جاري قراءة الفاتورة...',
     selectFile: 'اختاري ملفًا أولًا.',
-    fileTooLarge: 'حجم الملف كبير. الحد الحالي 4 ميجابايت.',
+    fileTooLarge: 'حجم الملف كبير. الحد الحالي 3 ميجابايت.',
     readFailed: 'تعذر قراءة الفاتورة. راجعي الإعدادات أو جربي ملفًا أوضح.',
     extracted: 'البيانات المقروءة — راجعيها قبل الحفظ',
     confidence: 'درجة الثقة',
@@ -241,7 +241,7 @@ const copy = {
     analyze: 'Read Invoice with AI',
     analyzing: 'Reading invoice...',
     selectFile: 'Choose a file first.',
-    fileTooLarge: 'File is too large. Current limit is 4 MB.',
+    fileTooLarge: 'File is too large. Current limit is 3 MB.',
     readFailed: 'Invoice reading failed. Check setup or try a clearer file.',
     extracted: 'Extracted Data — Review Before Saving',
     confidence: 'Confidence',
@@ -276,6 +276,7 @@ export default function Invoices({ lang }) {
   const [ocr, setOcr] = useState(null);
   const [uploadNursery, setUploadNursery] = useState('');
   const [uploadAdvance, setUploadAdvance] = useState('');
+  const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
   const nurseries = [...new Set(rows.map((item) => ar ? item.nurseryAr : item.nurseryEn))];
 
@@ -310,7 +311,7 @@ export default function Invoices({ lang }) {
       setOcrError(t.selectFile);
       return;
     }
-    if (selectedFile.size > 4 * 1024 * 1024) {
+    if (selectedFile.size > MAX_UPLOAD_BYTES) {
       setOcrError(t.fileTooLarge);
       return;
     }
@@ -330,6 +331,7 @@ export default function Invoices({ lang }) {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || t.readFailed);
       setOcr({ ...emptyOcr, ...payload.data });
+      console.info('SAAMS OCR request completed:', payload.requestId || '');
     } catch (error) {
       setOcrError(error.message || t.readFailed);
     } finally {
@@ -377,7 +379,7 @@ export default function Invoices({ lang }) {
     <section className="invoice-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.1</span>
+          <span className="eyebrow">SAAMS v3.2</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -504,7 +506,7 @@ export default function Invoices({ lang }) {
               <input type="file" accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setOcr(null); setOcrError(''); }} />
               <span className="drop-icon">{selectedFile ? '✓' : '⇧'}</span>
               <strong>{selectedFile ? selectedFile.name : t.drag}</strong>
-              <small>{selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : 'PDF, JPG, PNG, WEBP — Max 4 MB'}</small>
+              <small>{selectedFile ? `${(selectedFile.size / 1024 / 1024).toFixed(2)} MB` : 'PDF, JPG, PNG, WEBP — Max 3 MB'}</small>
               <b>{t.browse}</b>
             </label>
             {ocrError && <div className="ocr-error">! {ocrError}</div>}
