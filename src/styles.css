@@ -1,8 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800;900&display=swap');
 
-:root{font-family:Arial,Tahoma,sans-serif;color:#0f172a;background:#f5f9fc}
+:root{font-family:'Tajawal',Arial,Tahoma,sans-serif;color:#0f172a;background:#f5f9fc}
 *{box-sizing:border-box}
 body{margin:0}
-button,input{font:inherit}
+button,input,textarea,select{font:inherit}
 .login-page{min-height:100vh;display:grid;place-items:center;background:linear-gradient(135deg,#eef7ff,#f7fffe);padding:36px 24px;position:relative;overflow:hidden}
 .login-page::before,.login-page::after{content:"";position:fixed;border-radius:999px;filter:blur(4px);opacity:.32;pointer-events:none}
 .login-page::before{width:340px;height:340px;background:#bfe8ff;top:-120px;left:-100px}
@@ -15,19 +16,19 @@ button,input{font:inherit}
 .academy-logo{height:160px}
 .logo-divider{width:1px;height:120px;background:rgba(166,198,218,.58);flex:0 0 auto}
 .brand-copy{text-align:center;margin-top:12px}
-.brand-kicker{display:inline-flex;padding:6px 10px;border-radius:999px;background:#dff8f2;color:#04786f;font-size:11px;font-weight:900;letter-spacing:.03em}
-.brand-copy h2{margin:16px 0 9px;font-size:25px}
+.brand-kicker{display:inline-flex;padding:6px 10px;border-radius:999px;background:#dff8f2;color:#04786f;font-size:10.5px;font-weight:800;letter-spacing:.035em}
+.brand-copy h2{margin:16px 0 9px;font-size:26px;font-weight:800;letter-spacing:-.01em}
 .brand-copy p{margin:0 auto;max-width:540px;color:#5f7088;line-height:1.85;font-size:16px}
 .login-card{width:100%;background:white;padding:48px 42px;display:flex;flex-direction:column;justify-content:center}
-.login-card h1{font-size:28px;margin:18px 0 8px;line-height:1.45}
-.login-card p{color:#64748b;margin:0 0 22px}
-.login-card label{display:block;font-weight:800;margin:14px 0 7px}
-.login-card input{width:100%;padding:13px 15px;border:1px solid #cbd9e6;border-radius:13px;outline:none;background:#fff}
+.login-card h1{font-size:31px;margin:18px 0 9px;line-height:1.45;font-weight:800;letter-spacing:-.015em}
+.login-card p{color:#64748b;margin:0 0 24px;font-size:15px;line-height:1.8}
+.login-card label{display:block;font-weight:700;margin:15px 0 8px;font-size:16px}
+.login-card input{width:100%;min-height:48px;padding:14px 16px;border:1px solid #cbd9e6;border-radius:14px;outline:none;background:#fff;font-weight:500}
 .login-card input:focus{border-color:#3565f2;box-shadow:0 0 0 3px rgba(53,101,242,.1)}
-.primary{width:100%;margin-top:20px;border:0;color:white;padding:14px;border-radius:14px;background:linear-gradient(90deg,#0ea5a8,#405cf5);font-weight:900;cursor:pointer}
-.primary:disabled{opacity:.62;cursor:not-allowed}
+.primary{width:100%;margin-top:22px;border:0;color:white;min-height:51px;padding:14px 18px;border-radius:15px;background:linear-gradient(90deg,#0aa6a6 0%,#2b80da 52%,#405cf5 100%);font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 12px 24px rgba(47,101,222,.2);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+.primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 15px 28px rgba(47,101,222,.25);filter:saturate(1.05)}.primary:active:not(:disabled){transform:translateY(0)}.primary:disabled{opacity:.62;cursor:not-allowed}
 .pill{display:inline-flex;align-self:flex-start;padding:8px 12px;border-radius:999px;background:#e7fbf7;color:#04786f;font-weight:900}
-.lang{border:1px solid #d7e4ef;background:white;border-radius:12px;padding:8px 13px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(30,58,138,.08)}
+.lang{border:1px solid #d7e4ef;background:white;border-radius:12px;padding:8px 13px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(30,58,138,.08)}
 .floating{position:fixed;top:18px;right:18px;z-index:5}
 html[dir="ltr"] .floating{right:18px;left:auto}
 .error{margin-top:14px;padding:12px;background:#fff1f2;color:#be123c;border-radius:12px;border:1px solid #fecdd3}
@@ -52,4 +53,4 @@ html[dir="ltr"] .floating{right:18px;left:auto}
   .login-card h1{font-size:23px}
 }
 
-.login-card input::placeholder{color:#9aa9bb;opacity:1}
+.login-card input::placeholder{color:#9aa9bb;opacity:1;font-weight:400}
