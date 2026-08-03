@@ -30,7 +30,7 @@ export default function Login({ lang, setLang, onLogin, busy, error }) {
             />
           </div>
           <div className="brand-copy">
-            <span className="brand-kicker">SAAMS v2.1</span>
+            <span className="brand-kicker">SAAMS v2.2</span>
             <h2>{ar ? 'إدارة أكثر ذكاءً ودقة' : 'Smarter, more accurate management'}</h2>
             <p>
               {ar
@@ -47,7 +47,6 @@ export default function Login({ lang, setLang, onLogin, busy, error }) {
             onLogin(form);
           }}
         >
-          <span className="pill">SAAMS v2.1</span>
           <h1>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances Management System'}</h1>
           <p>{ar ? 'تسجيل الدخول باسم المستخدم وكلمة المرور' : 'Sign in with username and password'}</p>
 
