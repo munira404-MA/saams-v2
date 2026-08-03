@@ -25,7 +25,7 @@ button,input,textarea,select{font:inherit}
 .login-card label{display:block;font-weight:700;margin:15px 0 8px;font-size:16px}
 .login-card input{width:100%;min-height:48px;padding:14px 16px;border:1px solid #cbd9e6;border-radius:14px;outline:none;background:#fff;font-weight:500}
 .login-card input:focus{border-color:#11a7a5;box-shadow:0 0 0 4px rgba(17,167,165,.11)}
-.primary{width:100%;margin-top:22px;border:0;color:white;min-height:51px;padding:14px 18px;border-radius:15px;background:linear-gradient(90deg,#0aa6a6 0%,#2b80da 52%,#405cf5 100%);font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 12px 24px rgba(47,101,222,.2);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease}
+.primary{width:100%;margin-top:22px;border:0;color:white;min-height:51px;padding:14px 18px;border-radius:15px;background:linear-gradient(90deg,#0aa6a6 0%,#2b80da 52%,#405cf5 100%);font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 12px 24px rgba(47,101,222,.2);transition:transform .18s ease,box-shadow .18s ease,filter .18s ease;position:relative;overflow:hidden}
 .primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 15px 28px rgba(47,101,222,.25);filter:saturate(1.05)}.primary:active:not(:disabled){transform:translateY(0)}.primary:disabled{opacity:.62;cursor:not-allowed}
 .pill{display:inline-flex;align-self:flex-start;padding:8px 12px;border-radius:999px;background:#e7fbf7;color:#04786f;font-weight:900}
 .lang{border:1px solid #d7e4ef;background:white;border-radius:12px;padding:8px 13px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(30,58,138,.08)}
@@ -65,6 +65,62 @@ html[dir="ltr"] .floating{right:18px;left:auto}
   to{opacity:1;transform:scaleY(1)}
 }
 @media (prefers-reduced-motion:reduce){
-  .login-logo,.logo-divider{animation:none!important;opacity:1!important;transform:none!important}
+  .login-logo,.logo-divider,.login-layout,.brand-copy,.login-card h1,.login-card p,.login-card form{animation:none!important;opacity:1!important;transform:none!important}
   .primary{transition:none!important}
+}
+
+.primary::after{
+  content:"";
+  position:absolute;
+  top:-35%;
+  left:-34%;
+  width:24%;
+  height:170%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.32),transparent);
+  transform:skewX(-18deg);
+  transition:left .55s ease;
+}
+.primary:hover:not(:disabled)::after{left:112%}
+
+.login-card input:hover{border-color:#a9c7d8}
+.login-card input:-webkit-autofill,
+.login-card input:-webkit-autofill:hover,
+.login-card input:-webkit-autofill:focus{
+  -webkit-text-fill-color:#0f172a;
+  -webkit-box-shadow:0 0 0 1000px #fff inset;
+  transition:background-color 9999s ease-in-out 0s;
+}
+
+.login-page::before,
+.login-page::after{
+  content:"";
+  position:fixed;
+  border-radius:999px;
+  pointer-events:none;
+  filter:blur(2px);
+  opacity:.52;
+}
+.login-page::before{
+  width:260px;height:260px;
+  top:-110px;left:-90px;
+  background:radial-gradient(circle at 35% 35%,rgba(102,190,230,.24),rgba(102,190,230,0) 70%);
+}
+.login-page::after{
+  width:300px;height:300px;
+  right:-130px;bottom:-130px;
+  background:radial-gradient(circle at 40% 40%,rgba(75,213,184,.18),rgba(75,213,184,0) 72%);
+}
+
+.brand-copy{opacity:0;animation:copyReveal .56s ease .28s forwards}
+.login-card h1,.login-card p,.login-card form{opacity:0;animation:copyReveal .52s ease forwards}
+.login-card h1{animation-delay:.16s}
+.login-card p{animation-delay:.23s}
+.login-card form{animation-delay:.30s}
+
+@keyframes cardReveal{
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+@keyframes copyReveal{
+  from{opacity:0;transform:translateY(7px)}
+  to{opacity:1;transform:translateY(0)}
 }
