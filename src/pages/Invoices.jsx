@@ -177,6 +177,12 @@ const copy = {
     uploadTitle: 'رفع فواتير جديدة',
     batchHint: 'يمكنك اختيار عدة فواتير دفعة واحدة، ثم مراجعتها وحفظها بالترتيب.',
     selectedInvoices: 'الفواتير المختارة',
+    detectedInvoices: 'الفواتير المكتشفة داخل الملف',
+    detectedPages: 'صفحة الفاتورة',
+    linkedReceiptPages: 'صفحات الإيصال المرتبطة',
+    pageTypeInvoice: 'فاتورة',
+    pageTypeReceipt: 'إيصال بطاقة',
+    pageTypeOther: 'صفحة أخرى',
     invoiceOf: 'فاتورة',
     nextInvoice: 'الانتقال للفاتورة التالية',
     chooseNursery: 'اختاري الحضانة',
@@ -271,6 +277,12 @@ const copy = {
     uploadTitle: 'Upload New Invoices',
     batchHint: 'Select multiple invoices at once, then review and save them in order.',
     selectedInvoices: 'Selected Invoices',
+    detectedInvoices: 'Invoices Detected Inside File',
+    detectedPages: 'Invoice Page',
+    linkedReceiptPages: 'Linked Receipt Pages',
+    pageTypeInvoice: 'Invoice',
+    pageTypeReceipt: 'Card Receipt',
+    pageTypeOther: 'Other Page',
     invoiceOf: 'Invoice',
     nextInvoice: 'Move to Next Invoice',
     chooseNursery: 'Choose Nursery',
@@ -351,6 +363,9 @@ export default function Invoices({ lang }) {
   const [reading, setReading] = useState(false);
   const [ocrError, setOcrError] = useState('');
   const [ocr, setOcr] = useState(null);
+  const [detectedInvoices, setDetectedInvoices] = useState([]);
+  const [activeDetectedIndex, setActiveDetectedIndex] = useState(0);
+  const [pageClassification, setPageClassification] = useState([]);
   const [uploadNursery, setUploadNursery] = useState('');
   const [uploadAdvance, setUploadAdvance] = useState('');
   const [manualInvoice, setManualInvoice] = useState(false);
@@ -535,6 +550,29 @@ export default function Invoices({ lang }) {
     setOcrError('');
     setManualInvoice(false);
     setReceiptFile(null);
+    setDetectedInvoices([]);
+    setActiveDetectedIndex(0);
+    setPageClassification([]);
+  }
+
+  function normalizeDetectedInvoice(item) {
+    return {
+      ...emptyOcr,
+      ...item,
+      linked_receipt_pages: Array.isArray(item?.receipt_pages) ? item.receipt_pages : [],
+      invoice_page: Number(item?.invoice_page) || 1,
+      card_receipt_detected: Boolean(item?.card_receipt_detected || item?.receipt_pages?.length),
+    };
+  }
+
+  function chooseDetectedInvoice(index) {
+    const item = detectedInvoices[index];
+    if (!item) return;
+    setActiveDetectedIndex(index);
+    setManualInvoice(false);
+    setReceiptFile(null);
+    setOcr(applyValidation(normalizeDetectedInvoice(item), false, Boolean(item?.receipt_pages?.length)));
+    setOcrError('');
   }
 
   async function analyzeInvoice() {
@@ -562,7 +600,19 @@ export default function Invoices({ lang }) {
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || t.readFailed);
-      setOcr(applyValidation({ ...emptyOcr, ...payload.data }, manualInvoice, Boolean(receiptFile)));
+      const found = Array.isArray(payload?.data?.batch_invoices)
+        ? payload.data.batch_invoices.map(normalizeDetectedInvoice)
+        : [];
+      setPageClassification(Array.isArray(payload?.data?.page_classification) ? payload.data.page_classification : []);
+      if (found.length) {
+        setDetectedInvoices(found);
+        setActiveDetectedIndex(0);
+        setOcr(applyValidation(found[0], manualInvoice, Boolean(found[0]?.linked_receipt_pages?.length || receiptFile)));
+      } else {
+        setDetectedInvoices([]);
+        setActiveDetectedIndex(0);
+        setOcr(applyValidation({ ...emptyOcr, ...payload.data }, manualInvoice, Boolean(receiptFile)));
+      }
       console.info('SAAMS OCR request completed:', payload.requestId || '');
     } catch (error) {
       setOcrError(error.message || t.readFailed);
@@ -585,7 +635,7 @@ export default function Invoices({ lang }) {
     const missing = required
       .filter(([, item]) => item === '' || item === null || item === undefined)
       .map(([name]) => name);
-    const receiptAvailable = Boolean(next.card_receipt_detected || hasSeparateReceipt);
+    const receiptAvailable = Boolean(next.card_receipt_detected || next.linked_receipt_pages?.length || hasSeparateReceipt);
     const cardReceiptMissing = next.payment_method === 'card' && !receiptAvailable;
     const visuallyRejected = next.document_quality === 'rejected';
     return {
@@ -624,6 +674,9 @@ export default function Invoices({ lang }) {
     setOcrError('');
     setManualInvoice(false);
     setReceiptFile(null);
+    setDetectedInvoices([]);
+    setActiveDetectedIndex(0);
+    setPageClassification([]);
   }
 
   function resetUpload() {
@@ -636,6 +689,9 @@ export default function Invoices({ lang }) {
     setUploadAdvance('');
     setManualInvoice(false);
     setReceiptFile(null);
+    setDetectedInvoices([]);
+    setActiveDetectedIndex(0);
+    setPageClassification([]);
   }
 
   async function savePreviewInvoice() {
@@ -646,7 +702,8 @@ export default function Invoices({ lang }) {
     }
     const nurseryName = uploadNursery || (ar ? 'غير محددة' : 'Not selected');
     const attachmentDataUrl = selectedFile ? await fileToDataUrl(selectedFile) : '';
-    const receiptDataUrl = receiptFile ? await fileToDataUrl(receiptFile) : '';
+    const linkedReceiptPages = Array.isArray(ocr.linked_receipt_pages) ? ocr.linked_receipt_pages : [];
+    const receiptDataUrl = receiptFile ? await fileToDataUrl(receiptFile) : (linkedReceiptPages.length ? attachmentDataUrl : '');
     const next = {
       id: ocr.invoice_number || `INV-${Date.now().toString().slice(-6)}`,
       nurseryAr: ar ? nurseryName : 'حضانة مختارة',
@@ -660,20 +717,34 @@ export default function Invoices({ lang }) {
       vat: Number(ocr.vat_amount) || 0,
       payment: ocr.payment_method === 'card' ? 'card' : 'cash',
       status: 'review',
-      pages: 1,
+      pages: Number(ocr.invoice_page) || 1,
+      invoicePage: Number(ocr.invoice_page) || 1,
+      receiptPages: linkedReceiptPages,
       trn: ocr.trn || '',
       attachmentDataUrl,
       attachmentName: selectedFile?.name || '',
       attachmentType: selectedFile?.type || '',
       receiptDataUrl,
-      receiptName: receiptFile?.name || '',
-      receiptType: receiptFile?.type || '',
+      receiptName: receiptFile?.name || (linkedReceiptPages.length ? `${selectedFile?.name || 'batch.pdf'} - pages ${linkedReceiptPages.join(', ')}` : ''),
+      receiptType: receiptFile?.type || (linkedReceiptPages.length ? selectedFile?.type || 'application/pdf' : ''),
     };
     setRows((current) => [next, ...current]);
-    if (selectedFiles.length > 1) {
+    if (detectedInvoices.length > 1) {
+      const remainingDetected = detectedInvoices.filter((_, index) => index !== activeDetectedIndex);
+      setDetectedInvoices(remainingDetected);
+      const nextIndex = Math.min(activeDetectedIndex, remainingDetected.length - 1);
+      setActiveDetectedIndex(nextIndex);
+      setManualInvoice(false);
+      setReceiptFile(null);
+      setOcr(applyValidation(remainingDetected[nextIndex], false, Boolean(remainingDetected[nextIndex]?.linked_receipt_pages?.length)));
+      setOcrError('');
+    } else if (selectedFiles.length > 1) {
       const remaining = selectedFiles.filter((_, index) => index !== activeFileIndex);
       setSelectedFiles(remaining);
       setActiveFileIndex(Math.min(activeFileIndex, Math.max(0, remaining.length - 1)));
+      setDetectedInvoices([]);
+      setActiveDetectedIndex(0);
+      setPageClassification([]);
       setOcr(null);
       setOcrError('');
       setManualInvoice(false);
@@ -943,6 +1014,24 @@ export default function Invoices({ lang }) {
 
                 {ocr && (
                   <div className="ocr-results embedded-results">
+                    {detectedInvoices.length > 1 && (
+                      <div className="detected-invoice-queue">
+                        <div className="detected-queue-head"><strong>{t.detectedInvoices}</strong><span>{activeDetectedIndex + 1} / {detectedInvoices.length}</span></div>
+                        <div className="detected-queue-items">
+                          {detectedInvoices.map((item, index) => (
+                            <button type="button" key={`${item.invoice_page}-${item.invoice_number}-${index}`} className={index === activeDetectedIndex ? 'active' : ''} onClick={() => chooseDetectedInvoice(index)}>
+                              <b>{item.invoice_number || `${t.detectedPages} ${item.invoice_page}`}</b>
+                              <small>{t.detectedPages}: {item.invoice_page}{item.linked_receipt_pages?.length ? ` • ${t.linkedReceiptPages}: ${item.linked_receipt_pages.join(', ')}` : ''}</small>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {!!pageClassification.length && (
+                      <div className="page-classification-strip">
+                        {pageClassification.map((page) => <span key={page.page_number} className={page.document_type}>ص{page.page_number}: {page.document_type === 'invoice' ? t.pageTypeInvoice : page.document_type === 'card_receipt' ? t.pageTypeReceipt : t.pageTypeOther}</span>)}
+                      </div>
+                    )}
                     <div className="ocr-results-head">
                       <div><small>AI OCR</small><h3>{t.extracted}</h3></div>
                       <span className={`quality-pill ${ocr.document_quality}`}>{t[ocr.document_quality] || ocr.document_quality}</span>
@@ -991,7 +1080,7 @@ export default function Invoices({ lang }) {
                         )}
                       </div>
                     )}
-                    <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? (receiptFile ? t.receiptAttached : t.receiptFound) : t.receiptMissing}</div>
+                    <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? (ocr.linked_receipt_pages?.length ? `${t.receiptAttached} (${t.linkedReceiptPages}: ${ocr.linked_receipt_pages.join(', ')})` : (receiptFile ? t.receiptAttached : t.receiptFound)) : t.receiptMissing}</div>
                     {!!ocr.rejection_reasons?.length && <div className="ocr-reasons">{ocr.rejection_reasons.map((reason) => <span key={reason}>! {reason}</span>)}</div>}
                     {ocrError && <div className="ocr-error">! {ocrError}</div>}
                     <div className="ocr-actions">

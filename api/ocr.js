@@ -12,16 +12,40 @@ const ALLOWED_MIME_TYPES = new Set([
   'image/webp',
 ]);
 
+const invoiceItemSchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    invoice_page: { type: 'integer', minimum: 1 },
+    receipt_pages: { type: 'array', items: { type: 'integer', minimum: 1 } },
+    supplier_name: { type: 'string' },
+    invoice_number: { type: 'string' },
+    invoice_date: { type: 'string' },
+    amount_before_vat: { type: ['number', 'null'] },
+    vat_amount: { type: ['number', 'null'] },
+    total_amount: { type: ['number', 'null'] },
+    trn: { type: 'string' },
+    payment_method: { type: 'string', enum: ['card', 'cash', 'unknown'] },
+    card_receipt_detected: { type: 'boolean' },
+    currency: { type: 'string' },
+    document_quality: { type: 'string', enum: ['clear', 'needs_review', 'rejected'] },
+    rejection_reasons: { type: 'array', items: { type: 'string' } },
+    confidence: { type: 'number', minimum: 0, maximum: 1 },
+  },
+  required: [
+    'invoice_page','receipt_pages','supplier_name','invoice_number','invoice_date',
+    'amount_before_vat','vat_amount','total_amount','trn','payment_method',
+    'card_receipt_detected','currency','document_quality','rejection_reasons','confidence'
+  ],
+};
+
 const schema = {
   type: 'object',
   additionalProperties: false,
   properties: {
     supplier_name: { type: 'string' },
     invoice_number: { type: 'string' },
-    invoice_date: {
-      type: 'string',
-      description: 'Use DD/MM/YYYY when readable; otherwise return an empty string.',
-    },
+    invoice_date: { type: 'string' },
     amount_before_vat: { type: ['number', 'null'] },
     vat_amount: { type: ['number', 'null'] },
     total_amount: { type: ['number', 'null'] },
@@ -37,26 +61,28 @@ const schema = {
     document_quality: { type: 'string', enum: ['clear', 'needs_review', 'rejected'] },
     rejection_reasons: { type: 'array', items: { type: 'string' } },
     confidence: { type: 'number', minimum: 0, maximum: 1 },
+    page_classification: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          page_number: { type: 'integer', minimum: 1 },
+          document_type: { type: 'string', enum: ['invoice', 'card_receipt', 'other'] },
+          linked_invoice_page: { type: ['integer', 'null'], minimum: 1 },
+          reason: { type: 'string' },
+        },
+        required: ['page_number','document_type','linked_invoice_page','reason'],
+      },
+    },
+    batch_invoices: { type: 'array', items: invoiceItemSchema },
   },
   required: [
-    'supplier_name',
-    'invoice_number',
-    'invoice_date',
-    'amount_before_vat',
-    'vat_amount',
-    'total_amount',
-    'trn',
-    'payment_method',
-    'card_receipt_detected',
-    'bank_receipt_over_invoice',
-    'multiple_documents_same_page',
-    'invoice_cropped',
-    'important_fields_obscured',
-    'can_save',
-    'currency',
-    'document_quality',
-    'rejection_reasons',
-    'confidence',
+    'supplier_name','invoice_number','invoice_date','amount_before_vat','vat_amount',
+    'total_amount','trn','payment_method','card_receipt_detected',
+    'bank_receipt_over_invoice','multiple_documents_same_page','invoice_cropped',
+    'important_fields_obscured','can_save','currency','document_quality',
+    'rejection_reasons','confidence','page_classification','batch_invoices'
   ],
 };
 
@@ -148,44 +174,45 @@ export default async function handler(req, res) {
         detail: 'high',
       };
 
-  const prompt = `You are a strict invoice validation and extraction engine for UAE nursery petty-cash invoices.
-FIRST inspect the entire page for document-validity problems. Only after validation may you extract invoice data.
+  const prompt = `You are a UAE nursery invoice document-separation, validation, pairing, and extraction engine.
 
-NON-NEGOTIABLE REJECTION RULES:
-1. If a bank/POS/card receipt, cover sheet, paper, hand, sticker, or any other document is placed on top of, overlaps, covers, or hides any part of the invoice, set bank_receipt_over_invoice=true, document_quality="rejected", can_save=false. This is true even if some values can still be guessed.
-2. If two unrelated invoices or two unrelated documents are visible on the same page/image, set multiple_documents_same_page=true, document_quality="rejected", can_save=false.
-3. If the invoice is cropped, cut off, blurred, too faint, skewed so important fields cannot be read, or key fields are obscured, set the relevant flags, document_quality="rejected", can_save=false.
-4. Handwriting alone is not a reason to reject, unless it covers or obscures printed invoice information.
-5. A card receipt may be accepted only when it is a separate clearly visible attachment/page that does not cover the invoice. If card payment is clearly detected but no separate receipt is visible, mark needs_review and can_save=false; do not classify the invoice image itself as rejected.
-6. When rejected, do not confidently infer hidden values. Leave unreadable fields empty/null and list every specific reason in rejection_reasons. When needs_review, extract all readable values and list only the missing or uncertain fields.
-7. Use three outcomes:
-- clear: the invoice image is valid and all important fields are readable.
-- needs_review: the invoice image itself is valid, but one or more fields such as TRN, payment method, VAT, or another value are missing, not printed, handwritten, or uncertain. Do NOT reject solely for missing fields.
-- rejected: only for visual/document problems such as overlap, multiple documents on one page, crop, blur, or important fields being obscured.
-8. can_save=false for rejected documents. For needs_review, can_save may remain false until the user completes the missing fields manually in the interface.
+IMPORTANT: A multipage PDF may contain MANY invoices and card/POS receipts mixed together. Treat every PDF page as a separate document first. Do not treat the whole PDF as one invoice.
 
-MANDATORY FIELDS:
-- supplier_name
-- invoice_number
-- invoice_date
-- amount_before_vat
-- vat_amount
-- total_amount
-- trn
-- payment_method
+STEP 1 — CLASSIFY EVERY PAGE:
+- invoice: tax invoice, cash invoice, handwritten invoice, supplier invoice.
+- card_receipt: POS/network/NeoPay/Visa/Mastercard/debit/credit terminal receipt.
+- other: cover sheet or unrelated page.
+Return page_classification for every visible page.
 
-EXTRACTION RULES:
-- Copy only values visibly present. Never invent or reconstruct hidden information.
-- invoice_number means the invoice number, not a POS terminal receipt/reference number.
-- invoice_date format DD/MM/YYYY when readable.
-- trn is normally a 15-digit UAE Tax Registration Number.
-- Return numeric amounts only.
-- payment_method is card when invoice/receipt shows Visa, Mastercard, Card, Debit, Credit, POS or terminal evidence; cash only when clearly stated; otherwise unknown.
-- card_receipt_detected=true only for a separate visible bank/POS receipt.
-- confidence is overall confidence from 0 to 1.
+STEP 2 — PAIR RECEIPTS TO INVOICES:
+- A receipt is normally immediately before or after its invoice.
+- Pair using matching or near-matching date, amount, supplier/merchant, card evidence, and handwritten sequence marks.
+- Small amount differences caused by rounding are allowed.
+- A receipt page is a separate valid attachment. It must NOT cause rejection merely because it is in the same multipage PDF.
+- Never merge two different invoices into one record.
+- Cash invoices normally have no receipt.
 
-Be conservative. A readable payment receipt placed over an invoice is still a rejected upload because the invoice underneath is not fully visible.
-Return only the requested structured result.`;
+STEP 3 — CREATE batch_invoices:
+Create one item per invoice page, in original page order. Put linked receipt page numbers in receipt_pages. Extract fields from the invoice page, not from the receipt, except use the receipt only to confirm card payment and attachment presence.
+
+VISUAL REJECTION RULES APPLY PER PAGE, NOT TO THE WHOLE PDF:
+- Reject an invoice page only if another paper/receipt physically overlaps or covers that same page, two unrelated documents are visible on one page, the invoice is cropped/blurred, or important fields are obscured.
+- A separate receipt on another PDF page is correct and must be linked, not rejected.
+- Missing TRN or payment method means needs_review, not rejected.
+
+EXTRACTION:
+- invoice_number must come from the invoice, never POS receipt/reference number.
+- invoice_date DD/MM/YYYY when readable.
+- UAE TRN is normally 15 digits.
+- Numeric amounts only.
+- payment_method=card when linked receipt or clear card evidence exists; cash only when printed; otherwise unknown.
+- card_receipt_detected=true when receipt_pages is not empty.
+- confidence 0..1.
+
+TOP-LEVEL FIELDS:
+For backward compatibility, copy the FIRST invoice in batch_invoices into the top-level invoice fields. If there is no invoice, return empty/null fields and rejected.
+
+Return only the requested structured result.`
 
   try {
     const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
@@ -242,6 +269,27 @@ Return only the requested structured result.`;
         'The OCR result could not be parsed.',
         'INVALID_MODEL_RESPONSE',
       );
+    }
+
+    const batchInvoices = Array.isArray(extracted.batch_invoices) ? extracted.batch_invoices : [];
+    if (batchInvoices.length) {
+      const first = batchInvoices[0];
+      extracted = {
+        ...extracted,
+        supplier_name: first.supplier_name,
+        invoice_number: first.invoice_number,
+        invoice_date: first.invoice_date,
+        amount_before_vat: first.amount_before_vat,
+        vat_amount: first.vat_amount,
+        total_amount: first.total_amount,
+        trn: first.trn,
+        payment_method: first.payment_method,
+        card_receipt_detected: first.card_receipt_detected,
+        currency: first.currency,
+        document_quality: first.document_quality,
+        rejection_reasons: first.rejection_reasons,
+        confidence: first.confidence,
+      };
     }
 
     const reasons = Array.isArray(extracted.rejection_reasons)

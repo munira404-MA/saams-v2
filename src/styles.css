@@ -510,3 +510,9 @@ html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:mi
 .batch-queue-items button small{font-size:8.5px;color:#8a9bab;margin-top:3px}
 .batch-queue-items button.active{border-color:#37b7af;background:#effbf9;box-shadow:0 7px 18px rgba(13,155,148,.10)}
 .batch-queue-items button.active>span{background:#0aa39c;color:#fff}
+
+/* SAAMS v4.1 — multipage PDF document separation */
+.detected-invoice-queue{border:1px solid #cfe1ec;background:#f8fcfe;border-radius:16px;padding:11px;margin-bottom:12px}
+.detected-queue-head{display:flex;align-items:center;justify-content:space-between;color:#24415d;margin-bottom:8px}.detected-queue-head span{font-size:11px;color:#668099}
+.detected-queue-items{display:flex;gap:8px;overflow:auto;padding-bottom:3px}.detected-queue-items button{min-width:175px;text-align:start;border:1px solid #d6e4ed;background:#fff;border-radius:12px;padding:9px 10px;cursor:pointer;color:#36506a}.detected-queue-items button.active{border-color:#3d69ec;background:#edf3ff;box-shadow:0 6px 14px rgba(61,105,236,.12)}.detected-queue-items b{display:block;font-size:11px}.detected-queue-items small{display:block;font-size:9px;color:#7890a6;margin-top:4px;line-height:1.5}
+.page-classification-strip{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}.page-classification-strip span{font-size:9px;font-weight:800;padding:5px 8px;border-radius:999px}.page-classification-strip .invoice{background:#e8f8ee;color:#198952}.page-classification-strip .card_receipt{background:#eaf1ff;color:#3266cf}.page-classification-strip .other{background:#f0f3f6;color:#6c7f90}
