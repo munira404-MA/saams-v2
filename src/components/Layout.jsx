@@ -93,7 +93,7 @@ export default function Layout({
             <div className="avatar">{(profile?.full_name || 'م').trim().charAt(0)}</div>
             <div>
               <strong>{profile?.full_name || (ar ? 'منيرة الأحمد' : 'Munira Alahmed')}</strong>
-              <small>{labels.role}</small>
+              <small>{profile?.role === 'nursery' ? (profile?.nursery || (ar ? 'حساب حضانة' : 'Nursery Account')) : profile?.role === 'admin' ? (ar ? 'موظف إدارة' : 'Administration Employee') : labels.role}</small>
             </div>
           </div>
 

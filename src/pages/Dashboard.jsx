@@ -7,12 +7,10 @@ const translations = {
     filter: 'تصفية حسب',
     today: 'الاثنين، 3 أغسطس 2026',
     totalAssets: 'إجمالي الأصول',
-    assetValue: 'قيمة الأصول',
     openAdvances: 'السلف المفتوحة',
     pendingInvoices: 'الفواتير قيد الاعتماد',
     lateInvoices: 'الفواتير المتأخرة',
     asset: 'أصل',
-    million: 'مليون درهم',
     advance: 'سلفة',
     invoice: 'فاتورة',
     monthChange: 'من الشهر الماضي',
@@ -20,7 +18,7 @@ const translations = {
     awaitingReview: 'بانتظار المراجعة',
     olderWeek: 'أكثر من أسبوع',
     invoiceStatus: 'حالة الفواتير',
-    assetByNursery: 'قيمة الأصول حسب الحضانة',
+    assetByNursery: 'توزيع الأصول حسب الحضانة',
     thisMonth: 'هذا الشهر',
     totalInvoices: 'إجمالي الفواتير: 34',
     approved: 'معتمدة',
@@ -58,12 +56,10 @@ const translations = {
     filter: 'Filter by',
     today: 'Monday, 3 August 2026',
     totalAssets: 'Total Assets',
-    assetValue: 'Asset Value',
     openAdvances: 'Open Advances',
     pendingInvoices: 'Invoices Pending Approval',
     lateInvoices: 'Late Invoices',
     asset: 'Assets',
-    million: 'AED Million',
     advance: 'Advances',
     invoice: 'Invoices',
     monthChange: 'from last month',
@@ -71,7 +67,7 @@ const translations = {
     awaitingReview: 'awaiting review',
     olderWeek: 'older than one week',
     invoiceStatus: 'Invoice Status',
-    assetByNursery: 'Asset Value by Nursery',
+    assetByNursery: 'Assets by Nursery',
     thisMonth: 'This Month',
     totalInvoices: 'Total invoices: 34',
     approved: 'Approved',
@@ -169,7 +165,7 @@ function AssetBars({ ar }) {
     <div className="asset-bars" aria-label="Asset value chart">
       {data.map(([name, height], index) => (
         <div className="bar-item" key={name}>
-          <div className="bar-value">{(2.35 - index * 0.27).toFixed(2)}</div>
+          <div className="bar-value">{[31,27,23,19,16,12][index]}</div>
           <div className="bar-track">
             <span style={{ height: `${height}%`, animationDelay: `${index * 80}ms` }} />
           </div>
@@ -180,14 +176,13 @@ function AssetBars({ ar }) {
   );
 }
 
-export default function Dashboard({ lang }) {
+export default function Dashboard({ lang, setActive }) {
   const ar = lang === 'ar';
   const t = translations[lang] || translations.ar;
 
   const cards = useMemo(
     () => [
       { label: t.totalAssets, value: 156, suffix: t.asset, icon: '◇', tone: 'violet', note: `+12 ${t.newThisMonth}` },
-      { label: t.assetValue, value: 18.45, decimals: 2, suffix: t.million, icon: '◉', tone: 'teal', note: `+3.2% ${t.monthChange}` },
       { label: t.openAdvances, value: 12, suffix: t.advance, icon: '▣', tone: 'blue', note: `+3 ${t.newThisMonth}` },
       { label: t.pendingInvoices, value: 6, suffix: t.invoice, icon: '▤', tone: 'green', note: `4 ${t.awaitingReview}` },
       { label: t.lateInvoices, value: 3, suffix: t.invoice, icon: '◷', tone: 'orange', note: `2 ${t.olderWeek}` },
@@ -277,14 +272,14 @@ export default function Dashboard({ lang }) {
           </div>
           <div className="quick-grid">
             {[
-              ['◇', t.addAsset, 'teal'],
-              ['▤', t.addInvoice, 'green'],
-              ['▣', t.addAdvance, 'blue'],
-              ['⇄', t.transferAsset, 'orange'],
-              ['♙', t.addUser, 'sky'],
-              ['▥', t.report, 'violet'],
-            ].map(([icon, label, tone]) => (
-              <button className={`quick-action ${tone}`} type="button" key={label}>
+              ['◇', t.addAsset, 'teal', 'assets'],
+              ['▤', t.addInvoice, 'green', 'invoices'],
+              ['▣', t.addAdvance, 'blue', 'advances'],
+              ['⇄', t.transferAsset, 'orange', 'assets'],
+              ['♙', t.addUser, 'sky', 'users'],
+              ['▥', t.report, 'violet', 'reports'],
+            ].map(([icon, label, tone, target]) => (
+              <button className={`quick-action ${tone}`} type="button" key={label} onClick={() => setActive(target)}>
                 <span>{icon}</span>
                 <strong>{label}</strong>
               </button>
