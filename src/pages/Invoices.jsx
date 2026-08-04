@@ -174,7 +174,11 @@ const copy = {
     trn: 'الرقم الضريبي',
     pages: 'عدد الصفحات',
     close: 'إغلاق',
-    uploadTitle: 'رفع فاتورة جديدة',
+    uploadTitle: 'رفع فواتير جديدة',
+    batchHint: 'يمكنك اختيار عدة فواتير دفعة واحدة، ثم مراجعتها وحفظها بالترتيب.',
+    selectedInvoices: 'الفواتير المختارة',
+    invoiceOf: 'فاتورة',
+    nextInvoice: 'الانتقال للفاتورة التالية',
     chooseNursery: 'اختاري الحضانة',
     chooseAdvance: 'اختاري السلفة',
     drag: 'اسحبي ملف PDF أو صورة الفاتورة هنا',
@@ -264,7 +268,11 @@ const copy = {
     trn: 'TRN',
     pages: 'Pages',
     close: 'Close',
-    uploadTitle: 'Upload New Invoice',
+    uploadTitle: 'Upload New Invoices',
+    batchHint: 'Select multiple invoices at once, then review and save them in order.',
+    selectedInvoices: 'Selected Invoices',
+    invoiceOf: 'Invoice',
+    nextInvoice: 'Move to Next Invoice',
     chooseNursery: 'Choose Nursery',
     chooseAdvance: 'Choose Advance',
     drag: 'Drag a PDF or invoice image here',
@@ -336,7 +344,9 @@ export default function Invoices({ lang }) {
   const [selected, setSelected] = useState(null);
   const [showUpload, setShowUpload] = useState(false);
   const [rows, setRows] = useState(initialData);
-  const [selectedFile, setSelectedFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [activeFileIndex, setActiveFileIndex] = useState(0);
+  const selectedFile = selectedFiles[activeFileIndex] || null;
   const [selectedFileUrl, setSelectedFileUrl] = useState('');
   const [reading, setReading] = useState(false);
   const [ocrError, setOcrError] = useState('');
@@ -504,6 +514,29 @@ export default function Invoices({ lang }) {
     downloadBlob(blob, `SAAMS_Invoice_Attachments_${new Date().toISOString().slice(0, 10)}.zip`);
   }
 
+  function addSelectedFiles(fileList) {
+    const incoming = Array.from(fileList || []);
+    if (!incoming.length) return;
+    const valid = incoming.filter((file) => file.size <= MAX_UPLOAD_BYTES);
+    const rejectedCount = incoming.length - valid.length;
+    setSelectedFiles((current) => {
+      const existing = new Set(current.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
+      const unique = valid.filter((file) => !existing.has(`${file.name}-${file.size}-${file.lastModified}`));
+      return [...current, ...unique];
+    });
+    if (rejectedCount) setOcrError(t.fileTooLarge);
+    else setOcrError('');
+    setOcr(null);
+  }
+
+  function selectQueuedFile(index) {
+    setActiveFileIndex(index);
+    setOcr(null);
+    setOcrError('');
+    setManualInvoice(false);
+    setReceiptFile(null);
+  }
+
   async function analyzeInvoice() {
     setOcrError('');
     if (!selectedFile) {
@@ -585,14 +618,18 @@ export default function Invoices({ lang }) {
   }
 
   function removeSelectedFile() {
-    setSelectedFile(null);
+    setSelectedFiles((current) => current.filter((_, index) => index !== activeFileIndex));
+    setActiveFileIndex((current) => Math.max(0, current - (current >= selectedFiles.length - 1 ? 1 : 0)));
     setOcr(null);
     setOcrError('');
+    setManualInvoice(false);
+    setReceiptFile(null);
   }
 
   function resetUpload() {
     setShowUpload(false);
-    setSelectedFile(null);
+    setSelectedFiles([]);
+    setActiveFileIndex(0);
     setOcr(null);
     setOcrError('');
     setUploadNursery('');
@@ -633,7 +670,17 @@ export default function Invoices({ lang }) {
       receiptType: receiptFile?.type || '',
     };
     setRows((current) => [next, ...current]);
-    resetUpload();
+    if (selectedFiles.length > 1) {
+      const remaining = selectedFiles.filter((_, index) => index !== activeFileIndex);
+      setSelectedFiles(remaining);
+      setActiveFileIndex(Math.min(activeFileIndex, Math.max(0, remaining.length - 1)));
+      setOcr(null);
+      setOcrError('');
+      setManualInvoice(false);
+      setReceiptFile(null);
+    } else {
+      resetUpload();
+    }
   }
 
   function showActionMessage(message) {
@@ -683,7 +730,7 @@ export default function Invoices({ lang }) {
       {actionMessage && <div className="invoice-action-toast">✓ {actionMessage}</div>}
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.9</span>
+          <span className="eyebrow">SAAMS v4.0</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -827,6 +874,21 @@ export default function Invoices({ lang }) {
               <div><small>SAAMS AI OCR</small><h2>{t.uploadTitle}</h2></div>
               <button type="button" onClick={resetUpload}>×</button>
             </div>
+            <p className="batch-upload-hint">{t.batchHint}</p>
+            {selectedFiles.length > 0 && (
+              <div className="batch-file-queue">
+                <div className="batch-queue-title"><strong>{t.selectedInvoices}</strong><span>{activeFileIndex + 1} / {selectedFiles.length}</span></div>
+                <div className="batch-queue-items">
+                  {selectedFiles.map((file, index) => (
+                    <button key={`${file.name}-${file.lastModified}-${index}`} type="button" className={index === activeFileIndex ? 'active' : ''} onClick={() => selectQueuedFile(index)}>
+                      <span>{index + 1}</span>
+                      <b>{file.name}</b>
+                      <small>{(file.size / (1024 * 1024)).toFixed(2)} MB</small>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="upload-form-grid">
               <label><span>{t.chooseNursery}</span><select value={uploadNursery} onChange={(e) => setUploadNursery(e.target.value)}><option value="">{t.nursery}</option>{nurseries.map((name) => <option key={name}>{name}</option>)}</select></label>
               <label><span>{t.chooseAdvance}</span><select value={uploadAdvance} onChange={(e) => setUploadAdvance(e.target.value)}><option value="">{t.advance}</option><option>{ar ? 'فواتير أغسطس 2026' : 'August 2026 Invoices'}</option><option>{ar ? 'سلفة نشاط التخرج 2026' : 'Graduation Advance 2026'}</option></select></label>
@@ -841,7 +903,7 @@ export default function Invoices({ lang }) {
 
                 {!selectedFile && (
                   <label className="drop-zone attachment-drop-zone">
-                    <input type="file" accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => { setSelectedFile(e.target.files?.[0] || null); setOcr(null); setOcrError(''); }} />
+                    <input type="file" multiple accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => addSelectedFiles(e.target.files)} />
                     <span className="drop-icon">⇧</span>
                     <strong>{t.drag}</strong>
                     <small>PDF, JPG, PNG, WEBP — Max 3 MB</small>
