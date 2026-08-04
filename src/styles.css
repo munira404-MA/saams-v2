@@ -478,3 +478,21 @@ html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:mi
 .full-attachment-actions{display:flex;align-items:center;gap:8px}.full-attachment-actions button{min-height:39px;border:1px solid #cfdee8;background:#fff;color:#385773;border-radius:11px;padding:0 13px;font-weight:800;cursor:pointer}.full-attachment-actions .full-attachment-close{width:42px;padding:0;font-size:24px;color:#d64959}
 .full-attachment-content{min-height:0;background:#dce6ec;display:grid;place-items:center;overflow:auto}.full-attachment-content iframe{width:100%;height:100%;border:0;background:#fff}.full-attachment-content img{display:block;max-width:none;width:auto;height:auto;min-width:min(100%,800px);object-fit:contain;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.16)}
 @media(max-width:720px){.module-actions{flex-wrap:wrap}.full-attachment-overlay{padding:5px}.full-attachment-modal{width:100vw;height:100vh;border-radius:0}.full-attachment-modal>header strong{max-width:45vw}.full-attachment-actions button:first-child{font-size:0}.full-attachment-actions button:first-child::before{content:'⇩';font-size:18px}}
+
+/* SAAMS v3.9 — approval and return workflow */
+.invoice-action-toast{
+  position:fixed;top:92px;inset-inline-start:50%;transform:translateX(-50%);z-index:80;
+  min-width:280px;max-width:min(560px,90vw);padding:13px 18px;border-radius:14px;
+  background:#e8faf1;color:#147e49;border:1px solid #c5ead5;box-shadow:0 16px 38px rgba(22,88,63,.16);
+  font-weight:800;text-align:center;animation:actionToastIn .22s ease;
+}
+@keyframes actionToastIn{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}
+.saved-return-reason{margin-top:12px;padding:12px 14px;border-radius:13px;background:#fff5eb;border:1px solid #f2d2b5;color:#9d5617}
+.saved-return-reason small{display:block;margin-bottom:5px;color:#bd7a3b}.saved-return-reason strong{font-size:11px;line-height:1.7}
+.return-invoice-overlay{position:fixed;inset:0;background:rgba(10,27,45,.43);backdrop-filter:blur(6px);z-index:60;display:grid;place-items:center;padding:20px}
+.return-invoice-modal{width:min(580px,95vw);background:#f8fbfd;border:1px solid #d8e5ed;border-radius:23px;padding:22px;box-shadow:0 28px 75px rgba(10,35,60,.25);animation:modalIn .2s ease}
+.return-invoice-modal>p{color:#617991;font-size:12px;line-height:1.7;margin:0 0 11px}
+.return-invoice-modal textarea{width:100%;resize:vertical;min-height:135px;border:1px solid #cadce8;border-radius:15px;background:#fff;padding:13px 14px;color:#243e57;font:inherit;outline:none;box-sizing:border-box}
+.return-invoice-modal textarea:focus{border-color:#e28a3f;box-shadow:0 0 0 3px rgba(226,138,63,.12)}
+.return-modal-actions{display:grid;grid-template-columns:1fr 1.25fr;gap:10px;margin-top:14px}.return-modal-actions .return-button{min-height:44px}
+.drawer-actions .primary-action:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;transform:none}

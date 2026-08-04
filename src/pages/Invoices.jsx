@@ -310,6 +310,16 @@ const copy = {
     chooseReceipt: 'Choose Receipt',
     removeReceipt: 'Remove Receipt',
     receiptAttached: 'Separate card receipt attached',
+    approveConfirm: 'Approve this invoice?',
+    approvedSuccess: 'Invoice approved successfully.',
+    returnTitle: 'Return Invoice to Nursery',
+    returnInstruction: 'Enter a clear reason so the nursery can correct the invoice.',
+    returnPlaceholder: 'Example: Attach the card receipt separately or correct the total amount...',
+    cancel: 'Cancel',
+    confirmReturn: 'Confirm Return',
+    returnReasonRequired: 'Enter a return reason.',
+    returnedSuccess: 'Invoice returned to the nursery.',
+    currentReturnReason: 'Return Reason',
   },
 };
 
@@ -337,6 +347,9 @@ export default function Invoices({ lang }) {
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptFileUrl, setReceiptFileUrl] = useState('');
   const [fullScreenAttachment, setFullScreenAttachment] = useState(null);
+  const [returnTarget, setReturnTarget] = useState(null);
+  const [returnReason, setReturnReason] = useState('');
+  const [actionMessage, setActionMessage] = useState('');
   const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
   useEffect(() => {
@@ -623,11 +636,54 @@ export default function Invoices({ lang }) {
     resetUpload();
   }
 
+  function showActionMessage(message) {
+    setActionMessage(message);
+    window.setTimeout(() => setActionMessage(''), 3200);
+  }
+
+  function approveInvoice(invoice) {
+    if (!invoice) return;
+    if (!window.confirm(t.approveConfirm)) return;
+    const approvedAt = new Date().toISOString();
+    setRows((current) => current.map((item) => item.id === invoice.id
+      ? { ...item, status: 'approved', approvedAt, returnReason: '' }
+      : item));
+    setSelected((current) => current?.id === invoice.id
+      ? { ...current, status: 'approved', approvedAt, returnReason: '' }
+      : current);
+    showActionMessage(t.approvedSuccess);
+  }
+
+  function openReturnDialog(invoice) {
+    if (!invoice) return;
+    setReturnTarget(invoice);
+    setReturnReason(invoice.returnReason || '');
+  }
+
+  function confirmReturnInvoice() {
+    const reason = returnReason.trim();
+    if (!reason) {
+      window.alert(t.returnReasonRequired);
+      return;
+    }
+    const returnedAt = new Date().toISOString();
+    setRows((current) => current.map((item) => item.id === returnTarget.id
+      ? { ...item, status: 'returned', returnReason: reason, returnedAt }
+      : item));
+    setSelected((current) => current?.id === returnTarget.id
+      ? { ...current, status: 'returned', returnReason: reason, returnedAt }
+      : current);
+    setReturnTarget(null);
+    setReturnReason('');
+    showActionMessage(t.returnedSuccess);
+  }
+
   return (
     <section className="invoice-page">
+      {actionMessage && <div className="invoice-action-toast">✓ {actionMessage}</div>}
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.8</span>
+          <span className="eyebrow">SAAMS v3.9</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -698,7 +754,7 @@ export default function Invoices({ lang }) {
                   <td>
                     <div className="row-actions">
                       <button type="button" onClick={() => setSelected(item)}>{t.view}</button>
-                      {item.status === 'review' && <button className="approve-row" type="button">{t.approve}</button>}
+                      {item.status === 'review' && <button className="approve-row" type="button" onClick={() => approveInvoice(item)}>{t.approve}</button>}
                     </div>
                   </td>
                 </tr>
@@ -755,9 +811,10 @@ export default function Invoices({ lang }) {
                 )}
               </>
             )}
+            {selected.returnReason && <div className="saved-return-reason"><small>{t.currentReturnReason}</small><strong>{selected.returnReason}</strong></div>}
             <div className="drawer-actions">
-              <button className="return-button" type="button">↩ {t.return}</button>
-              <button className="primary-action" type="button">✓ {t.approve}</button>
+              <button className="return-button" type="button" onClick={() => openReturnDialog(selected)}>↩ {t.return}</button>
+              <button className="primary-action" type="button" onClick={() => approveInvoice(selected)} disabled={selected.status === 'approved'}>✓ {t.approve}</button>
             </div>
           </aside>
         </div>
@@ -882,6 +939,29 @@ export default function Invoices({ lang }) {
                   </div>
                 )}
               </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {returnTarget && (
+        <div className="return-invoice-overlay" onClick={() => setReturnTarget(null)}>
+          <div className="return-invoice-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="drawer-header">
+              <div><small>{returnTarget.id}</small><h2>{t.returnTitle}</h2></div>
+              <button type="button" onClick={() => setReturnTarget(null)}>×</button>
+            </div>
+            <p>{t.returnInstruction}</p>
+            <textarea
+              value={returnReason}
+              onChange={(event) => setReturnReason(event.target.value)}
+              placeholder={t.returnPlaceholder}
+              rows={6}
+              autoFocus
+            />
+            <div className="return-modal-actions">
+              <button className="secondary-action" type="button" onClick={() => setReturnTarget(null)}>{t.cancel}</button>
+              <button className="return-button" type="button" onClick={confirmReturnInvoice}>↩ {t.confirmReturn}</button>
             </div>
           </div>
         </div>
