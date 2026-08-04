@@ -83,12 +83,11 @@ const totalsOf = advance => advance.allocations.reduce((acc, allocation) => {
 export default function Advances({ lang, profile }) {
   const ar = lang === 'ar';
   const t = COPY[lang] || COPY.ar;
-  const username = (profile?.username || '').toLowerCase();
-  const isAdmin = profile?.role === 'admin' || !/(nursery|حضانة)/i.test(username);
+  const isAdmin = profile?.role !== 'nursery';
   const [previewNursery, setPreviewNursery] = useState(false);
   const nurseryMode = !isAdmin || previewNursery;
-  const nurseryNameAr = profile?.nurseryAr || 'الرحمانية الجديدة';
-  const nurseryNameEn = profile?.nurseryEn || 'New Al Rahmaniya';
+  const nurseryNameAr = profile?.nursery || 'الرحمانية الجديدة';
+  const nurseryNameEn = profile?.nursery || 'New Al Rahmaniya';
   const [advances, setAdvances] = useState(INITIAL_ADVANCES);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -98,7 +97,8 @@ export default function Advances({ lang, profile }) {
 
   function notify(message) { setToast(message); setTimeout(() => setToast(''), 2600); }
   function currentNurseryAllocation(advance) {
-    return advance.allocations.find(a => a.nurseryAr === nurseryNameAr || a.nurseryEn === nurseryNameEn) || advance.allocations[0];
+    const matched = advance.allocations.find(a => a.nurseryAr === nurseryNameAr || a.nurseryEn === nurseryNameEn);
+    return matched || (previewNursery ? advance.allocations[0] : undefined);
   }
   const visibleAdvances = useMemo(() => advances.filter(advance => {
     if (nurseryMode && !currentNurseryAllocation(advance)) return false;

@@ -57,6 +57,14 @@ export default function App() {
     return <Login lang={lang} setLang={setLang} onLogin={handlePreviewLogin} error={loginError} />;
   }
 
+  const isNursery = profile?.role === 'nursery';
+  const allowedPages = isNursery
+    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports']
+    : profile?.role === 'super_admin'
+      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'users', 'settings']
+      : ['dashboard', 'invoices', 'assets', 'advances', 'reports'];
+
+
   const pages = {
     dashboard: <Dashboard lang={lang} profile={profile} setActive={setActive} />,
     invoices: <Invoices lang={lang} profile={profile} />,
@@ -76,7 +84,7 @@ export default function App() {
       active={active}
       setActive={setActive}
     >
-      {pages[active] || pages.dashboard}
+      {pages[allowedPages.includes(active) ? active : 'dashboard'] || pages.dashboard}
     </Layout>
   );
 }

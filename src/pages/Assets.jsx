@@ -21,8 +21,8 @@ function nurseryLabel(a,ar){return ar?a.nurseryAr:a.nurseryEn}
 
 export default function Assets({lang,profile}){
  const ar=lang==='ar',t=COPY[lang]||COPY.ar;
- const username=(profile?.username||'').toLowerCase();
- const isAdmin=profile?.role==='admin'||!/(nursery|حضانة)/i.test(username);
+ const isAdmin=profile?.role!=='nursery';
+ const accountNursery=profile?.nursery||'';
  const nurseries=ar?NURSERIES_AR:NURSERIES_EN;
  const [tab,setTab]=useState('register');
  const [modal,setModal]=useState(null);
@@ -36,7 +36,9 @@ export default function Assets({lang,profile}){
   {id:'AST-REQ-025',type:'surplus',barcode:'SEA-000284',assetAr:'طاولة أطفال مستديرة',assetEn:'Round Children Table',fromAr:'اللؤلؤية',fromEn:'Al Luluyah',reasonAr:'فائض بعد إعادة توزيع الفصول',reasonEn:'Surplus after classroom redistribution',status:'approved',date:'03/08/2026'},
  ]);
  const [search,setSearch]=useState('');
- const filtered=useMemo(()=>assets.filter(a=>[a.barcode,a.nameAr,a.nameEn,a.nurseryAr,a.nurseryEn].some(v=>v.toLowerCase().includes(search.toLowerCase()))),[assets,search]);
+ const scopedAssets=useMemo(()=>isAdmin||previewNursery?assets:assets.filter(a=>a.nurseryAr===accountNursery||a.nurseryEn===accountNursery),[assets,isAdmin,previewNursery,accountNursery]);
+ const scopedRequests=useMemo(()=>isAdmin||previewNursery?requests:requests.filter(r=>r.fromAr===accountNursery||r.fromEn===accountNursery),[requests,isAdmin,previewNursery,accountNursery]);
+ const filtered=useMemo(()=>scopedAssets.filter(a=>[a.barcode,a.nameAr,a.nameEn,a.nurseryAr,a.nurseryEn].some(v=>v.toLowerCase().includes(search.toLowerCase()))),[scopedAssets,search]);
  function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2600)}
  function addAsset(form){setAssets(x=>[{barcode:form.barcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category,status:'active'},...x]);setModal(null);notify(t.assetSaved)}
  function addRequest(form){const a=assets.find(x=>x.barcode===form.barcode);setRequests(x=>[{id:`AST-REQ-${String(x.length+27).padStart(3,'0')}`,type:modal,barcode:form.barcode,assetAr:a?.nameAr||form.asset,assetEn:a?.nameEn||form.asset,fromAr:form.from,fromEn:form.from,toAr:form.to,toEn:form.to,reasonAr:form.reason,reasonEn:form.reason,status:'pending',date:new Date().toLocaleDateString('en-GB')},...x]);setModal(null);notify(t.requestSent)}
@@ -45,10 +47,10 @@ export default function Assets({lang,profile}){
  return <section className="assets-page">
   <div className="module-heading assets-heading"><div><span className="eyebrow">SAAMS v5.1</span><h1>{t.title}</h1><p>{t.sub}</p></div><div className="assets-heading-actions">{isAdmin&&<button className="preview-nursery-btn" onClick={()=>setPreviewNursery(v=>!v)}>{previewNursery?t.exitPreview:t.previewNursery}</button>}<div className="role-pill">{isAdmin&&!previewNursery?t.admin:t.nursery}</div></div></div>
   <div className="asset-stat-grid">
-   <article><span>◇</span><div><small>{ar?'إجمالي الأصول':'Total Assets'}</small><strong>{assets.length}</strong></div></article>
-   <article><span>⇄</span><div><small>{ar?'طلبات النقل':'Transfer Requests'}</small><strong>{requests.filter(r=>r.type==='transfer').length}</strong></div></article>
-   <article><span>▱</span><div><small>{ar?'طلبات الفائض':'Surplus Requests'}</small><strong>{requests.filter(r=>r.type==='surplus').length}</strong></div></article>
-   <article><span>⌫</span><div><small>{ar?'طلبات الإسقاط':'Disposal Requests'}</small><strong>{requests.filter(r=>r.type==='disposal').length}</strong></div></article>
+   <article><span>◇</span><div><small>{ar?'إجمالي الأصول':'Total Assets'}</small><strong>{scopedAssets.length}</strong></div></article>
+   <article><span>⇄</span><div><small>{ar?'طلبات النقل':'Transfer Requests'}</small><strong>{scopedRequests.filter(r=>r.type==='transfer').length}</strong></div></article>
+   <article><span>▱</span><div><small>{ar?'طلبات الفائض':'Surplus Requests'}</small><strong>{scopedRequests.filter(r=>r.type==='surplus').length}</strong></div></article>
+   <article><span>⌫</span><div><small>{ar?'طلبات الإسقاط':'Disposal Requests'}</small><strong>{scopedRequests.filter(r=>r.type==='disposal').length}</strong></div></article>
   </div>
   <div className="asset-tabs">
    <button className={tab==='register'?'active':''} onClick={()=>setTab('register')}>{t.register}</button>
@@ -62,16 +64,16 @@ export default function Assets({lang,profile}){
     </div>
    </div>
    <div className="asset-card-grid">{filtered.map(a=><article className="asset-card" key={a.barcode}><div className="asset-card-icon">◇</div><div className="asset-card-main"><strong>{assetLabel(a,ar)}</strong><span>{a.barcode}</span><div><small>{t.location}</small><b>{nurseryLabel(a,ar)}</b></div><div><small>{t.category}</small><b>{ar?a.categoryAr:a.categoryEn}</b></div></div>{(!isAdmin||previewNursery)&&<div className="asset-card-menu"><button onClick={()=>setModal('transfer')}>⇄</button><button onClick={()=>setModal('surplus')}>▱</button><button onClick={()=>setModal('disposal')}>⌫</button></div>}</article>)}</div>
-  </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{requests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:r.assetEn}</td><td>{r.barcode}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{t[r.status]}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
-  {modal&&<AssetModal type={modal} ar={ar} t={t} assets={assets} nurseries={nurseries} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
+  </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:r.assetEn}</td><td>{r.barcode}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{t[r.status]}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
+  {modal&&<AssetModal type={modal} ar={ar} defaultNursery={accountNursery} t={t} assets={assets} nurseries={nurseries} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
   {viewing&&<RequestDetails request={viewing} ar={ar} t={t} isAdmin={isAdmin} onClose={()=>setViewing(null)} onApprove={()=>approveRequest(viewing.id)} onReject={()=>setRejecting(viewing)}/>}
   {rejecting&&<RejectModal request={rejecting} ar={ar} t={t} onClose={()=>setRejecting(null)} onConfirm={reason=>rejectRequest(rejecting.id,reason)}/>}
   {toast&&<div className="asset-toast">✓ {toast}</div>}
  </section>
 }
 
-function AssetModal({type,ar,t,assets,nurseries,onClose,onSave}){
- const [form,setForm]=useState({barcode:'',asset:'',from:nurseries[0]||'',to:nurseries[1]||'',reason:'',name:'',category:'',notes:''});
+function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery}){
+ const [form,setForm]=useState({barcode:'',asset:'',from:defaultNursery||nurseries[0]||'',to:nurseries.find(n=>n!==defaultNursery)||nurseries[1]||'',reason:'',name:'',category:'',notes:''});
  const [lookup,setLookup]=useState(null),[camera,setCamera]=useState(false),[scanMsg,setScanMsg]=useState('');
  const videoRef=useRef(null),streamRef=useRef(null);
  const selected=assets.find(a=>a.barcode.trim().toLowerCase()===form.barcode.trim().toLowerCase());

@@ -176,33 +176,42 @@ function AssetBars({ ar }) {
   );
 }
 
-export default function Dashboard({ lang, setActive }) {
+export default function Dashboard({ lang, setActive, profile }) {
   const ar = lang === 'ar';
   const t = translations[lang] || translations.ar;
+  const isNursery = profile?.role === 'nursery';
+  const nurseryName = profile?.nursery || (ar ? 'الحضانة' : 'Nursery');
+  const displayName = profile?.full_name || (ar ? 'المستخدم' : 'User');
+  const scopedT = isNursery ? { ...t, greeting: ar ? `مرحباً ${displayName}` : `Welcome, ${displayName}`, intro: ar ? `ملخص بيانات ${nurseryName} فقط` : `Summary for ${nurseryName} only`, assetByNursery: ar ? `أصول ${nurseryName}` : `${nurseryName} Assets`, totalInvoices: ar ? 'إجمالي فواتير الحضانة: 4' : 'Nursery invoices: 4' } : t;
 
   const cards = useMemo(
-    () => [
-      { label: t.totalAssets, value: 156, suffix: t.asset, icon: '◇', tone: 'violet', note: `+12 ${t.newThisMonth}` },
-      { label: t.openAdvances, value: 12, suffix: t.advance, icon: '▣', tone: 'blue', note: `+3 ${t.newThisMonth}` },
-      { label: t.pendingInvoices, value: 6, suffix: t.invoice, icon: '▤', tone: 'green', note: `4 ${t.awaitingReview}` },
-      { label: t.lateInvoices, value: 3, suffix: t.invoice, icon: '◷', tone: 'orange', note: `2 ${t.olderWeek}` },
+    () => isNursery ? [
+      { label: scopedT.totalAssets, value: 5, suffix: scopedT.asset, icon: '◇', tone: 'violet', note: ar ? 'أصول الحضانة فقط' : 'Nursery assets only' },
+      { label: scopedT.openAdvances, value: 2, suffix: scopedT.advance, icon: '▣', tone: 'blue', note: ar ? 'سلف الحضانة المفتوحة' : 'Open nursery advances' },
+      { label: scopedT.pendingInvoices, value: 1, suffix: scopedT.invoice, icon: '▤', tone: 'green', note: ar ? 'بانتظار مراجعة الإدارة' : 'Awaiting administration review' },
+      { label: scopedT.lateInvoices, value: 0, suffix: scopedT.invoice, icon: '◷', tone: 'orange', note: ar ? 'لا توجد فواتير متأخرة' : 'No late invoices' },
+    ] : [
+      { label: scopedT.totalAssets, value: 156, suffix: scopedT.asset, icon: '◇', tone: 'violet', note: `+12 ${scopedT.newThisMonth}` },
+      { label: scopedT.openAdvances, value: 12, suffix: scopedT.advance, icon: '▣', tone: 'blue', note: `+3 ${scopedT.newThisMonth}` },
+      { label: scopedT.pendingInvoices, value: 6, suffix: scopedT.invoice, icon: '▤', tone: 'green', note: `4 ${scopedT.awaitingReview}` },
+      { label: scopedT.lateInvoices, value: 3, suffix: scopedT.invoice, icon: '◷', tone: 'orange', note: `2 ${scopedT.olderWeek}` },
     ],
-    [t],
+    [scopedT, isNursery, ar],
   );
 
   const alerts = [
-    { text: t.alert1, time: ar ? 'منذ ساعتين' : '2 hours ago', tone: 'red', icon: '!' },
-    { text: t.alert2, time: ar ? 'منذ 5 ساعات' : '5 hours ago', tone: 'amber', icon: '◇' },
-    { text: t.alert3, time: ar ? 'منذ 8 ساعات' : '8 hours ago', tone: 'blue', icon: '▤' },
-    { text: t.alert4, time: ar ? 'منذ يوم' : '1 day ago', tone: 'green', icon: '✓' },
+    { text: scopedT.alert1, time: ar ? 'منذ ساعتين' : '2 hours ago', tone: 'red', icon: '!' },
+    { text: scopedT.alert2, time: ar ? 'منذ 5 ساعات' : '5 hours ago', tone: 'amber', icon: '◇' },
+    { text: scopedT.alert3, time: ar ? 'منذ 8 ساعات' : '8 hours ago', tone: 'blue', icon: '▤' },
+    { text: scopedT.alert4, time: ar ? 'منذ يوم' : '1 day ago', tone: 'green', icon: '✓' },
   ];
 
   const activities = [
-    [t.approvedInvoice, '#INV-2026-122', ar ? 'لقاء طلعت' : 'Leqaa Talaat', '09:30'],
-    [t.assetAdded, ar ? 'جهاز كمبيوتر HP' : 'HP Computer', ar ? 'منيرة الأحمد' : 'Munira Alahmed', '10:15'],
-    [t.assetMoved, ar ? 'طاولة اجتماعات' : 'Meeting Table', ar ? 'محمد سليم' : 'Mohammed Salim', '11:02'],
-    [t.advanceCreated, ar ? 'سلفة نشاط تخرج 2026' : 'Graduation Advance 2026', ar ? 'منيرة الأحمد' : 'Munira Alahmed', '12:45'],
-    [t.invoiceReturned, '#INV-2026-120', ar ? 'لقاء طلعت' : 'Leqaa Talaat', '01:30'],
+    [scopedT.approvedInvoice, '#INV-2026-122', ar ? 'لقاء طلعت' : 'Leqaa Talaat', '09:30'],
+    [scopedT.assetAdded, ar ? 'جهاز كمبيوتر HP' : 'HP Computer', ar ? 'منيرة الأحمد' : 'Munira Alahmed', '10:15'],
+    [scopedT.assetMoved, ar ? 'طاولة اجتماعات' : 'Meeting Table', ar ? 'محمد سليم' : 'Mohammed Salim', '11:02'],
+    [scopedT.advanceCreated, ar ? 'سلفة نشاط تخرج 2026' : 'Graduation Advance 2026', ar ? 'منيرة الأحمد' : 'Munira Alahmed', '12:45'],
+    [scopedT.invoiceReturned, '#INV-2026-120', ar ? 'لقاء طلعت' : 'Leqaa Talaat', '01:30'],
   ];
 
   return (
@@ -210,12 +219,12 @@ export default function Dashboard({ lang, setActive }) {
       <section className="dashboard-hero">
         <div>
           <span className="eyebrow">SAAMS v2.7</span>
-          <h1>{t.greeting} <span className="wave">👋</span></h1>
-          <p>{t.intro}</p>
+          <h1>{scopedT.greeting} <span className="wave">👋</span></h1>
+          <p>{scopedT.intro}</p>
         </div>
         <div className="dashboard-filters">
-          <button type="button">☷ {t.filter}</button>
-          <button type="button">▣ {t.today}</button>
+          <button type="button">☷ {scopedT.filter}</button>
+          <button type="button">▣ {scopedT.today}</button>
         </div>
       </section>
 
@@ -234,8 +243,8 @@ export default function Dashboard({ lang, setActive }) {
       <section className="dashboard-grid dashboard-grid-top">
         <article className="glass-panel alerts-panel">
           <div className="panel-heading">
-            <h2>♧ {t.alerts}</h2>
-            <button type="button">{t.viewAll}</button>
+            <h2>♧ {scopedT.alerts}</h2>
+            <button type="button">{scopedT.viewAll}</button>
           </div>
           <div className="alerts-list">
             {alerts.map((alert) => (
@@ -249,36 +258,41 @@ export default function Dashboard({ lang, setActive }) {
 
         <article className="glass-panel chart-panel">
           <div className="panel-heading">
-            <h2>{t.assetByNursery}</h2>
-            <button type="button">{t.thisMonth}⌄</button>
+            <h2>{scopedT.assetByNursery}</h2>
+            <button type="button">{scopedT.thisMonth}⌄</button>
           </div>
           <AssetBars ar={ar} />
         </article>
 
         <article className="glass-panel status-panel">
           <div className="panel-heading">
-            <h2>{t.invoiceStatus}</h2>
-            <button type="button">{t.thisMonth}⌄</button>
+            <h2>{scopedT.invoiceStatus}</h2>
+            <button type="button">{scopedT.thisMonth}⌄</button>
           </div>
-          <StatusDonut t={t} />
-          <p className="panel-total">{t.totalInvoices}</p>
+          <StatusDonut t={scopedT} />
+          <p className="panel-total">{scopedT.totalInvoices}</p>
         </article>
       </section>
 
       <section className="dashboard-grid dashboard-grid-bottom">
         <article className="glass-panel quick-panel">
           <div className="panel-heading">
-            <h2>ϟ {t.quickActions}</h2>
+            <h2>ϟ {scopedT.quickActions}</h2>
           </div>
           <div className="quick-grid">
-            {[
-              ['◇', t.addAsset, 'teal', 'assets'],
-              ['▤', t.addInvoice, 'green', 'invoices'],
-              ['▣', t.addAdvance, 'blue', 'advances'],
-              ['⇄', t.transferAsset, 'orange', 'assets'],
-              ['♙', t.addUser, 'sky', 'users'],
-              ['▥', t.report, 'violet', 'reports'],
-            ].map(([icon, label, tone, target]) => (
+            {(isNursery ? [
+              ['▤', scopedT.addInvoice, 'green', 'invoices'],
+              ['⇄', scopedT.transferAsset, 'orange', 'assets'],
+              ['▣', scopedT.openAdvances, 'blue', 'advances'],
+              ['▥', scopedT.report, 'violet', 'reports'],
+            ] : [
+              ['◇', scopedT.addAsset, 'teal', 'assets'],
+              ['▤', scopedT.addInvoice, 'green', 'invoices'],
+              ['▣', scopedT.addAdvance, 'blue', 'advances'],
+              ['⇄', scopedT.transferAsset, 'orange', 'assets'],
+              ['♙', scopedT.addUser, 'sky', 'users'],
+              ['▥', scopedT.report, 'violet', 'reports'],
+            ]).map(([icon, label, tone, target]) => (
               <button className={`quick-action ${tone}`} type="button" key={label} onClick={() => setActive(target)}>
                 <span>{icon}</span>
                 <strong>{label}</strong>
@@ -289,15 +303,15 @@ export default function Dashboard({ lang, setActive }) {
 
         <article className="glass-panel activity-panel">
           <div className="panel-heading">
-            <h2>◷ {t.todayActivity}</h2>
-            <button type="button">{t.viewAll}</button>
+            <h2>◷ {scopedT.todayActivity}</h2>
+            <button type="button">{scopedT.viewAll}</button>
           </div>
           <div className="activity-table">
             <div className="activity-row activity-head">
-              <span>{t.activity}</span>
-              <span>{t.details}</span>
-              <span>{t.user}</span>
-              <span>{t.time}</span>
+              <span>{scopedT.activity}</span>
+              <span>{scopedT.details}</span>
+              <span>{scopedT.user}</span>
+              <span>{scopedT.time}</span>
             </div>
             {activities.map(([activity, details, user, time], index) => (
               <div className="activity-row" key={`${activity}-${time}`}>

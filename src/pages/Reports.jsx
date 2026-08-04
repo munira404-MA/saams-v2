@@ -53,23 +53,26 @@ function addSheet(workbook, name, rows){
   XLSX.utils.book_append_sheet(workbook, ws, name.slice(0,31));
 }
 
-export default function Reports({lang}){
+export default function Reports({lang,profile}){
   const ar = lang === 'ar';
+  const isNursery = profile?.role === 'nursery';
+  const accountNursery = profile?.nursery || '';
   const t = COPY[lang] || COPY.ar;
   const [tab,setTab] = useState('assets');
-  const [filters,setFilters] = useState({nursery:'كل الحضانات',from:'',to:'',status:'الكل',search:''});
+  const [filters,setFilters] = useState({nursery:isNursery?accountNursery:'كل الحضانات',from:'',to:'',status:'الكل',search:''});
   const [toast,setToast] = useState('');
 
   const filtered = useMemo(() => {
     const term = safe(filters.search);
-    const baseFilter = row => (filters.nursery==='كل الحضانات' || row.nursery===filters.nursery) && dateInRange(row.date || row.purchaseDate || row.from, filters.from, filters.to) && (filters.status==='الكل' || row.status===filters.status) && (!term || Object.values(row).some(v=>safe(v).includes(term)));
+    const effectiveNursery = isNursery ? accountNursery : filters.nursery;
+    const baseFilter = row => (effectiveNursery==='كل الحضانات' || row.nursery===effectiveNursery) && dateInRange(row.date || row.purchaseDate || row.from, filters.from, filters.to) && (filters.status==='الكل' || row.status===filters.status) && (!term || Object.values(row).some(v=>safe(v).includes(term)));
     return {
       assets: ASSETS.filter(baseFilter),
       invoices: INVOICES.filter(baseFilter),
       advances: ADVANCES.filter(baseFilter),
-      assetRequests: ASSET_REQUESTS.filter(row => dateInRange(row.date, filters.from, filters.to) && (filters.status==='الكل' || row.status===filters.status) && (!term || Object.values(row).some(v=>safe(v).includes(term))))
+      assetRequests: ASSET_REQUESTS.filter(row => (!isNursery || row.from===accountNursery) && dateInRange(row.date, filters.from, filters.to) && (filters.status==='الكل' || row.status===filters.status) && (!term || Object.values(row).some(v=>safe(v).includes(term))))
     };
-  },[filters]);
+  },[filters,isNursery,accountNursery]);
 
   const summary = {
     assetCount: filtered.assets.length,
@@ -110,7 +113,7 @@ export default function Reports({lang}){
     XLSX.writeFile(workbookFor(kind), `SAAMS_${kind}_${new Date().toISOString().slice(0,10)}.xlsx`);
     notify(ar?'تم تصدير التقرير إلى Excel بنجاح':'Report exported successfully');
   }
-  function reset(){setFilters({nursery:'كل الحضانات',from:'',to:'',status:'الكل',search:''})}
+  function reset(){setFilters({nursery:isNursery?accountNursery:'كل الحضانات',from:'',to:'',status:'الكل',search:''})}
 
   return <section className="reports-page">
     <div className="module-heading reports-heading">
@@ -123,7 +126,7 @@ export default function Reports({lang}){
     </div>
 
     <div className="report-filter-panel">
-      <label><span>{t.nursery}</span><select value={filters.nursery} onChange={e=>setFilters({...filters,nursery:e.target.value})}>{NURSERIES.map(n=><option key={n}>{n}</option>)}</select></label>
+      <label><span>{t.nursery}</span>{isNursery?<input value={accountNursery} readOnly/>:<select value={filters.nursery} onChange={e=>setFilters({...filters,nursery:e.target.value})}>{NURSERIES.map(n=><option key={n}>{n}</option>)}</select>}</label>
       <label><span>{t.from}</span><input type="date" value={filters.from} onChange={e=>setFilters({...filters,from:e.target.value})}/></label>
       <label><span>{t.to}</span><input type="date" value={filters.to} onChange={e=>setFilters({...filters,to:e.target.value})}/></label>
       <label><span>{t.status}</span><select value={filters.status} onChange={e=>setFilters({...filters,status:e.target.value})}><option>الكل</option><option>نشط</option><option>معتمدة</option><option>قيد الاعتماد</option><option>مفتوحة</option><option>مغلقة</option><option>مرفوض</option></select></label>

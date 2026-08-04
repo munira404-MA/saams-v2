@@ -347,8 +347,10 @@ function StatusBadge({ status, t }) {
   return <span className={`invoice-status ${status}`}>{t[status]}</span>;
 }
 
-export default function Invoices({ lang }) {
+export default function Invoices({ lang, profile }) {
   const ar = lang === 'ar';
+  const isNursery = profile?.role === 'nursery';
+  const accountNursery = profile?.nursery || '';
   const t = copy[lang] || copy.ar;
   const [search, setSearch] = useState('');
   const [nursery, setNursery] = useState('all');
@@ -397,11 +399,12 @@ export default function Invoices({ lang }) {
     return () => URL.revokeObjectURL(nextUrl);
   }, [receiptFile]);
 
-  const nurseries = [...new Set(rows.map((item) => ar ? item.nurseryAr : item.nurseryEn))];
+  const scopedRows = isNursery ? rows.filter((item) => item.nurseryAr === accountNursery || item.nurseryEn === accountNursery) : rows;
+  const nurseries = [...new Set(scopedRows.map((item) => ar ? item.nurseryAr : item.nurseryEn))];
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return rows.filter((item) => {
+    return scopedRows.filter((item) => {
       const matchesText = !term || [
         item.id,
         item.supplierAr,
@@ -414,14 +417,14 @@ export default function Invoices({ lang }) {
       const matchesStatus = status === 'all' || item.status === status;
       return matchesText && matchesNursery && matchesStatus;
     });
-  }, [search, nursery, status, ar, rows]);
+  }, [search, nursery, status, ar, scopedRows]);
 
   const stats = [
-    { label: t.total, value: rows.length, icon: '▤', tone: 'blue' },
-    { label: t.pending, value: rows.filter((x) => x.status === 'review').length, icon: '◷', tone: 'orange' },
-    { label: t.approvedCount, value: rows.filter((x) => x.status === 'approved').length, icon: '✓', tone: 'green' },
-    { label: t.returnedCount, value: rows.filter((x) => x.status === 'returned').length, icon: '↩', tone: 'violet' },
-    { label: t.amount, value: `${rows.reduce((sum, x) => sum + x.total, 0).toLocaleString(undefined, {minimumFractionDigits: 2})} AED`, icon: '◉', tone: 'teal' },
+    { label: t.total, value: scopedRows.length, icon: '▤', tone: 'blue' },
+    { label: t.pending, value: scopedRows.filter((x) => x.status === 'review').length, icon: '◷', tone: 'orange' },
+    { label: t.approvedCount, value: scopedRows.filter((x) => x.status === 'approved').length, icon: '✓', tone: 'green' },
+    { label: t.returnedCount, value: scopedRows.filter((x) => x.status === 'returned').length, icon: '↩', tone: 'violet' },
+    { label: t.amount, value: `${scopedRows.reduce((sum, x) => sum + x.total, 0).toLocaleString(undefined, {minimumFractionDigits: 2})} AED`, icon: '◉', tone: 'teal' },
   ];
 
   function safeFileName(value) {
@@ -700,7 +703,7 @@ export default function Invoices({ lang }) {
       setOcrError(t.blockedSave);
       return;
     }
-    const nurseryName = uploadNursery || (ar ? 'غير محددة' : 'Not selected');
+    const nurseryName = isNursery ? accountNursery : (uploadNursery || (ar ? 'غير محددة' : 'Not selected'));
     const attachmentDataUrl = selectedFile ? await fileToDataUrl(selectedFile) : '';
     const linkedReceiptPages = Array.isArray(ocr.linked_receipt_pages) ? ocr.linked_receipt_pages : [];
     const receiptDataUrl = receiptFile ? await fileToDataUrl(receiptFile) : (linkedReceiptPages.length ? attachmentDataUrl : '');
@@ -872,7 +875,7 @@ export default function Invoices({ lang }) {
                   <td>
                     <div className="row-actions">
                       <button type="button" onClick={() => setSelected(item)}>{t.view}</button>
-                      {item.status === 'review' && <button className="approve-row" type="button" onClick={() => approveInvoice(item)}>{t.approve}</button>}
+                      {!isNursery && item.status === 'review' && <button className="approve-row" type="button" onClick={() => approveInvoice(item)}>{t.approve}</button>}
                     </div>
                   </td>
                 </tr>
@@ -931,8 +934,10 @@ export default function Invoices({ lang }) {
             )}
             {selected.returnReason && <div className="saved-return-reason"><small>{t.currentReturnReason}</small><strong>{selected.returnReason}</strong></div>}
             <div className="drawer-actions">
+              {!isNursery && <>
               <button className="return-button" type="button" onClick={() => openReturnDialog(selected)}>↩ {t.return}</button>
               <button className="primary-action" type="button" onClick={() => approveInvoice(selected)} disabled={selected.status === 'approved'}>✓ {t.approve}</button>
+              </>}
             </div>
           </aside>
         </div>
@@ -961,7 +966,7 @@ export default function Invoices({ lang }) {
               </div>
             )}
             <div className="upload-form-grid">
-              <label><span>{t.chooseNursery}</span><select value={uploadNursery} onChange={(e) => setUploadNursery(e.target.value)}><option value="">{t.nursery}</option>{nurseries.map((name) => <option key={name}>{name}</option>)}</select></label>
+              {!isNursery ? <label><span>{t.chooseNursery}</span><select value={uploadNursery} onChange={(e) => setUploadNursery(e.target.value)}><option value="">{t.nursery}</option>{nurseries.map((name) => <option key={name}>{name}</option>)}</select></label> : <label><span>{t.chooseNursery}</span><input value={accountNursery} readOnly /></label>}
               <label><span>{t.chooseAdvance}</span><select value={uploadAdvance} onChange={(e) => setUploadAdvance(e.target.value)}><option value="">{t.advance}</option><option>{ar ? 'فواتير أغسطس 2026' : 'August 2026 Invoices'}</option><option>{ar ? 'سلفة نشاط التخرج 2026' : 'Graduation Advance 2026'}</option></select></label>
             </div>
 
@@ -1095,7 +1100,7 @@ export default function Invoices({ lang }) {
         </div>
       )}
 
-      {returnTarget && (
+      {!isNursery && returnTarget && (
         <div className="return-invoice-overlay" onClick={() => setReturnTarget(null)}>
           <div className="return-invoice-modal" onClick={(event) => event.stopPropagation()}>
             <div className="drawer-header">
