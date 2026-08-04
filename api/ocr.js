@@ -162,12 +162,12 @@ export default async function handler(req, res) {
     );
   }
 
-  const fileInput = isPdf
-    ? {
-        type: 'input_file',
-        filename: String(filename),
-        file_data: base64Data,
-      }
+  // Images can be sent as data URLs. PDFs are uploaded first to the OpenAI
+  // Files API and then referenced by file_id. This is more reliable than
+  // embedding a large PDF directly in input_file.file_data.
+  let uploadedFileId = '';
+  let fileInput = isPdf
+    ? null
     : {
         type: 'input_image',
         image_url: String(fileData),
@@ -215,6 +215,42 @@ For backward compatibility, copy the FIRST invoice in batch_invoices into the to
 Return only the requested structured result.`
 
   try {
+    if (isPdf) {
+      const pdfBytes = Buffer.from(base64Data, 'base64');
+      const uploadForm = new FormData();
+      uploadForm.append('purpose', 'user_data');
+      uploadForm.append(
+        'file',
+        new Blob([pdfBytes], { type: 'application/pdf' }),
+        String(filename),
+      );
+
+      const uploadResponse = await fetch('https://api.openai.com/v1/files', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        body: uploadForm,
+      });
+
+      const uploadPayload = await uploadResponse.json().catch(() => ({}));
+      if (!uploadResponse.ok || !uploadPayload?.id) {
+        const uploadMessage = uploadPayload?.error?.message || 'OpenAI PDF upload failed.';
+        return sendError(
+          res,
+          uploadResponse.status || 502,
+          uploadMessage,
+          'OPENAI_FILE_UPLOAD_FAILED',
+        );
+      }
+
+      uploadedFileId = uploadPayload.id;
+      fileInput = {
+        type: 'input_file',
+        file_id: uploadedFileId,
+      };
+    }
+
     const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
@@ -375,5 +411,16 @@ Return only the requested structured result.`
       error instanceof Error ? error.message : 'Unexpected OCR error.',
       'UNEXPECTED_OCR_ERROR',
     );
+  } finally {
+    // Remove the temporary OpenAI file after extraction so uploaded PDFs do
+    // not accumulate in the project storage.
+    if (uploadedFileId) {
+      fetch(`https://api.openai.com/v1/files/${uploadedFileId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+      }).catch(() => {});
+    }
   }
 }
