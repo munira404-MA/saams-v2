@@ -464,3 +464,17 @@ html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:mi
 .saved-attachment-empty small{max-width:280px;line-height:1.65}
 .saved-receipt-link{width:100%;margin-top:8px;background:#effbf6;border-color:#ccebdd;color:#188853}
 @media(max-width:560px){.saved-attachment-head{align-items:flex-start;flex-direction:column}.saved-attachment-head a{width:100%}.saved-attachment-viewer iframe{height:330px}}
+
+
+/* SAAMS v3.8 — full attachment viewer and exports */
+.attachment-open-button{border:1px solid #cbdcf0;background:#eef4ff;color:#365fd6;border-radius:10px;padding:7px 10px;font-weight:800;cursor:pointer}
+.saved-attachment-head .attachment-open-button{font-size:10px}
+.saved-receipt-link{width:100%;margin-top:9px;min-height:40px;border:1px solid #bfe8dc;background:#ecfbf5;color:#168b50;border-radius:12px;font-weight:800;cursor:pointer}
+.attachments-download-action{color:#087f78;border-color:#bfe6df;background:#f0fbf9}
+.full-attachment-overlay{position:fixed;inset:0;z-index:80;background:rgba(7,23,40,.78);backdrop-filter:blur(7px);padding:18px;display:grid;place-items:center;animation:fadeOverlay .18s ease}
+.full-attachment-modal{width:min(1500px,98vw);height:min(940px,96vh);background:#f7fbfd;border:1px solid rgba(255,255,255,.42);border-radius:22px;box-shadow:0 28px 90px rgba(0,0,0,.38);overflow:hidden;display:grid;grid-template-rows:auto 1fr}
+.full-attachment-modal>header{min-height:68px;padding:12px 17px;display:flex;align-items:center;justify-content:space-between;gap:14px;background:#fff;border-bottom:1px solid #dbe7ef}
+.full-attachment-modal>header small{display:block;color:#7b90a4;font-size:10px;margin-bottom:3px}.full-attachment-modal>header strong{display:block;color:#18344e;font-size:14px;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.full-attachment-actions{display:flex;align-items:center;gap:8px}.full-attachment-actions button{min-height:39px;border:1px solid #cfdee8;background:#fff;color:#385773;border-radius:11px;padding:0 13px;font-weight:800;cursor:pointer}.full-attachment-actions .full-attachment-close{width:42px;padding:0;font-size:24px;color:#d64959}
+.full-attachment-content{min-height:0;background:#dce6ec;display:grid;place-items:center;overflow:auto}.full-attachment-content iframe{width:100%;height:100%;border:0;background:#fff}.full-attachment-content img{display:block;max-width:none;width:auto;height:auto;min-width:min(100%,800px);object-fit:contain;background:#fff;box-shadow:0 4px 20px rgba(0,0,0,.16)}
+@media(max-width:720px){.module-actions{flex-wrap:wrap}.full-attachment-overlay{padding:5px}.full-attachment-modal{width:100vw;height:100vh;border-radius:0}.full-attachment-modal>header strong{max-width:45vw}.full-attachment-actions button:first-child{font-size:0}.full-attachment-actions button:first-child::before{content:'⇩';font-size:18px}}

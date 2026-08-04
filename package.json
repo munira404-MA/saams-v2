@@ -1,7 +1,7 @@
 {
   "name": "saams-v2",
   "private": true,
-  "version": "2.1.0",
+  "version": "3.8.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,8 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.49.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "jszip": "^3.10.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import JSZip from 'jszip';
 
 const initialData = [
   {
@@ -136,6 +137,10 @@ const copy = {
     subtitle: 'رفع الفواتير، مراجعتها، اعتمادها، وإرجاعها للحضانة عند الحاجة.',
     upload: 'رفع فاتورة جديدة',
     export: 'تصدير Excel',
+    downloadInvoices: 'تنزيل الفواتير',
+    noAttachmentsToDownload: 'لا توجد مرفقات فعلية ضمن النتائج الحالية لتنزيلها.',
+    originalFullScreen: 'عرض بالحجم الكامل',
+    downloadFile: 'تنزيل الملف',
     all: 'الكل',
     search: 'بحث برقم الفاتورة أو المورد أو الحضانة...',
     nursery: 'كل الحضانات',
@@ -222,6 +227,10 @@ const copy = {
     subtitle: 'Upload, review, approve, and return nursery invoices when required.',
     upload: 'Upload New Invoice',
     export: 'Export Excel',
+    downloadInvoices: 'Download Invoices',
+    noAttachmentsToDownload: 'There are no actual attachments in the current results to download.',
+    originalFullScreen: 'Full Screen View',
+    downloadFile: 'Download File',
     all: 'All',
     search: 'Search invoice number, supplier, or nursery...',
     nursery: 'All Nurseries',
@@ -327,6 +336,7 @@ export default function Invoices({ lang }) {
   const [manualInvoice, setManualInvoice] = useState(false);
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptFileUrl, setReceiptFileUrl] = useState('');
+  const [fullScreenAttachment, setFullScreenAttachment] = useState(null);
   const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
   useEffect(() => {
@@ -375,6 +385,111 @@ export default function Invoices({ lang }) {
     { label: t.returnedCount, value: rows.filter((x) => x.status === 'returned').length, icon: '↩', tone: 'violet' },
     { label: t.amount, value: `${rows.reduce((sum, x) => sum + x.total, 0).toLocaleString(undefined, {minimumFractionDigits: 2})} AED`, icon: '◉', tone: 'teal' },
   ];
+
+  function safeFileName(value) {
+    return String(value || 'invoice')
+      .replace(/[\\/:*?\"<>|]+/g, '-')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function dataUrlParts(dataUrl) {
+    const match = String(dataUrl || '').match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(;base64)?,(.*)$/s);
+    if (!match) return null;
+    return {
+      mimeType: match[1] || 'application/octet-stream',
+      isBase64: Boolean(match[2]),
+      payload: match[3] || '',
+    };
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const parts = dataUrlParts(dataUrl);
+    if (!parts) return null;
+    const binary = parts.isBase64 ? atob(parts.payload) : decodeURIComponent(parts.payload);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return new Blob([bytes], { type: parts.mimeType });
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1500);
+  }
+
+  function showFullAttachment({ dataUrl, name, type }) {
+    if (!dataUrl) return;
+    setFullScreenAttachment({ dataUrl, name: name || 'invoice', type: type || '' });
+  }
+
+  function exportInvoicesExcel() {
+    const headers = ar
+      ? ['رقم الفاتورة', 'المورد', 'التاريخ', 'الحضانة', 'السلفة', 'قبل الضريبة', 'الضريبة', 'الإجمالي', 'طريقة الدفع', 'الحالة', 'الرقم الضريبي', 'اسم المرفق', 'اسم إيصال البطاقة']
+      : ['Invoice No.', 'Supplier', 'Date', 'Nursery', 'Advance', 'Before VAT', 'VAT', 'Total', 'Payment', 'Status', 'TRN', 'Attachment', 'Card Receipt'];
+    const bodyRows = filtered.map((item) => [
+      item.id,
+      ar ? item.supplierAr : item.supplierEn,
+      item.date,
+      ar ? item.nurseryAr : item.nurseryEn,
+      ar ? item.advanceAr : item.advanceEn,
+      (Number(item.total) - Number(item.vat)).toFixed(2),
+      Number(item.vat).toFixed(2),
+      Number(item.total).toFixed(2),
+      t[item.payment] || item.payment,
+      t[item.status] || item.status,
+      item.trn || '',
+      item.attachmentName || '',
+      item.receiptName || '',
+    ]);
+    const escapeCell = (value) => String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+    const html = `<!doctype html><html><head><meta charset="UTF-8"><style>
+      table{border-collapse:collapse;font-family:Arial,sans-serif;direction:${ar ? 'rtl' : 'ltr'}}
+      th,td{border:1px solid #b9c8d5;padding:8px;white-space:nowrap}th{background:#dff4f2;font-weight:700}
+      td.amount{mso-number-format:'0.00'}
+    </style></head><body><table><thead><tr>${headers.map((h) => `<th>${escapeCell(h)}</th>`).join('')}</tr></thead>
+      <tbody>${bodyRows.map((row) => `<tr>${row.map((cell, index) => `<td${index >= 5 && index <= 7 ? ' class="amount"' : ''}>${escapeCell(cell)}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table></body></html>`;
+    downloadBlob(new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8' }), `SAAMS_Invoices_${new Date().toISOString().slice(0, 10)}.xls`);
+  }
+
+  async function downloadInvoiceAttachments() {
+    const attachmentRows = filtered.filter((item) => item.attachmentDataUrl || item.receiptDataUrl);
+    if (!attachmentRows.length) {
+      window.alert(t.noAttachmentsToDownload);
+      return;
+    }
+    const zip = new JSZip();
+    for (const item of attachmentRows) {
+      const folder = zip.folder(safeFileName(item.id || 'invoice'));
+      if (item.attachmentDataUrl) {
+        const parts = dataUrlParts(item.attachmentDataUrl);
+        if (parts) {
+          const fallbackExt = parts.mimeType === 'application/pdf' ? '.pdf' : parts.mimeType.includes('png') ? '.png' : '.jpg';
+          const invoiceName = safeFileName(item.attachmentName || `${item.id}${fallbackExt}`);
+          folder.file(invoiceName, parts.payload, { base64: parts.isBase64 });
+        }
+      }
+      if (item.receiptDataUrl) {
+        const parts = dataUrlParts(item.receiptDataUrl);
+        if (parts) {
+          const fallbackExt = parts.mimeType === 'application/pdf' ? '.pdf' : parts.mimeType.includes('png') ? '.png' : '.jpg';
+          const receiptName = safeFileName(item.receiptName || `${item.id}_card_receipt${fallbackExt}`);
+          folder.file(`Card_Receipt_${receiptName}`, parts.payload, { base64: parts.isBase64 });
+        }
+      }
+    }
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+    downloadBlob(blob, `SAAMS_Invoice_Attachments_${new Date().toISOString().slice(0, 10)}.zip`);
+  }
 
   async function analyzeInvoice() {
     setOcrError('');
@@ -512,12 +627,13 @@ export default function Invoices({ lang }) {
     <section className="invoice-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.7</span>
+          <span className="eyebrow">SAAMS v3.8</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
         <div className="module-actions">
-          <button className="secondary-action" type="button">⇩ {t.export}</button>
+          <button className="secondary-action" type="button" onClick={exportInvoicesExcel}>⇩ {t.export}</button>
+          <button className="secondary-action attachments-download-action" type="button" onClick={downloadInvoiceAttachments}>▣ {t.downloadInvoices}</button>
           <button className="primary-action" type="button" onClick={() => setShowUpload(true)}>＋ {t.upload}</button>
         </div>
       </div>
@@ -604,7 +720,7 @@ export default function Invoices({ lang }) {
               <div className="saved-attachment-head">
                 <div><small>{t.originalInvoice}</small><strong>{selected.attachmentName || selected.id}</strong></div>
                 {selected.attachmentDataUrl && (
-                  <a href={selected.attachmentDataUrl} target="_blank" rel="noreferrer">↗ {t.openOriginal}</a>
+                  <button className="attachment-open-button" type="button" onClick={() => showFullAttachment({ dataUrl: selected.attachmentDataUrl, name: selected.attachmentName || selected.id, type: selected.attachmentType })}>↗ {t.openOriginal}</button>
                 )}
               </div>
               {selected.attachmentDataUrl ? (
@@ -635,7 +751,7 @@ export default function Invoices({ lang }) {
               <>
                 <div className="receipt-check">✓ {t.bankReceipt}</div>
                 {selected.receiptDataUrl && (
-                  <a className="saved-receipt-link" href={selected.receiptDataUrl} target="_blank" rel="noreferrer">↗ {ar ? 'عرض إيصال البطاقة' : 'View Card Receipt'}</a>
+                  <button className="saved-receipt-link" type="button" onClick={() => showFullAttachment({ dataUrl: selected.receiptDataUrl, name: selected.receiptName || `${selected.id}_receipt`, type: selected.receiptType })}>↗ {ar ? 'عرض إيصال البطاقة' : 'View Card Receipt'}</button>
                 )}
               </>
             )}
@@ -663,7 +779,7 @@ export default function Invoices({ lang }) {
               <section className="attachment-preview-panel">
                 <div className="attachment-panel-head">
                   <div><small>{t.attachmentPreview}</small><strong>{selectedFile?.name || t.noAttachment}</strong></div>
-                  {selectedFileUrl && <a href={selectedFileUrl} target="_blank" rel="noreferrer">↗ {t.openFull}</a>}
+                  {selectedFileUrl && <button className="attachment-open-button" type="button" onClick={() => showFullAttachment({ dataUrl: selectedFileUrl, name: selectedFile?.name, type: selectedFile?.type })}>↗ {t.openFull}</button>}
                 </div>
 
                 {!selectedFile && (
@@ -766,6 +882,38 @@ export default function Invoices({ lang }) {
                   </div>
                 )}
               </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {fullScreenAttachment && (
+        <div className="full-attachment-overlay" onClick={() => setFullScreenAttachment(null)}>
+          <div className="full-attachment-modal" onClick={(event) => event.stopPropagation()}>
+            <header>
+              <div><small>{t.originalFullScreen}</small><strong>{fullScreenAttachment.name}</strong></div>
+              <div className="full-attachment-actions">
+                <button type="button" onClick={() => {
+                  const blob = fullScreenAttachment.dataUrl.startsWith('blob:')
+                    ? null
+                    : dataUrlToBlob(fullScreenAttachment.dataUrl);
+                  if (blob) downloadBlob(blob, safeFileName(fullScreenAttachment.name));
+                  else {
+                    const anchor = document.createElement('a');
+                    anchor.href = fullScreenAttachment.dataUrl;
+                    anchor.download = safeFileName(fullScreenAttachment.name);
+                    anchor.click();
+                  }
+                }}>⇩ {t.downloadFile}</button>
+                <button className="full-attachment-close" type="button" onClick={() => setFullScreenAttachment(null)}>×</button>
+              </div>
+            </header>
+            <div className="full-attachment-content">
+              {(fullScreenAttachment.type === 'application/pdf' || fullScreenAttachment.name?.toLowerCase().endsWith('.pdf')) ? (
+                <iframe src={`${fullScreenAttachment.dataUrl}#toolbar=1&navpanes=1&view=FitH`} title={fullScreenAttachment.name} />
+              ) : (
+                <img src={fullScreenAttachment.dataUrl} alt={fullScreenAttachment.name} />
+              )}
             </div>
           </div>
         </div>
