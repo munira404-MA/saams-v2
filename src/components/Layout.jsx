@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 const icons = {
   dashboard: '⌂',
   invoices: '▤',
@@ -18,6 +20,15 @@ export default function Layout({
   children,
 }) {
   const ar = lang === 'ar';
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const closeOnDesktop = () => {
+      if (window.innerWidth > 900) setMobileMenuOpen(false);
+    };
+    window.addEventListener('resize', closeOnDesktop);
+    return () => window.removeEventListener('resize', closeOnDesktop);
+  }, []);
   const labels = ar
     ? {
         dashboard: 'الرئيسية',
@@ -55,7 +66,7 @@ export default function Layout({
 
   return (
     <div className="app-shell dashboard-shell">
-      <aside className="side-panel">
+      <aside className={`side-panel ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="side-logos">
           <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
           <span />
@@ -64,7 +75,7 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v5.5</small>
+          <small>SAAMS v5.8</small>
         </div>
 
         <nav className="side-nav">
@@ -73,7 +84,7 @@ export default function Layout({
               key={item}
               type="button"
               className={active === item ? 'active' : ''}
-              onClick={() => setActive(item)}
+              onClick={() => { setActive(item); setMobileMenuOpen(false); }}
             >
               <span className="nav-icon">{icons[item]}</span>
               <span>{labels[item]}</span>
@@ -81,19 +92,39 @@ export default function Layout({
           ))}
         </nav>
 
-        <button className="side-logout" type="button" onClick={onLogout}>
+        <button className="side-logout" type="button" onClick={() => { setMobileMenuOpen(false); onLogout(); }}>
           <span>⇥</span>
           <span>{labels.logout}</span>
         </button>
       </aside>
 
+      {mobileMenuOpen && (
+        <button
+          type="button"
+          className="mobile-menu-overlay"
+          aria-label={ar ? 'إغلاق القائمة' : 'Close menu'}
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       <div className="dashboard-stage">
         <header className="topbar">
-          <div className="topbar-user">
+          <div className="topbar-user-wrap">
+            <button
+              type="button"
+              className="mobile-menu-button"
+              aria-label={ar ? 'فتح القائمة' : 'Open menu'}
+              aria-expanded={mobileMenuOpen}
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              ☰
+            </button>
+            <div className="topbar-user">
             <div className="avatar">{(profile?.full_name || 'م').trim().charAt(0)}</div>
             <div>
               <strong>{profile?.full_name || (ar ? 'منيرة الأحمد' : 'Munira Alahmed')}</strong>
               <small>{profile?.role === 'nursery' ? (profile?.nursery || (ar ? 'حساب حضانة' : 'Nursery Account')) : profile?.role === 'admin' ? (ar ? 'موظف إدارة' : 'Administration Employee') : labels.role}</small>
+            </div>
             </div>
           </div>
 
