@@ -13,6 +13,7 @@ import Attachments from './pages/Attachments';
 import SplashScreen from './components/SplashScreen';
 import WhatsNew from './pages/WhatsNew';
 import About from './pages/About';
+import EnterpriseOperations from './pages/EnterpriseOperations';
 import Layout from './components/Layout';
 import { supabase, supabaseConfigured } from './supabase';
 import { getCurrentProfile, signInWithUsername, signOut } from './data/supabaseData';
@@ -133,7 +134,7 @@ export default function App() {
   }
 
   const isNursery = profile?.role === 'nursery';
-  const allAdminPages = ['dashboard', 'executive', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
+  const allAdminPages = ['dashboard', 'executive', 'operations', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
   const allowedPages = isNursery
     ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'whatsnew', 'about']
     : profile?.role === 'super_admin'
@@ -144,6 +145,7 @@ export default function App() {
   const pages = {
     dashboard: <Dashboard lang={lang} profile={profile} setActive={setActive} />,
     executive: <Executive lang={lang} profile={profile} setActive={setActive} />,
+    operations: <EnterpriseOperations lang={lang} setActive={setActive} />,
     invoices: <Invoices lang={lang} profile={profile} databaseMode={databaseMode} />,
     assets: <Assets lang={lang} profile={profile} />,
     advances: <Advances lang={lang} profile={profile} databaseMode={databaseMode} />,

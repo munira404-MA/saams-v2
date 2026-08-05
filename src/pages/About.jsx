@@ -9,6 +9,7 @@ export default function About({ lang }) {
     ['Hosting', 'Vercel', 'connected'],
   ];
   const versions = [
+    ['2.0', '05/08/2026', ar ? 'مركز العمليات المؤسسية ومحاضر الأصول الرسمية' : 'Enterprise operations center and official asset documents'],
     ['1.0', '05/08/2026', ar ? 'الإصدار الرسمي الأول' : 'First official release'],
     ['0.9', '05/08/2026', ar ? 'ربط قاعدة البيانات والسلف والفواتير' : 'Database, advances, and invoices connection'],
     ['0.8', '05/08/2026', ar ? 'الذكاء التحليلي ولوحة المدير العام' : 'Intelligence and executive dashboard'],
@@ -19,7 +20,7 @@ export default function About({ lang }) {
     <section className="official-info-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS Official v1.0</span>
+          <span className="eyebrow">SAAMS Enterprise v2.0</span>
           <h1>{ar ? 'حول المنظومة' : 'About SAAMS'}</h1>
           <p>{ar ? 'معلومات الإصدار والحالة الفنية وسجل التحديثات.' : 'Release information, technical status, and version history.'}</p>
         </div>
@@ -35,7 +36,7 @@ export default function About({ lang }) {
           <h2>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances Management System'}</h2>
           <p>{ar ? 'منصة موحدة لإدارة الفواتير والأصول والسلف والتقارير والصلاحيات.' : 'A unified platform for invoices, assets, advances, reporting, and access control.'}</p>
         </div>
-        <strong>v1.0</strong>
+        <strong>v2.0</strong>
       </div>
 
       <div className="about-grid">
@@ -55,7 +56,7 @@ export default function About({ lang }) {
         <article className="about-card">
           <h3>{ar ? 'معلومات الإصدار' : 'Release Information'}</h3>
           <dl className="about-meta">
-            <div><dt>{ar ? 'الإصدار' : 'Version'}</dt><dd>1.0.0</dd></div>
+            <div><dt>{ar ? 'الإصدار' : 'Version'}</dt><dd>2.0.0</dd></div>
             <div><dt>{ar ? 'تاريخ الإصدار' : 'Release Date'}</dt><dd>05/08/2026</dd></div>
             <div><dt>{ar ? 'البيئة' : 'Environment'}</dt><dd>Production</dd></div>
             <div><dt>{ar ? 'اللغة الافتراضية' : 'Default Language'}</dt><dd>{ar ? 'العربية' : 'Arabic'}</dd></div>

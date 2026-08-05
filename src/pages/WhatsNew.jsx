@@ -15,7 +15,7 @@ export default function WhatsNew({ lang }) {
     <section className="official-info-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS Official v1.0</span>
+          <span className="eyebrow">SAAMS Enterprise v2.0</span>
           <h1>{ar ? 'ما الجديد في الإصدار الرسمي؟' : "What's New in the Official Release?"}</h1>
           <p>{ar ? 'ملخص المزايا المعتمدة في النسخة الرسمية الأولى من المنظومة.' : 'A summary of the capabilities included in the first official release.'}</p>
         </div>

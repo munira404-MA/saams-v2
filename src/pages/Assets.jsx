@@ -1,4 +1,5 @@
 import { recordAudit, loadAuditLog } from '../utils/audit';
+import AssetOfficialDocument from '../components/AssetOfficialDocument';
 import { useMemo, useRef, useState } from 'react';
 
 const ASSETS = [
@@ -30,6 +31,7 @@ export default function Assets({lang,profile}){
  const [rejecting,setRejecting]=useState(null);
  const [viewing,setViewing]=useState(null);
  const [historyAsset,setHistoryAsset]=useState(null);
+ const [officialDocument,setOfficialDocument]=useState(null);
  const [previewNursery,setPreviewNursery]=useState(false);
  const [toast,setToast]=useState('');
  const [assets,setAssets]=useState(ASSETS);
@@ -56,7 +58,7 @@ export default function Assets({lang,profile}){
  }
  function rejectRequest(id,reason){setRequests(x=>x.map(r=>r.id===id?{...r,status:'rejected',rejectionReasonAr:reason,rejectionReasonEn:reason,decisionDate:new Date().toLocaleDateString('en-GB')}:r));setRejecting(null);setViewing(null);notify(ar?'تم رفض الطلب وإضافة سبب الرفض':'Request rejected with reason')}
  return <section className="assets-page">
-  <div className="module-heading assets-heading"><div><span className="eyebrow">SAAMS v1.0</span><h1>{t.title}</h1><p>{t.sub}</p></div><div className="assets-heading-actions">{isAdmin&&<button className="preview-nursery-btn" onClick={()=>setPreviewNursery(v=>!v)}>{previewNursery?t.exitPreview:t.previewNursery}</button>}<div className="role-pill">{isAdmin&&!previewNursery?t.admin:t.nursery}</div></div></div>
+  <div className="module-heading assets-heading"><div><span className="eyebrow">SAAMS v2.0</span><h1>{t.title}</h1><p>{t.sub}</p></div><div className="assets-heading-actions">{isAdmin&&<button className="preview-nursery-btn" onClick={()=>setPreviewNursery(v=>!v)}>{previewNursery?t.exitPreview:t.previewNursery}</button>}<div className="role-pill">{isAdmin&&!previewNursery?t.admin:t.nursery}</div></div></div>
   <div className="asset-stat-grid">
    <article><span>◇</span><div><small>{ar?'إجمالي الأصول':'Total Assets'}</small><strong>{scopedAssets.length}</strong></div></article>
    <article><span>⇄</span><div><small>{ar?'طلبات النقل':'Transfer Requests'}</small><strong>{scopedRequests.filter(r=>r.type==='transfer').length}</strong></div></article>
@@ -76,6 +78,7 @@ export default function Assets({lang,profile}){
    </div>
    <div className="asset-card-grid">{filtered.map(a=><article className="asset-card" key={a.barcode}><div className="asset-card-icon">◇</div><div className="asset-card-main"><button className="asset-history-link" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button><span>{a.barcode}</span><div><small>{t.location}</small><b>{nurseryLabel(a,ar)}</b></div><div><small>{t.category}</small><b>{ar?a.categoryAr:a.categoryEn}</b></div></div>{(!isAdmin||previewNursery)&&<div className="asset-card-menu"><button onClick={()=>setModal('transfer')}>⇄</button><button onClick={()=>setModal('surplus')}>▱</button><button onClick={()=>setModal('disposal')}>⌫</button></div>}</article>)}</div>
   </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:r.assetEn}</td><td>{r.barcode}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{t[r.status]}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
+  {officialDocument&&<AssetOfficialDocument request={officialDocument} ar={ar} onClose={()=>setOfficialDocument(null)} />}
   {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} onClose={()=>setHistoryAsset(null)} />}
   {modal&&<AssetModal type={modal} ar={ar} defaultNursery={accountNursery} t={t} assets={assets} nurseries={nurseries} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
   {viewing&&<RequestDetails request={viewing} ar={ar} t={t} isAdmin={isAdmin} onClose={()=>setViewing(null)} onApprove={()=>approveRequest(viewing.id)} onReject={()=>setRejecting(viewing)}/>}

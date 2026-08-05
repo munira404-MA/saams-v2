@@ -5,6 +5,7 @@ import { loadAuditLog } from '../utils/audit';
 const icons = {
   dashboard: '⌂',
   executive: '◫',
+  operations: '◉',
   invoices: '▤',
   advances: '▥',
   assets: '◇',
@@ -59,6 +60,7 @@ export default function Layout({
     ? {
         dashboard: 'الرئيسية',
         executive: 'لوحة المدير العام',
+        operations: 'مركز العمليات',
         invoices: 'الفواتير',
         advances: 'السلف',
         assets: 'الأصول',
@@ -75,6 +77,7 @@ export default function Layout({
     : {
         dashboard: 'Dashboard',
         executive: 'Executive Dashboard',
+        operations: 'Operations Center',
         invoices: 'Invoices',
         advances: 'Advances',
         assets: 'Assets',
@@ -89,7 +92,7 @@ export default function Layout({
         notifications: 'Notifications',
       };
 
-  const baseItems = ['dashboard', 'executive', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
+  const baseItems = ['dashboard', 'executive', 'operations', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
   const items = profile?.role === 'super_admin'
     ? baseItems
     : profile?.role === 'nursery'
@@ -107,7 +110,7 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v1.0</small>
+          <small>SAAMS v2.0</small>
         </div>
 
         <nav className="side-nav">

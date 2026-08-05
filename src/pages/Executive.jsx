@@ -26,7 +26,7 @@ export default function Executive({ lang, profile, setActive }) {
   return (
     <section className="executive-page">
       <div className="module-heading">
-        <div><span className="eyebrow">SAAMS v1.0</span><h1>{ar?'لوحة المدير العام':'Executive Dashboard'}</h1><p>{ar?'ملخص تنفيذي موحد للفواتير والسلف والأصول والحضانات.':'Unified executive overview of invoices, advances, assets, and nurseries.'}</p></div>
+        <div><span className="eyebrow">SAAMS v2.0</span><h1>{ar?'لوحة المدير العام':'Executive Dashboard'}</h1><p>{ar?'ملخص تنفيذي موحد للفواتير والسلف والأصول والحضانات.':'Unified executive overview of invoices, advances, assets, and nurseries.'}</p></div>
         <button className="primary-action" onClick={()=>setActive('reports')}>⇩ {ar?'فتح التقرير الشامل':'Open Comprehensive Report'}</button>
       </div>
 
