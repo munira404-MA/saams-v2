@@ -124,9 +124,13 @@ const emptyOcr = {
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
+    if (!(file instanceof Blob)) {
+      reject(new Error('الملف المحدد غير صالح. يرجى اختيار الفاتورة أو تصويرها مرة أخرى.'));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.onerror = () => reject(new Error('تعذر قراءة الملف. يرجى المحاولة مرة أخرى.'));
     reader.readAsDataURL(file);
   });
 }
@@ -1078,7 +1082,7 @@ export default function Invoices({ lang, profile }) {
                     <h3>{t.analyze}</h3>
                     <p>{ar ? 'بعد اختيار المرفق، سيقرأ النظام البيانات ويعرضها هنا بجانب الفاتورة للمراجعة.' : 'After choosing an attachment, the system will extract and display its data here beside the invoice.'}</p>
                     {ocrError && <div className="ocr-error">! {ocrError}</div>}
-                    <button className="primary-action upload-save" type="button" disabled={reading || !selectedFile} onClick={analyzeInvoice}>{reading ? `◌ ${t.analyzing}` : `✦ ${t.analyze}`}</button>
+                    <button className="primary-action upload-save" type="button" disabled={reading || !selectedFile} onClick={() => analyzeInvoice()}>{reading ? `◌ ${t.analyzing}` : `✦ ${t.analyze}`}</button>
                   </div>
                 )}
 
@@ -1159,7 +1163,7 @@ export default function Invoices({ lang, profile }) {
                     {!!ocr.rejection_reasons?.length && <div className="ocr-reasons">{ocr.rejection_reasons.map((reason) => <span key={reason}>! {reason}</span>)}</div>}
                     {ocrError && <div className="ocr-error">! {ocrError}</div>}
                     <div className="ocr-actions">
-                      <button className="secondary-action" type="button" onClick={analyzeInvoice}>↻ {t.analyze}</button>
+                      <button className="secondary-action" type="button" onClick={() => analyzeInvoice()}>↻ {t.analyze}</button>
                       <button className="primary-action" type="button" disabled={!ocr.can_save} onClick={savePreviewInvoice}>✓ {t.savePreview}</button>
                     </div>
                   </div>
