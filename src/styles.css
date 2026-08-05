@@ -1070,3 +1070,141 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 @media(max-width:1100px){.executive-kpis{grid-template-columns:repeat(3,1fr)}.attachment-center-grid{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:800px){.executive-grid{grid-template-columns:1fr}.executive-kpis{grid-template-columns:1fr 1fr}.attachment-center-grid{grid-template-columns:repeat(2,1fr)}.attachment-center-toolbar{grid-template-columns:1fr!important}}
 @media(max-width:520px){.executive-kpis,.attachment-center-stats,.attachment-center-grid{grid-template-columns:1fr}.executive-donut{grid-template-columns:1fr;justify-items:center}.smart-assistant-fab{bottom:18px;inset-inline-end:16px}.smart-assistant-panel{bottom:80px;inset-inline-end:14px}}
+
+
+/* =========================
+   SAAMS v8.1 INTELLIGENCE
+   ========================= */
+.intelligence-card{
+  margin-bottom:14px;
+  background:linear-gradient(145deg,#f7fffd,#f5f8ff);
+  border:1px solid #cfe5e8;
+  border-radius:21px;
+  padding:18px;
+  box-shadow:0 14px 34px rgba(40,83,116,.07);
+}
+.intelligence-card-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:14px;
+}
+.intelligence-card-head>div{
+  display:flex;
+  align-items:center;
+  gap:11px;
+}
+.intelligence-spark{
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  color:#fff;
+  font-size:19px;
+  background:linear-gradient(145deg,#0aa6a6,#315de7);
+  box-shadow:0 10px 22px rgba(38,101,186,.22);
+}
+.intelligence-card-head h2{margin:0;font-size:16px;color:#1b405b}
+.intelligence-card-head p{margin:3px 0 0;font-size:9.5px;color:#7b90a2}
+.intelligence-card-head button{
+  border:1px solid #d4e3eb;
+  background:#fff;
+  color:#3e6178;
+  border-radius:11px;
+  padding:8px 11px;
+  font-size:9px;
+  font-weight:800;
+  cursor:pointer;
+}
+.intelligence-list{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.intelligence-item{
+  width:100%;
+  display:grid;
+  grid-template-columns:40px 1fr 18px;
+  gap:10px;
+  align-items:center;
+  text-align:start;
+  border:1px solid #dce8ee;
+  border-radius:15px;
+  padding:11px 12px;
+  background:#fff;
+  cursor:pointer;
+  transition:.18s ease;
+}
+.intelligence-item:hover{transform:translateY(-2px);box-shadow:0 11px 25px rgba(39,75,107,.09)}
+.intelligence-item.high{border-inline-start:4px solid #e64b5f}
+.intelligence-item.medium{border-inline-start:4px solid #ef8b2c}
+.intelligence-item.low{border-inline-start:4px solid #19ad68}
+.intelligence-icon{
+  width:38px;
+  height:38px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  background:#eef5ff;
+  color:#3869d4;
+  font-size:17px;
+}
+.intelligence-item.high .intelligence-icon{background:#ffecef;color:#d94355}
+.intelligence-item.medium .intelligence-icon{background:#fff2e5;color:#cf6e17}
+.intelligence-item.low .intelligence-icon{background:#e9f8ee;color:#188c52}
+.intelligence-item strong{display:block;color:#294860;font-size:10.5px}
+.intelligence-item p{margin:3px 0 0;color:#7b8fa1;font-size:8.8px;line-height:1.55}
+.intelligence-item b{font-size:18px;color:#91a3b1}
+.invoice-duplicate-alert{
+  width:100%;
+  border:1px solid #f0d2a9;
+  background:linear-gradient(135deg,#fff8eb,#fff2e4);
+  color:#8e5917;
+  border-radius:15px;
+  padding:11px 13px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  text-align:start;
+  cursor:pointer;
+  margin-bottom:12px;
+}
+.invoice-duplicate-alert>span{
+  width:36px;
+  height:36px;
+  border-radius:11px;
+  display:grid;
+  place-items:center;
+  background:#fff;
+  font-size:16px;
+}
+.invoice-duplicate-alert strong{display:block;font-size:10.5px}
+.invoice-duplicate-alert small{display:block;margin-top:3px;font-size:8.5px;color:#a06d2a}
+.report-intelligence-summary{
+  display:flex;
+  gap:11px;
+  align-items:flex-start;
+  padding:13px 15px;
+  border-radius:16px;
+  background:linear-gradient(135deg,#edfafa,#eef3ff);
+  border:1px solid #d2e6e7;
+  margin-bottom:13px;
+}
+.report-intelligence-summary>span{
+  width:36px;
+  height:36px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  color:#fff;
+  background:linear-gradient(145deg,#0aa6a6,#315de7);
+}
+.report-intelligence-summary strong{display:block;font-size:11px;color:#21445e}
+.report-intelligence-summary p{margin:4px 0 0;font-size:9px;color:#6f8597;line-height:1.6}
+@media(max-width:800px){
+  .intelligence-list{grid-template-columns:1fr}
+  .intelligence-card-head{align-items:flex-start;flex-direction:column}
+  .intelligence-card-head button{width:100%}
+}

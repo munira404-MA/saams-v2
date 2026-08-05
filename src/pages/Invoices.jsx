@@ -1,5 +1,6 @@
 import { recordAudit, loadAuditLog } from '../utils/audit';
 import { registerAttachment } from '../utils/attachments';
+import { detectPotentialDuplicates } from '../utils/intelligence';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 
@@ -899,7 +900,7 @@ export default function Invoices({ lang, profile }) {
       {actionMessage && <div className="invoice-action-toast">✓ {actionMessage}</div>}
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v8.0</span>
+          <span className="eyebrow">SAAMS v8.1</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -909,6 +910,10 @@ export default function Invoices({ lang, profile }) {
           <button className="primary-action" type="button" onClick={() => setShowUpload(true)}>＋ {t.upload}</button>
         </div>
       </div>
+
+      {detectPotentialDuplicates(rows).length>0&&<button type="button" className="invoice-duplicate-alert" onClick={()=>setSearch('')}>
+        <span>⚠</span><div><strong>{ar?'تنبيه: فواتير محتمل تكرارها':'Warning: Potential Duplicate Invoices'}</strong><small>{ar?`تم العثور على ${detectPotentialDuplicates(rows).length} حالة متشابهة في المورد أو المبلغ أو التاريخ.`:`${detectPotentialDuplicates(rows).length} similar case(s) found.`}</small></div>
+      </button>}
 
       <div className="invoice-stats">
         {stats.map((item) => (

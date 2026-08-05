@@ -138,7 +138,7 @@ export default function Advances({ lang, profile }) {
 
   return <section className="advances-page">
     <div className="module-heading advances-heading">
-      <div><span className="eyebrow">SAAMS v8.0</span><h1>{t.title}</h1><p>{t.sub}</p></div>
+      <div><span className="eyebrow">SAAMS v8.1</span><h1>{t.title}</h1><p>{t.sub}</p></div>
       <div className="advances-heading-actions">
         {isAdmin && <button className="preview-nursery-btn" onClick={() => setPreviewNursery(v => !v)}>{previewNursery ? t.backAdmin : t.previewNursery}</button>}
         <div className="role-pill">{nurseryMode ? t.nursery : t.admin}</div>

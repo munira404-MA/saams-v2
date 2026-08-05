@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { loadAuditLog } from '../utils/audit';
+import IntelligenceRecommendations from '../components/IntelligenceRecommendations';
 
 const nurseries = [
   ['اللؤلؤية', 4820], ['واسط 2', 3910], ['القليعة', 3480],
@@ -25,13 +26,15 @@ export default function Executive({ lang, profile, setActive }) {
   return (
     <section className="executive-page">
       <div className="module-heading">
-        <div><span className="eyebrow">SAAMS v8.0</span><h1>{ar?'لوحة المدير العام':'Executive Dashboard'}</h1><p>{ar?'ملخص تنفيذي موحد للفواتير والسلف والأصول والحضانات.':'Unified executive overview of invoices, advances, assets, and nurseries.'}</p></div>
+        <div><span className="eyebrow">SAAMS v8.1</span><h1>{ar?'لوحة المدير العام':'Executive Dashboard'}</h1><p>{ar?'ملخص تنفيذي موحد للفواتير والسلف والأصول والحضانات.':'Unified executive overview of invoices, advances, assets, and nurseries.'}</p></div>
         <button className="primary-action" onClick={()=>setActive('reports')}>⇩ {ar?'فتح التقرير الشامل':'Open Comprehensive Report'}</button>
       </div>
 
       <div className="executive-kpis">
         {cards.map(([label,value,icon,tone])=><article className={`executive-kpi ${tone}`} key={label}><span>{icon}</span><div><small>{label}</small><strong>{value}</strong></div></article>)}
       </div>
+
+      <IntelligenceRecommendations lang={lang} onNavigate={setActive} />
 
       <div className="executive-grid">
         <article className="executive-card executive-wide">

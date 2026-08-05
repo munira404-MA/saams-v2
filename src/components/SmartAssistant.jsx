@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { loadAuditLog } from '../utils/audit';
 import { loadAttachments } from '../utils/attachments';
+import { answerSystemQuestion } from '../utils/intelligence';
 
 export default function SmartAssistant({ lang, profile, onNavigate }) {
   const ar=lang==='ar';
@@ -9,29 +10,7 @@ export default function SmartAssistant({ lang, profile, onNavigate }) {
   const [messages,setMessages]=useState([{role:'assistant',text:ar?'مرحبًا، اسأليني عن الفواتير أو الأصول أو السلف أو سجل العمليات.':'Hello. Ask about invoices, assets, advances, or activity.'}]);
 
   function answer(q){
-    const text=q.toLowerCase();
-    const logs=loadAuditLog();
-    const attachments=loadAttachments();
-    if(text.includes('فاتور')||text.includes('invoice')){
-      const invoiceLogs=logs.filter(x=>x.screen==='الفواتير');
-      return ar?`عندي ${invoiceLogs.length} حركة مسجلة على الفواتير، و${attachments.filter(x=>x.entityType==='invoice'&&x.kind==='invoice').length} فاتورة أصلية محفوظة في مركز المرفقات.`:`There are ${invoiceLogs.length} invoice actions and ${attachments.filter(x=>x.entityType==='invoice'&&x.kind==='invoice').length} original invoice files.`;
-    }
-    if(text.includes('أصل')||text.includes('اصل')||text.includes('asset')){
-      const assetLogs=logs.filter(x=>x.screen==='الأصول');
-      return ar?`تم تسجيل ${assetLogs.length} حركة أصول تشمل النقل والفائض والإسقاط والاعتمادات.`:`There are ${assetLogs.length} asset actions including transfers, surplus, and disposal.`;
-    }
-    if(text.includes('سلف')||text.includes('advance')){
-      const advanceLogs=logs.filter(x=>x.screen==='السلف');
-      return ar?`يوجد ${advanceLogs.length} حركة مسجلة على السلف. افتحي شاشة السلف لمشاهدة المصروف والمتبقي لكل حضانة.`:`There are ${advanceLogs.length} recorded advance actions.`;
-    }
-    if(text.includes('مرفق')||text.includes('ملف')||text.includes('attachment')){
-      return ar?`مركز المرفقات يحتوي حاليًا على ${attachments.length} ملف. أقدر أنقلك له مباشرة.`:`The attachment center currently contains ${attachments.length} files.`;
-    }
-    if(text.includes('رفض')||text.includes('مرفوض')){
-      const rejected=logs.filter(x=>['reject','return'].includes(x.actionType));
-      return ar?`تم العثور على ${rejected.length} عملية رفض أو إرجاع في سجل العمليات.`:`There are ${rejected.length} rejected or returned actions.`;
-    }
-    return ar?'أقدر أساعدج بالبحث عن الفواتير، الأصول، السلف، المرفقات، والعمليات المرفوضة. اكتبي السؤال بشكل مباشر.':'I can help with invoices, assets, advances, attachments, and rejected actions.';
+    return answerSystemQuestion(q,{profile});
   }
 
   function send(e){
