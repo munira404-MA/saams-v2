@@ -117,7 +117,7 @@ export default function Reports({lang,profile}){
 
   return <section className="reports-page">
     <div className="module-heading reports-heading">
-      <div><span className="eyebrow">SAAMS v5.3</span><h1>{t.title}</h1><p>{t.sub}</p></div>
+      <div><span className="eyebrow">SAAMS v8.0</span><h1>{t.title}</h1><p>{t.sub}</p></div>
       <button className="primary-action report-master-export" onClick={()=>exportExcel('comprehensive')}>⇩ {t.downloadAll}</button>
     </div>
 

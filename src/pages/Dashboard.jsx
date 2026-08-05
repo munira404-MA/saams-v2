@@ -229,7 +229,7 @@ export default function Dashboard({ lang, setActive, profile }) {
     <div className="glass-dashboard">
       <section className="dashboard-hero">
         <div>
-          <span className="eyebrow">SAAMS v5.6</span>
+          <span className="eyebrow">SAAMS v8.0</span>
           <h1>{scopedT.greeting} <span className="wave">👋</span></h1>
           <p>{scopedT.intro}</p>
         </div>
@@ -337,7 +337,7 @@ export default function Dashboard({ lang, setActive, profile }) {
       </section>
 
       <footer className="dashboard-footer">
-        <span>SAAMS v5.6</span>
+        <span>SAAMS v8.0</span>
         <p>{ar ? '© 2026 أكاديمية الشارقة للتعليم — جميع الحقوق محفوظة' : '© 2026 Sharjah Education Academy — All rights reserved'}</p>
       </footer>
     </div>

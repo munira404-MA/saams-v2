@@ -1,4 +1,5 @@
-import { recordAudit } from '../utils/audit';
+import { recordAudit, loadAuditLog } from '../utils/audit';
+import { registerAttachment } from '../utils/attachments';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 
@@ -788,6 +789,8 @@ export default function Invoices({ lang, profile }) {
       receiptType: receiptFile?.type || (linkedReceiptPages.length ? selectedFile?.type || 'application/pdf' : ''),
     };
     setRows((current) => [next, ...current]);
+    if (attachmentDataUrl) registerAttachment({entityType:'invoice',entityId:next.id,kind:'invoice',name:next.attachmentName||`${next.id}.pdf`,mime:next.attachmentType,dataUrl:attachmentDataUrl,nursery:next.nurseryAr,supplier:next.supplierAr});
+    if (receiptDataUrl) registerAttachment({entityType:'invoice',entityId:next.id,kind:'receipt',name:next.receiptName||`${next.id}_receipt`,mime:next.receiptType,dataUrl:receiptDataUrl,nursery:next.nurseryAr,supplier:next.supplierAr});
     recordAudit({
       profile,
       screen: 'الفواتير',
@@ -896,7 +899,7 @@ export default function Invoices({ lang, profile }) {
       {actionMessage && <div className="invoice-action-toast">✓ {actionMessage}</div>}
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v4.0</span>
+          <span className="eyebrow">SAAMS v8.0</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -1024,6 +1027,14 @@ export default function Invoices({ lang, profile }) {
                 )}
               </>
             )}
+
+            <div className="entity-history">
+              <div className="entity-history-head"><strong>{ar?'سجل الفاتورة':'Invoice History'}</strong><small>{ar?'آخر الحركات المسجلة على الفاتورة':'Latest recorded actions'}</small></div>
+              <div className="entity-timeline">
+                {loadAuditLog().filter(x=>x.entityId===selected.id).slice().reverse().map((x,i)=><div key={x.id}><span>{i+1}</span><div><strong>{x.action}</strong><small>{x.date} · {x.time} · {x.user}</small>{x.reason&&<p>{x.reason}</p>}</div></div>)}
+                {!loadAuditLog().some(x=>x.entityId===selected.id)&&<div><span>1</span><div><strong>{ar?'تم رفع الفاتورة':'Invoice Uploaded'}</strong><small>{selected.date}</small></div></div>}
+              </div>
+            </div>
             {selected.returnReason && <div className="saved-return-reason"><small>{t.currentReturnReason}</small><strong>{selected.returnReason}</strong></div>}
             <div className="drawer-actions">
               {!isNursery && <>

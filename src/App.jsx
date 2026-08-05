@@ -8,6 +8,8 @@ import Advances from './pages/Advances';
 import Reports from './pages/Reports';
 import Users, { loadUsers } from './pages/Users';
 import Settings from './pages/Settings';
+import Executive from './pages/Executive';
+import Attachments from './pages/Attachments';
 import Layout from './components/Layout';
 
 const PREVIEW_PROFILE_KEY = 'saams-preview-profile';
@@ -63,9 +65,9 @@ export default function App() {
   }
 
   const isNursery = profile?.role === 'nursery';
-  const allAdminPages = ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'users', 'settings'];
+  const allAdminPages = ['dashboard', 'executive', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings'];
   const allowedPages = isNursery
-    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'settings']
+    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings']
     : profile?.role === 'super_admin'
       ? allAdminPages
       : allAdminPages.filter((page) => page === 'dashboard' || Boolean(profile?.permissions?.[page]));
@@ -73,10 +75,12 @@ export default function App() {
 
   const pages = {
     dashboard: <Dashboard lang={lang} profile={profile} setActive={setActive} />,
+    executive: <Executive lang={lang} profile={profile} setActive={setActive} />,
     invoices: <Invoices lang={lang} profile={profile} />,
     assets: <Assets lang={lang} profile={profile} />,
     advances: <Advances lang={lang} profile={profile} />,
     reports: <Reports lang={lang} profile={profile} />,
+    attachments: <Attachments lang={lang} profile={profile} />,
     users: <Users lang={lang} profile={profile} />,
     settings: <Settings lang={lang} profile={profile} onProfileUpdate={handleProfileUpdate} />,
   };

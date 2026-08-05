@@ -39,20 +39,24 @@ const NURSERIES = [
 
 const PAGE_PERMISSIONS = [
   ['dashboard', 'الرئيسية', 'Dashboard'],
+  ['executive', 'لوحة المدير العام', 'Executive Dashboard'],
   ['invoices', 'الفواتير', 'Invoices'],
   ['assets', 'الأصول', 'Assets'],
   ['advances', 'السلف', 'Advances'],
   ['reports', 'التقارير', 'Reports'],
+  ['attachments', 'مركز المرفقات', 'Attachment Center'],
   ['users', 'المستخدمون', 'Users'],
   ['settings', 'الإعدادات', 'Settings'],
 ];
 
 const DEFAULT_ADMIN_PERMISSIONS = {
   dashboard: true,
+  executive: false,
   invoices: false,
   assets: false,
   advances: false,
   reports: false,
+  attachments: false,
   users: false,
   settings: false,
 };

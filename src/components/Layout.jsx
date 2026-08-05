@@ -1,11 +1,15 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import SmartAssistant from './SmartAssistant';
+import { loadAuditLog } from '../utils/audit';
 
 const icons = {
   dashboard: '⌂',
+  executive: '◫',
   invoices: '▤',
   advances: '▥',
   assets: '◇',
   reports: '▥',
+  attachments: '▤',
   users: '♙',
   settings: '⚙',
 };
@@ -21,6 +25,8 @@ export default function Layout({
 }) {
   const ar = lang === 'ar';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [auditRows, setAuditRows] = useState(loadAuditLog);
 
   useEffect(() => {
     const closeOnDesktop = () => {
@@ -38,16 +44,24 @@ export default function Layout({
   }, []);
 
   useEffect(() => {
+    const refresh=()=>setAuditRows(loadAuditLog());
+    window.addEventListener('saams:audit-updated',refresh);
+    return()=>window.removeEventListener('saams:audit-updated',refresh);
+  }, []);
+
+  useEffect(() => {
     document.body.classList.toggle('mobile-menu-is-open', mobileMenuOpen);
     return () => document.body.classList.remove('mobile-menu-is-open');
   }, [mobileMenuOpen]);
   const labels = ar
     ? {
         dashboard: 'الرئيسية',
+        executive: 'لوحة المدير العام',
         invoices: 'الفواتير',
         advances: 'السلف',
         assets: 'الأصول',
         reports: 'التقارير',
+        attachments: 'مركز المرفقات',
         users: 'المستخدمون',
         settings: 'الإعدادات',
         logout: 'تسجيل الخروج',
@@ -56,10 +70,12 @@ export default function Layout({
       }
     : {
         dashboard: 'Dashboard',
+        executive: 'Executive Dashboard',
         invoices: 'Invoices',
         advances: 'Advances',
         assets: 'Assets',
         reports: 'Reports',
+        attachments: 'Attachment Center',
         users: 'Users',
         settings: 'Settings',
         logout: 'Sign Out',
@@ -67,11 +83,11 @@ export default function Layout({
         notifications: 'Notifications',
       };
 
-  const baseItems = ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'users', 'settings'];
+  const baseItems = ['dashboard', 'executive', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings'];
   const items = profile?.role === 'super_admin'
     ? baseItems
     : profile?.role === 'nursery'
-      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'settings']
+      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings']
       : baseItems.filter((item) => item === 'dashboard' || Boolean(profile?.permissions?.[item]));
 
   return (
@@ -85,7 +101,7 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v7.0</small>
+          <small>SAAMS v8.0</small>
         </div>
 
         <nav className="side-nav">
@@ -139,10 +155,17 @@ export default function Layout({
           </div>
 
           <div className="topbar-actions">
-            <button className="icon-button notification-button" type="button" aria-label={labels.notifications}>
-              ♧
-              <span className="notification-dot">4</span>
-            </button>
+            <div className="notification-wrap">
+              <button className="icon-button notification-button" type="button" aria-label={labels.notifications} onClick={()=>setNotificationsOpen(v=>!v)}>
+                ♧
+                {auditRows.length>0&&<span className="notification-dot">{Math.min(auditRows.length,9)}</span>}
+              </button>
+              {notificationsOpen&&<div className="notification-panel">
+                <div className="notification-panel-head"><strong>{labels.notifications}</strong><button onClick={()=>setNotificationsOpen(false)}>×</button></div>
+                <div className="notification-panel-list">{auditRows.slice(0,7).map(row=><button key={row.id} onClick={()=>{setNotificationsOpen(false);setActive(row.screen==='الفواتير'?'invoices':row.screen==='الأصول'?'assets':row.screen==='السلف'?'advances':'settings')}}><span>•</span><div><strong>{row.action}</strong><small>{row.user} · {row.details||row.entityId}</small></div><time>{row.time}</time></button>)}{!auditRows.length&&<p>{ar?'لا توجد إشعارات جديدة.':'No new notifications.'}</p>}</div>
+                <button className="notification-view-all" onClick={()=>{setNotificationsOpen(false);setActive('settings')}}>{ar?'عرض سجل العمليات':'View Audit Log'}</button>
+              </div>}
+            </div>
             <button
               className="language-switch"
               type="button"
@@ -156,6 +179,7 @@ export default function Layout({
 
         <main className="dashboard-main">{children}</main>
       </div>
+          <SmartAssistant lang={lang} profile={profile} onNavigate={(page)=>{setActive(page);setMobileMenuOpen(false);}} />
     </div>
   );
 }
