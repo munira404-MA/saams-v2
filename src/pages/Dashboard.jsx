@@ -123,27 +123,30 @@ function AnimatedNumber({ value, decimals = 0 }) {
   return decimals ? display.toFixed(decimals) : Math.round(display).toLocaleString();
 }
 
-function StatusDonut({ t }) {
+function StatusDonut({ t, total = 34, nursery = false }) {
+  const segments = nursery ? [50, 25, 25, 0] : [42, 28, 18, 12];
   return (
     <div className="donut-wrap">
-      <div className="donut-chart">
+      <div className="donut-chart" style={nursery ? { background: 'conic-gradient(#15b3a6 0 50%, #3d73e8 50% 75%, #ff922b 75% 100%, #f34d68 100% 100%)' } : undefined}>
         <div className="donut-center">
-          <strong>34</strong>
+          <strong>{total}</strong>
           <span>{t.invoice}</span>
         </div>
       </div>
       <div className="donut-legend">
-        <span><i className="legend approved" />{t.approved}<b>42%</b></span>
-        <span><i className="legend review" />{t.review}<b>28%</b></span>
-        <span><i className="legend returned" />{t.returned}<b>18%</b></span>
-        <span><i className="legend late" />{t.late}<b>12%</b></span>
+        <span><i className="legend approved" />{t.approved}<b>{segments[0]}%</b></span>
+        <span><i className="legend review" />{t.review}<b>{segments[1]}%</b></span>
+        <span><i className="legend returned" />{t.returned}<b>{segments[2]}%</b></span>
+        <span><i className="legend late" />{t.late}<b>{segments[3]}%</b></span>
       </div>
     </div>
   );
 }
 
-function AssetBars({ ar }) {
-  const data = ar
+function AssetBars({ ar, nursery = false, nurseryName = '' }) {
+  const data = nursery
+    ? [[nurseryName || (ar ? 'الحضانة' : 'Nursery'), 72]]
+    : ar
     ? [
         ['اللؤلؤية', 92],
         ['الرحمانية', 78],
@@ -165,7 +168,7 @@ function AssetBars({ ar }) {
     <div className="asset-bars" aria-label="Asset value chart">
       {data.map(([name, height], index) => (
         <div className="bar-item" key={name}>
-          <div className="bar-value">{[31,27,23,19,16,12][index]}</div>
+          <div className="bar-value">{nursery ? 5 : [31,27,23,19,16,12][index]}</div>
           <div className="bar-track">
             <span style={{ height: `${height}%`, animationDelay: `${index * 80}ms` }} />
           </div>
@@ -199,14 +202,22 @@ export default function Dashboard({ lang, setActive, profile }) {
     [scopedT, isNursery, ar],
   );
 
-  const alerts = [
+  const alerts = isNursery ? [
+    { text: ar ? 'لديك فاتورة واحدة بانتظار مراجعة الإدارة' : 'You have one invoice awaiting administration review', time: ar ? 'منذ 8 ساعات' : '8 hours ago', tone: 'blue', icon: '▤' },
+    { text: ar ? 'يوجد طلب نقل أصل واحد قيد الاعتماد' : 'One asset transfer request is pending approval', time: ar ? 'منذ 5 ساعات' : '5 hours ago', tone: 'amber', icon: '◇' },
+    { text: ar ? 'تمت الموافقة على سلفة الحضانة' : 'The nursery advance was approved', time: ar ? 'منذ يوم' : '1 day ago', tone: 'green', icon: '✓' },
+  ] : [
     { text: scopedT.alert1, time: ar ? 'منذ ساعتين' : '2 hours ago', tone: 'red', icon: '!' },
     { text: scopedT.alert2, time: ar ? 'منذ 5 ساعات' : '5 hours ago', tone: 'amber', icon: '◇' },
     { text: scopedT.alert3, time: ar ? 'منذ 8 ساعات' : '8 hours ago', tone: 'blue', icon: '▤' },
     { text: scopedT.alert4, time: ar ? 'منذ يوم' : '1 day ago', tone: 'green', icon: '✓' },
   ];
 
-  const activities = [
+  const activities = isNursery ? [
+    [ar ? 'تم رفع فاتورة' : 'Invoice uploaded', '#INV-2026-124', displayName, '09:30'],
+    [ar ? 'تم تقديم طلب نقل أصل' : 'Asset transfer request submitted', ar ? 'خزانة تخزين خشبية' : 'Wooden storage cabinet', displayName, '10:15'],
+    [ar ? 'تم فتح سلفة جديدة' : 'New advance opened', ar ? 'سلفة أغسطس وسبتمبر 2026' : 'August and September 2026 advance', ar ? 'الإدارة' : 'Administration', '12:45'],
+  ] : [
     [scopedT.approvedInvoice, '#INV-2026-122', ar ? 'لقاء طلعت' : 'Leqaa Talaat', '09:30'],
     [scopedT.assetAdded, ar ? 'جهاز كمبيوتر HP' : 'HP Computer', ar ? 'منيرة الأحمد' : 'Munira Alahmed', '10:15'],
     [scopedT.assetMoved, ar ? 'طاولة اجتماعات' : 'Meeting Table', ar ? 'محمد سليم' : 'Mohammed Salim', '11:02'],
@@ -218,7 +229,7 @@ export default function Dashboard({ lang, setActive, profile }) {
     <div className="glass-dashboard">
       <section className="dashboard-hero">
         <div>
-          <span className="eyebrow">SAAMS v2.7</span>
+          <span className="eyebrow">SAAMS v5.6</span>
           <h1>{scopedT.greeting} <span className="wave">👋</span></h1>
           <p>{scopedT.intro}</p>
         </div>
@@ -261,7 +272,7 @@ export default function Dashboard({ lang, setActive, profile }) {
             <h2>{scopedT.assetByNursery}</h2>
             <button type="button">{scopedT.thisMonth}⌄</button>
           </div>
-          <AssetBars ar={ar} />
+          <AssetBars ar={ar} nursery={isNursery} nurseryName={nurseryName} />
         </article>
 
         <article className="glass-panel status-panel">
@@ -269,7 +280,7 @@ export default function Dashboard({ lang, setActive, profile }) {
             <h2>{scopedT.invoiceStatus}</h2>
             <button type="button">{scopedT.thisMonth}⌄</button>
           </div>
-          <StatusDonut t={scopedT} />
+          <StatusDonut t={scopedT} total={isNursery ? 4 : 34} nursery={isNursery} />
           <p className="panel-total">{scopedT.totalInvoices}</p>
         </article>
       </section>
@@ -326,7 +337,7 @@ export default function Dashboard({ lang, setActive, profile }) {
       </section>
 
       <footer className="dashboard-footer">
-        <span>SAAMS v2.7</span>
+        <span>SAAMS v5.6</span>
         <p>{ar ? '© 2026 أكاديمية الشارقة للتعليم — جميع الحقوق محفوظة' : '© 2026 Sharjah Education Academy — All rights reserved'}</p>
       </footer>
     </div>
