@@ -200,7 +200,7 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v2.1</small>
+          <small>SAAMS v2.2</small>
         </div>
 
         <div className="sidebar-profile-card">
@@ -220,13 +220,13 @@ export default function Layout({
           </div>
         </div>
 
-        <nav className="side-nav organized-side-nav">
+        <nav className="side-nav organized-side-nav vertical-sidebar-nav">
           {groups.map((group) => {
             const groupActive = group.items.includes(active);
             const isOpen = openGroups[group.id];
 
             return (
-              <div className={`sidebar-group ${groupActive ? 'has-active' : ''}`} key={group.id}>
+              <section className={`sidebar-group ${groupActive ? 'has-active' : ''}`} key={group.id}>
                 <button
                   type="button"
                   className={`sidebar-group-button ${groupActive ? 'active-group' : ''}`}
@@ -238,20 +238,22 @@ export default function Layout({
                   <b className={`sidebar-chevron ${isOpen ? 'open' : ''}`}>⌄</b>
                 </button>
 
-                <div className={`sidebar-submenu ${isOpen && !collapsed ? 'open' : ''}`}>
-                  {group.items.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className={`sidebar-subitem section-${item} ${active === item ? 'active' : ''}`}
-                      onClick={() => goTo(item)}
-                    >
-                      <span className="nav-icon">{icons[item]}</span>
-                      <span>{labels[item]}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+                {isOpen && !collapsed && (
+                  <div className="sidebar-submenu open">
+                    {group.items.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={`sidebar-subitem section-${item} ${active === item ? 'active' : ''}`}
+                        onClick={() => goTo(item)}
+                      >
+                        <span className="nav-icon">{icons[item]}</span>
+                        <span>{labels[item]}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
             );
           })}
 

@@ -198,7 +198,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
   function downloadBackup() {
     const backup = {
       exportedAt: new Date().toISOString(),
-      version: 'SAAMS v2.1',
+      version: 'SAAMS v2.2',
       settings,
       nurseries,
       users,
@@ -307,7 +307,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
   }
 
   const systemStats = [
-    [ar ? 'الإصدار' : 'Version', 'SAAMS v2.1'],
+    [ar ? 'الإصدار' : 'Version', 'SAAMS v2.2'],
     [ar ? 'الحضانات' : 'Nurseries', nurseries.length],
     [ar ? 'المستخدمون' : 'Users', users.length],
     [ar ? 'الحسابات النشطة' : 'Active Accounts', users.filter((u) => u.active).length],
@@ -319,7 +319,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
     <section className="settings-page">
       <header className="settings-heading">
         <div>
-          <span className="eyebrow">SAAMS v2.1</span>
+          <span className="eyebrow">SAAMS v2.2</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
