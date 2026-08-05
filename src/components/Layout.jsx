@@ -26,9 +26,21 @@ export default function Layout({
     const closeOnDesktop = () => {
       if (window.innerWidth > 900) setMobileMenuOpen(false);
     };
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setMobileMenuOpen(false);
+    };
     window.addEventListener('resize', closeOnDesktop);
-    return () => window.removeEventListener('resize', closeOnDesktop);
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      window.removeEventListener('resize', closeOnDesktop);
+      window.removeEventListener('keydown', closeOnEscape);
+    };
   }, []);
+
+  useEffect(() => {
+    document.body.classList.toggle('mobile-menu-is-open', mobileMenuOpen);
+    return () => document.body.classList.remove('mobile-menu-is-open');
+  }, [mobileMenuOpen]);
   const labels = ar
     ? {
         dashboard: 'الرئيسية',
@@ -75,7 +87,7 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v5.9</small>
+          <small>SAAMS v6.0</small>
         </div>
 
         <nav className="side-nav">

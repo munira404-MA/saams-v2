@@ -695,3 +695,144 @@ html,body,#root{width:100%;max-width:100%;min-width:0;overflow-x:hidden}
   .ocr-confidence{grid-template-columns:auto 1fr auto!important}
   .full-attachment-modal{width:100vw!important;height:100dvh!important;max-height:100dvh!important}
 }
+
+/* =========================
+   SAAMS v6.0 — FINAL MOBILE RESPONSIVE SHELL
+   Prevents the navigation drawer from covering or shrinking page content.
+   ========================= */
+@media (max-width:900px){
+  body.mobile-menu-is-open{overflow:hidden!important;touch-action:none}
+
+  .dashboard-shell{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-height:100dvh!important;
+  }
+  .dashboard-stage{
+    position:relative!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    transform:none!important;
+  }
+  .dashboard-main{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+    overflow-x:hidden!important;
+  }
+
+  /* The closed drawer is completely invisible and cannot occupy space. */
+  .side-panel{
+    position:fixed!important;
+    top:0!important;
+    bottom:0!important;
+    width:min(310px,86vw)!important;
+    max-width:86vw!important;
+    height:100dvh!important;
+    min-height:100dvh!important;
+    margin:0!important;
+    visibility:hidden!important;
+    opacity:0!important;
+    pointer-events:none!important;
+    will-change:transform,opacity;
+    transition:transform .24s ease,opacity .18s ease,visibility 0s linear .24s!important;
+    z-index:1001!important;
+  }
+  html[dir="rtl"] .side-panel{
+    right:0!important;
+    left:auto!important;
+    inset-inline-start:auto!important;
+    inset-inline-end:0!important;
+    transform:translate3d(105%,0,0)!important;
+  }
+  html[dir="ltr"] .side-panel{
+    left:0!important;
+    right:auto!important;
+    inset-inline-start:0!important;
+    inset-inline-end:auto!important;
+    transform:translate3d(-105%,0,0)!important;
+  }
+  .side-panel.mobile-open{
+    visibility:visible!important;
+    opacity:1!important;
+    pointer-events:auto!important;
+    transform:translate3d(0,0,0)!important;
+    transition:transform .24s ease,opacity .18s ease!important;
+  }
+  .mobile-menu-overlay{
+    position:fixed!important;
+    inset:0!important;
+    width:100vw!important;
+    height:100dvh!important;
+    z-index:1000!important;
+  }
+
+  .topbar{
+    position:sticky!important;
+    top:0!important;
+    width:100%!important;
+    max-width:100%!important;
+    height:auto!important;
+    min-height:70px!important;
+    box-sizing:border-box!important;
+    padding:10px 14px!important;
+    gap:8px!important;
+  }
+  .topbar-user-wrap,.topbar-actions{min-width:0!important}
+  .topbar-user{min-width:0!important;flex:1!important}
+  .topbar-user strong{max-width:150px!important}
+  .mobile-menu-button{display:grid!important;place-items:center!important;flex:0 0 42px!important}
+
+  .glass-dashboard,.invoice-page,.assets-page,.advances-page,.reports-page,.users-page{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+  }
+  .dashboard-hero{
+    width:100%!important;
+    min-width:0!important;
+    align-items:flex-start!important;
+  }
+  .dashboard-hero>div:first-child{min-width:0!important;max-width:100%!important}
+  .dashboard-hero h1,.dashboard-hero p{max-width:100%!important;overflow-wrap:anywhere!important}
+  .dashboard-filters{width:100%!important;display:grid!important;grid-template-columns:1fr 1fr!important}
+  .dashboard-filters button{width:100%!important;min-width:0!important;white-space:normal!important;line-height:1.45!important}
+
+  .stat-grid{width:100%!important;grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .stat-card{width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important}
+  .dashboard-grid,.dashboard-grid-top,.dashboard-grid-bottom{width:100%!important;grid-template-columns:1fr!important;min-width:0!important}
+  .glass-panel{width:100%!important;min-width:0!important;box-sizing:border-box!important;overflow:hidden!important}
+  .activity-table{width:100%!important;overflow-x:auto!important;-webkit-overflow-scrolling:touch}
+}
+
+@media (max-width:560px){
+  .dashboard-main{padding:12px!important}
+  .topbar{padding:9px 11px!important}
+  .topbar-user strong{max-width:115px!important;font-size:12px!important}
+  .topbar-user small{display:none!important}
+  .avatar{width:38px!important;height:38px!important;flex:0 0 38px!important}
+  .language-switch{height:38px!important;padding:0 7px!important}
+  .notification-button{width:38px!important;height:38px!important}
+
+  .dashboard-hero{gap:13px!important;margin-bottom:15px!important}
+  .dashboard-hero h1{font-size:25px!important;line-height:1.3!important}
+  .dashboard-hero p{font-size:12px!important}
+  .dashboard-filters{grid-template-columns:1fr!important;gap:7px!important}
+  .stat-grid{grid-template-columns:1fr!important;gap:11px!important}
+  .stat-card{min-height:132px!important;padding:18px!important}
+  .quick-grid{grid-template-columns:1fr 1fr!important}
+  .panel-heading{gap:8px!important;align-items:center!important}
+  .panel-heading h2{font-size:16px!important}
+}
+
+@media (max-width:380px){
+  .dashboard-main{padding:9px!important}
+  .topbar-actions{gap:4px!important}
+  .language-switch{padding:0 5px!important}
+  .topbar-user strong{max-width:88px!important}
+  .quick-grid{grid-template-columns:1fr!important}
+}
