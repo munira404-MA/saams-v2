@@ -836,3 +836,67 @@ html,body,#root{width:100%;max-width:100%;min-width:0;overflow-x:hidden}
   .topbar-user strong{max-width:88px!important}
   .quick-grid{grid-template-columns:1fr!important}
 }
+
+/* =========================
+   SAAMS v6.1 — MOBILE DRAWER FULL-VISIBILITY FIX
+   Ensures the RTL/LTR off-canvas transform is fully cancelled when opened.
+   ========================= */
+@media (max-width:900px){
+  html[dir="rtl"] .side-panel.mobile-open,
+  html[dir="ltr"] .side-panel.mobile-open{
+    transform:translate3d(0,0,0)!important;
+  }
+
+  .side-panel{
+    width:min(320px,88vw)!important;
+    max-width:88vw!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    box-sizing:border-box!important;
+    padding:18px 14px calc(18px + env(safe-area-inset-bottom))!important;
+  }
+
+  html[dir="rtl"] .side-panel.mobile-open{
+    right:0!important;
+    left:auto!important;
+  }
+  html[dir="ltr"] .side-panel.mobile-open{
+    left:0!important;
+    right:auto!important;
+  }
+
+  .side-logos,
+  .side-product,
+  .side-nav,
+  .side-logout{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    box-sizing:border-box!important;
+  }
+
+  .side-nav button,
+  .side-logout{
+    display:flex!important;
+    align-items:center!important;
+    width:100%!important;
+    min-width:0!important;
+    gap:12px!important;
+    padding:13px 14px!important;
+  }
+
+  .side-nav button span:last-child,
+  .side-logout span:last-child{
+    display:block!important;
+    min-width:0!important;
+    overflow:visible!important;
+    text-overflow:clip!important;
+    white-space:nowrap!important;
+    font-size:14px!important;
+  }
+
+  .mobile-menu-overlay{
+    background:rgba(10,31,49,.5)!important;
+    backdrop-filter:blur(3px)!important;
+  }
+}
