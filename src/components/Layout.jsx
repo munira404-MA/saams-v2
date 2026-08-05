@@ -25,6 +25,7 @@ export default function Layout({
   active,
   setActive,
   children,
+  databaseMode,
 }) {
   const ar = lang === 'ar';
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
