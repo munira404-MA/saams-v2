@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import SmartAssistant from './SmartAssistant';
 import { loadAuditLog } from '../utils/audit';
 
@@ -7,14 +7,14 @@ const icons = {
   executive: '◫',
   operations: '◉',
   invoices: '▤',
-  advances: '▥',
   assets: '◇',
-  reports: '▥',
-  attachments: '▤',
-  whatsnew: '✦',
-  about: 'ⓘ',
+  advances: '▥',
+  reports: '▦',
+  attachments: '▱',
   users: '♙',
   settings: '⚙',
+  whatsnew: '✦',
+  about: 'ⓘ',
 };
 
 export default function Layout({
@@ -31,6 +31,12 @@ export default function Layout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [auditRows, setAuditRows] = useState(loadAuditLog);
+  const [collapsed, setCollapsed] = useState(false);
+  const [openGroups, setOpenGroups] = useState({
+    home: true,
+    management: ['invoices', 'assets', 'advances', 'reports', 'attachments'].includes(active),
+    system: ['users', 'settings'].includes(active),
+  });
 
   useEffect(() => {
     const closeOnDesktop = () => {
@@ -48,61 +54,144 @@ export default function Layout({
   }, []);
 
   useEffect(() => {
-    const refresh=()=>setAuditRows(loadAuditLog());
-    window.addEventListener('saams:audit-updated',refresh);
-    return()=>window.removeEventListener('saams:audit-updated',refresh);
+    const refresh = () => setAuditRows(loadAuditLog());
+    window.addEventListener('saams:audit-updated', refresh);
+    return () => window.removeEventListener('saams:audit-updated', refresh);
   }, []);
 
   useEffect(() => {
     document.body.classList.toggle('mobile-menu-is-open', mobileMenuOpen);
     return () => document.body.classList.remove('mobile-menu-is-open');
   }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (['invoices', 'assets', 'advances', 'reports', 'attachments'].includes(active)) {
+      setOpenGroups((current) => ({ ...current, management: true }));
+    }
+    if (['users', 'settings'].includes(active)) {
+      setOpenGroups((current) => ({ ...current, system: true }));
+    }
+  }, [active]);
+
   const labels = ar
     ? {
         dashboard: 'الرئيسية',
         executive: 'لوحة المدير العام',
         operations: 'مركز العمليات',
         invoices: 'الفواتير',
-        advances: 'السلف',
         assets: 'الأصول',
+        advances: 'السلف',
         reports: 'التقارير',
         attachments: 'مركز المرفقات',
-        whatsnew: 'ما الجديد',
-        about: 'حول المنظومة',
         users: 'المستخدمون',
         settings: 'الإعدادات',
+        whatsnew: 'ما الجديد',
+        about: 'حول المنظومة',
+        homeGroup: 'الرئيسية',
+        managementGroup: 'الإدارة',
+        systemGroup: 'النظام',
         logout: 'تسجيل الخروج',
         role: 'رئيس وحدة الأصول',
         notifications: 'الإشعارات',
+        online: 'متصل',
+        lastLogin: 'آخر دخول: اليوم',
+        collapse: 'طي القائمة',
+        expand: 'فتح القائمة',
       }
     : {
         dashboard: 'Dashboard',
         executive: 'Executive Dashboard',
         operations: 'Operations Center',
         invoices: 'Invoices',
-        advances: 'Advances',
         assets: 'Assets',
+        advances: 'Advances',
         reports: 'Reports',
         attachments: 'Attachment Center',
-        whatsnew: "What's New",
-        about: 'About SAAMS',
         users: 'Users',
         settings: 'Settings',
+        whatsnew: "What's New",
+        about: 'About SAAMS',
+        homeGroup: 'Home',
+        managementGroup: 'Management',
+        systemGroup: 'System',
         logout: 'Sign Out',
         role: 'Head of Assets Unit',
         notifications: 'Notifications',
+        online: 'Online',
+        lastLogin: 'Last login: Today',
+        collapse: 'Collapse menu',
+        expand: 'Expand menu',
       };
 
-  const baseItems = ['dashboard', 'executive', 'operations', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
+  const baseItems = [
+    'dashboard',
+    'executive',
+    'operations',
+    'invoices',
+    'assets',
+    'advances',
+    'reports',
+    'attachments',
+    'users',
+    'settings',
+    'whatsnew',
+    'about',
+  ];
+
   const items = profile?.role === 'super_admin'
     ? baseItems
     : profile?.role === 'nursery'
       ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'whatsnew', 'about']
       : baseItems.filter((item) => item === 'dashboard' || Boolean(profile?.permissions?.[item]));
 
+  const groups = [
+    {
+      id: 'home',
+      label: labels.homeGroup,
+      icon: '⌂',
+      items: ['dashboard', 'executive', 'operations'].filter((item) => items.includes(item)),
+    },
+    {
+      id: 'management',
+      label: labels.managementGroup,
+      icon: '▣',
+      items: ['invoices', 'assets', 'advances', 'reports', 'attachments'].filter((item) => items.includes(item)),
+    },
+    {
+      id: 'system',
+      label: labels.systemGroup,
+      icon: '⚙',
+      items: ['users', 'settings'].filter((item) => items.includes(item)),
+    },
+  ].filter((group) => group.items.length);
+
+  const goTo = (page) => {
+    setActive(page);
+    setMobileMenuOpen(false);
+  };
+
+  const toggleGroup = (groupId) => {
+    if (collapsed) {
+      setCollapsed(false);
+      setOpenGroups((current) => ({ ...current, [groupId]: true }));
+      return;
+    }
+    setOpenGroups((current) => ({ ...current, [groupId]: !current[groupId] }));
+  };
+
   return (
-    <div className="app-shell dashboard-shell">
-      <aside className={`side-panel ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+    <div className={`app-shell dashboard-shell ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      <aside className={`side-panel organized-sidebar ${mobileMenuOpen ? 'mobile-open' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
+        <button
+          type="button"
+          className="sidebar-collapse-button"
+          title={collapsed ? labels.expand : labels.collapse}
+          aria-label={collapsed ? labels.expand : labels.collapse}
+          onClick={() => setCollapsed((value) => !value)}
+        >
+          ☰
+        </button>
+
         <div className="side-logos">
           <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
           <span />
@@ -111,24 +200,83 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v2.0</small>
+          <small>SAAMS v2.1</small>
         </div>
 
-        <nav className="side-nav">
-          {items.map((item) => (
+        <div className="sidebar-profile-card">
+          <div className="sidebar-profile-avatar">
+            {(profile?.full_name || 'م').trim().charAt(0)}
+          </div>
+          <div className="sidebar-profile-copy">
+            <strong>{profile?.full_name || (ar ? 'منيرة الأحمد' : 'Munira Alahmed')}</strong>
+            <small>
+              {profile?.role === 'nursery'
+                ? (profile?.nursery || (ar ? 'حساب حضانة' : 'Nursery Account'))
+                : profile?.role === 'admin'
+                  ? (ar ? 'موظف إدارة' : 'Administration Employee')
+                  : labels.role}
+            </small>
+            <span><i /> {labels.online}</span>
+          </div>
+        </div>
+
+        <nav className="side-nav organized-side-nav">
+          {groups.map((group) => {
+            const groupActive = group.items.includes(active);
+            const isOpen = openGroups[group.id];
+
+            return (
+              <div className={`sidebar-group ${groupActive ? 'has-active' : ''}`} key={group.id}>
+                <button
+                  type="button"
+                  className={`sidebar-group-button ${groupActive ? 'active-group' : ''}`}
+                  onClick={() => toggleGroup(group.id)}
+                  title={collapsed ? group.label : undefined}
+                >
+                  <span className="nav-icon">{group.icon}</span>
+                  <span className="sidebar-group-label">{group.label}</span>
+                  <b className={`sidebar-chevron ${isOpen ? 'open' : ''}`}>⌄</b>
+                </button>
+
+                <div className={`sidebar-submenu ${isOpen && !collapsed ? 'open' : ''}`}>
+                  {group.items.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className={`sidebar-subitem section-${item} ${active === item ? 'active' : ''}`}
+                      onClick={() => goTo(item)}
+                    >
+                      <span className="nav-icon">{icons[item]}</span>
+                      <span>{labels[item]}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          {items.includes('whatsnew') && (
             <button
-              key={item}
               type="button"
-              className={active === item ? 'active' : ''}
-              onClick={() => { setActive(item); setMobileMenuOpen(false); }}
+              className={`sidebar-standalone ${active === 'whatsnew' ? 'active' : ''}`}
+              onClick={() => goTo('whatsnew')}
+              title={collapsed ? labels.whatsnew : undefined}
             >
-              <span className="nav-icon">{icons[item]}</span>
-              <span>{labels[item]}</span>
+              <span className="nav-icon">{icons.whatsnew}</span>
+              <span>{labels.whatsnew}</span>
             </button>
-          ))}
+          )}
         </nav>
 
-        <button className="side-logout" type="button" onClick={() => { setMobileMenuOpen(false); onLogout(); }}>
+        <button
+          className="side-logout"
+          type="button"
+          title={collapsed ? labels.logout : undefined}
+          onClick={() => {
+            setMobileMenuOpen(false);
+            onLogout();
+          }}
+        >
           <span>⇥</span>
           <span>{labels.logout}</span>
         </button>
@@ -155,12 +303,19 @@ export default function Layout({
             >
               ☰
             </button>
+
             <div className="topbar-user">
-            <div className="avatar">{(profile?.full_name || 'م').trim().charAt(0)}</div>
-            <div>
-              <strong>{profile?.full_name || (ar ? 'منيرة الأحمد' : 'Munira Alahmed')}</strong>
-              <small>{profile?.role === 'nursery' ? (profile?.nursery || (ar ? 'حساب حضانة' : 'Nursery Account')) : profile?.role === 'admin' ? (ar ? 'موظف إدارة' : 'Administration Employee') : labels.role}</small>
-            </div>
+              <div className="avatar">{(profile?.full_name || 'م').trim().charAt(0)}</div>
+              <div>
+                <strong>{profile?.full_name || (ar ? 'منيرة الأحمد' : 'Munira Alahmed')}</strong>
+                <small>
+                  {profile?.role === 'nursery'
+                    ? (profile?.nursery || (ar ? 'حساب حضانة' : 'Nursery Account'))
+                    : profile?.role === 'admin'
+                      ? (ar ? 'موظف إدارة' : 'Administration Employee')
+                      : labels.role}
+                </small>
+              </div>
             </div>
           </div>
 
@@ -168,17 +323,70 @@ export default function Layout({
             <span className={`topbar-database-status ${databaseMode ? 'connected' : 'preview'}`}>
               {databaseMode ? '● Supabase' : '◷ Preview'}
             </span>
+
             <div className="notification-wrap">
-              <button className="icon-button notification-button" type="button" aria-label={labels.notifications} onClick={()=>setNotificationsOpen(v=>!v)}>
+              <button
+                className="icon-button notification-button"
+                type="button"
+                aria-label={labels.notifications}
+                onClick={() => setNotificationsOpen((value) => !value)}
+              >
                 ♧
-                {auditRows.length>0&&<span className="notification-dot">{Math.min(auditRows.length,9)}</span>}
+                {auditRows.length > 0 && (
+                  <span className="notification-dot">{Math.min(auditRows.length, 9)}</span>
+                )}
               </button>
-              {notificationsOpen&&<div className="notification-panel">
-                <div className="notification-panel-head"><strong>{labels.notifications}</strong><button onClick={()=>setNotificationsOpen(false)}>×</button></div>
-                <div className="notification-panel-list">{auditRows.slice(0,7).map(row=><button key={row.id} onClick={()=>{setNotificationsOpen(false);setActive(row.screen==='الفواتير'?'invoices':row.screen==='الأصول'?'assets':row.screen==='السلف'?'advances':'settings')}}><span>•</span><div><strong>{row.action}</strong><small>{row.user} · {row.details||row.entityId}</small></div><time>{row.time}</time></button>)}{!auditRows.length&&<p>{ar?'لا توجد إشعارات جديدة.':'No new notifications.'}</p>}</div>
-                <button className="notification-view-all" onClick={()=>{setNotificationsOpen(false);setActive('settings')}}>{ar?'عرض سجل العمليات':'View Audit Log'}</button>
-              </div>}
+
+              {notificationsOpen && (
+                <div className="notification-panel">
+                  <div className="notification-panel-head">
+                    <strong>{labels.notifications}</strong>
+                    <button onClick={() => setNotificationsOpen(false)}>×</button>
+                  </div>
+
+                  <div className="notification-panel-list">
+                    {auditRows.slice(0, 7).map((row) => (
+                      <button
+                        key={row.id}
+                        onClick={() => {
+                          setNotificationsOpen(false);
+                          setActive(
+                            row.screen === 'الفواتير'
+                              ? 'invoices'
+                              : row.screen === 'الأصول'
+                                ? 'assets'
+                                : row.screen === 'السلف'
+                                  ? 'advances'
+                                  : 'settings'
+                          );
+                        }}
+                      >
+                        <span>•</span>
+                        <div>
+                          <strong>{row.action}</strong>
+                          <small>{row.user} · {row.details || row.entityId}</small>
+                        </div>
+                        <time>{row.time}</time>
+                      </button>
+                    ))}
+                    {!auditRows.length && (
+                      <p>{ar ? 'لا توجد إشعارات جديدة.' : 'No new notifications.'}</p>
+                    )}
+                  </div>
+
+                  <button
+                    className="notification-view-all"
+                    onClick={() => {
+                      setNotificationsOpen(false);
+                      setActive('settings');
+                    }}
+                  >
+                    {ar ? 'عرض سجل العمليات' : 'View Audit Log'}
+                  </button>
+                </div>
+              )}
             </div>
+
             <button
               className="language-switch"
               type="button"
@@ -192,7 +400,15 @@ export default function Layout({
 
         <main className="dashboard-main">{children}</main>
       </div>
-          <SmartAssistant lang={lang} profile={profile} onNavigate={(page)=>{setActive(page);setMobileMenuOpen(false);}} />
+
+      <SmartAssistant
+        lang={lang}
+        profile={profile}
+        onNavigate={(page) => {
+          setActive(page);
+          setMobileMenuOpen(false);
+        }}
+      />
     </div>
   );
 }

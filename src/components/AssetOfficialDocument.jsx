@@ -25,7 +25,7 @@ export default function AssetOfficialDocument({ request, ar, onClose }) {
               <img src="/nurseries-logo.png" alt="" />
             </div>
             <div>
-              <small>SAAMS Enterprise v2.0</small>
+              <small>SAAMS Enterprise v2.1</small>
               <h1>{title}</h1>
               <p>{ar?'منظومة الأصول والسلف الذكية':'Smart Assets & Advances Management System'}</p>
             </div>

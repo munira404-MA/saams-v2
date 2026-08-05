@@ -38,7 +38,7 @@ export default function Attachments({ lang, profile }) {
   }
 
   return <section className="attachments-page">
-    <div className="module-heading"><div><span className="eyebrow">SAAMS v2.0</span><h1>{ar?'مركز المرفقات':'Attachment Center'}</h1><p>{ar?'جميع الفواتير وإيصالات البطاقات والمستندات المرفوعة في مكان واحد.':'All uploaded invoices, receipts, and documents in one place.'}</p></div><button className="primary-action" onClick={downloadAll} disabled={!filtered.length}>⇩ {ar?'تنزيل النتائج ZIP':'Download Results ZIP'}</button></div>
+    <div className="module-heading"><div><span className="eyebrow">SAAMS v2.1</span><h1>{ar?'مركز المرفقات':'Attachment Center'}</h1><p>{ar?'جميع الفواتير وإيصالات البطاقات والمستندات المرفوعة في مكان واحد.':'All uploaded invoices, receipts, and documents in one place.'}</p></div><button className="primary-action" onClick={downloadAll} disabled={!filtered.length}>⇩ {ar?'تنزيل النتائج ZIP':'Download Results ZIP'}</button></div>
     <div className="attachment-center-stats">
       <article><small>{ar?'إجمالي الملفات':'Total Files'}</small><strong>{filtered.length}</strong></article>
       <article><small>{ar?'فواتير أصلية':'Original Invoices'}</small><strong>{filtered.filter(x=>x.kind==='invoice').length}</strong></article>

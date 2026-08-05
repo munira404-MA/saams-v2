@@ -31,7 +31,7 @@ export default function EnterpriseOperations({ lang, setActive }) {
     <section className="enterprise-operations-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS Enterprise v2.0</span>
+          <span className="eyebrow">SAAMS Enterprise v2.1</span>
           <h1>{ar?'مركز العمليات المؤسسية':'Enterprise Operations Center'}</h1>
           <p>{ar?'متابعة العمليات اليومية، الأداء، الاعتمادات، والحركات الأكثر نشاطًا.':'Monitor daily activity, performance, approvals, and operational trends.'}</p>
         </div>
