@@ -1,3 +1,4 @@
+import { recordAudit } from '../utils/audit';
 import { useMemo, useState } from 'react';
 
 export const USERS_STORAGE_KEY = 'saams-users-v1';
@@ -66,7 +67,7 @@ const emptyForm = {
   permissions: { ...DEFAULT_ADMIN_PERMISSIONS },
 };
 
-export default function Users({ lang }) {
+export default function Users({ lang, profile }) {
   const ar = lang === 'ar';
   const [users, setUsers] = useState(loadUsers);
   const [search, setSearch] = useState('');

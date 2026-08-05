@@ -1,3 +1,4 @@
+import { recordAudit } from '../utils/audit';
 import { useState } from 'react';
 
 export default function Login({ lang, setLang, onLogin, busy, error }) {

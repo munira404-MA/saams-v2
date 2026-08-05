@@ -1,3 +1,4 @@
+import { recordAudit } from '../utils/audit';
 import { useMemo, useRef, useState } from 'react';
 
 const ASSETS = [
@@ -40,9 +41,18 @@ export default function Assets({lang,profile}){
  const scopedRequests=useMemo(()=>isAdmin||previewNursery?requests:requests.filter(r=>r.fromAr===accountNursery||r.fromEn===accountNursery),[requests,isAdmin,previewNursery,accountNursery]);
  const filtered=useMemo(()=>scopedAssets.filter(a=>[a.barcode,a.nameAr,a.nameEn,a.nurseryAr,a.nurseryEn].some(v=>v.toLowerCase().includes(search.toLowerCase()))),[scopedAssets,search]);
  function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2600)}
- function addAsset(form){setAssets(x=>[{barcode:form.barcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category,status:'active'},...x]);setModal(null);notify(t.assetSaved)}
+ function addAsset(form){
+  const next={barcode:form.barcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category,status:'active'};
+  setAssets(x=>[next,...x]);setModal(null);notify(t.assetSaved);
+  recordAudit({profile,screen:'الأصول',action:'إضافة أصل',actionType:'create',entityType:'asset',entityId:next.barcode,nursery:next.nurseryAr,details:next.nameAr,after:next});
+ }
  function addRequest(form){const a=assets.find(x=>x.barcode===form.barcode);setRequests(x=>[{id:`AST-REQ-${String(x.length+27).padStart(3,'0')}`,type:modal,barcode:form.barcode,assetAr:a?.nameAr||form.asset,assetEn:a?.nameEn||form.asset,fromAr:form.from,fromEn:form.from,toAr:form.to,toEn:form.to,reasonAr:form.reason,reasonEn:form.reason,status:'pending',date:new Date().toLocaleDateString('en-GB')},...x]);setModal(null);notify(t.requestSent)}
- function approveRequest(id){setRequests(x=>x.map(r=>r.id===id?{...r,status:'approved',decisionDate:new Date().toLocaleDateString('en-GB')}:r));setViewing(null);notify(ar?'تم اعتماد الطلب بنجاح':'Request approved successfully')}
+ function approveRequest(id){
+  const req=requests.find(r=>r.id===id);
+  const decisionDate=new Date().toLocaleDateString('en-GB');
+  setRequests(x=>x.map(r=>r.id===id?{...r,status:'approved',decisionDate}:r));setViewing(null);notify(ar?'تم اعتماد الطلب بنجاح':'Request approved successfully');
+  if(req)recordAudit({profile,screen:'الأصول',action:'اعتماد طلب أصل',actionType:'approve',entityType:'asset_request',entityId:req.id,nursery:req.fromAr,details:`${req.assetAr} — ${req.barcode}`,before:{status:req.status},after:{status:'approved',decisionDate}});
+ }
  function rejectRequest(id,reason){setRequests(x=>x.map(r=>r.id===id?{...r,status:'rejected',rejectionReasonAr:reason,rejectionReasonEn:reason,decisionDate:new Date().toLocaleDateString('en-GB')}:r));setRejecting(null);setViewing(null);notify(ar?'تم رفض الطلب وإضافة سبب الرفض':'Request rejected with reason')}
  return <section className="assets-page">
   <div className="module-heading assets-heading"><div><span className="eyebrow">SAAMS v5.1</span><h1>{t.title}</h1><p>{t.sub}</p></div><div className="assets-heading-actions">{isAdmin&&<button className="preview-nursery-btn" onClick={()=>setPreviewNursery(v=>!v)}>{previewNursery?t.exitPreview:t.previewNursery}</button>}<div className="role-pill">{isAdmin&&!previewNursery?t.admin:t.nursery}</div></div></div>

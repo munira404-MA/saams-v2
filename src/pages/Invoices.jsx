@@ -1,3 +1,4 @@
+import { recordAudit } from '../utils/audit';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 
@@ -787,6 +788,17 @@ export default function Invoices({ lang, profile }) {
       receiptType: receiptFile?.type || (linkedReceiptPages.length ? selectedFile?.type || 'application/pdf' : ''),
     };
     setRows((current) => [next, ...current]);
+    recordAudit({
+      profile,
+      screen: 'الفواتير',
+      action: 'رفع فاتورة',
+      actionType: 'create',
+      entityType: 'invoice',
+      entityId: next.id,
+      nursery: next.nurseryAr || profile?.nursery || '',
+      details: `${next.supplierAr || next.supplierEn || 'مورد'} — ${Number(next.total || 0).toFixed(2)} AED`,
+      after: { status: next.status, total: next.total, supplier: next.supplierAr || next.supplierEn },
+    });
     if (detectedInvoices.length > 1) {
       const remainingDetected = detectedInvoices.filter((_, index) => index !== activeDetectedIndex);
       setDetectedInvoices(remainingDetected);
@@ -827,6 +839,18 @@ export default function Invoices({ lang, profile }) {
     setSelected((current) => current?.id === invoice.id
       ? { ...current, status: 'approved', approvedAt, returnReason: '' }
       : current);
+    recordAudit({
+      profile,
+      screen: 'الفواتير',
+      action: 'اعتماد فاتورة',
+      actionType: 'approve',
+      entityType: 'invoice',
+      entityId: invoice.id,
+      nursery: invoice.nurseryAr || invoice.nurseryEn || '',
+      details: `${invoice.supplierAr || invoice.supplierEn || ''} — ${Number(invoice.total || 0).toFixed(2)} AED`,
+      before: { status: invoice.status },
+      after: { status: 'approved', approvedAt },
+    });
     showActionMessage(t.approvedSuccess);
   }
 
@@ -849,6 +873,19 @@ export default function Invoices({ lang, profile }) {
     setSelected((current) => current?.id === returnTarget.id
       ? { ...current, status: 'returned', returnReason: reason, returnedAt }
       : current);
+    recordAudit({
+      profile,
+      screen: 'الفواتير',
+      action: 'إرجاع فاتورة',
+      actionType: 'return',
+      entityType: 'invoice',
+      entityId: returnTarget.id,
+      nursery: returnTarget.nurseryAr || returnTarget.nurseryEn || '',
+      details: returnTarget.supplierAr || returnTarget.supplierEn || '',
+      reason,
+      before: { status: returnTarget.status },
+      after: { status: 'returned', returnedAt },
+    });
     setReturnTarget(null);
     setReturnReason('');
     showActionMessage(t.returnedSuccess);

@@ -1,9 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import * as XLSX from 'xlsx';
+import { actionTone, loadAuditLog, recordAudit, saveAuditLog } from '../utils/audit';
 import { DEFAULT_USERS, loadUsers, USERS_STORAGE_KEY } from './Users';
 
 const NURSERIES_KEY = 'saams-settings-nurseries-v1';
 const SETTINGS_KEY = 'saams-system-settings-v1';
-const AUDIT_KEY = 'saams-audit-log-v1';
 
 const DEFAULT_NURSERIES = [
   'الرحمانية الجديدة','اللؤلؤية','السيوح','واسط 2','الرحمانية','البديع','اللية','القليعة','البستان','كلباء',
@@ -56,18 +57,6 @@ function writeJson(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
-function addAudit(action, details, user = 'منيرة الأحمد') {
-  const current = readJson(AUDIT_KEY, []);
-  const next = [{
-    id: `LOG-${Date.now()}`,
-    date: new Date().toLocaleString('ar-AE'),
-    user,
-    action,
-    details,
-  }, ...current].slice(0, 100);
-  writeJson(AUDIT_KEY, next);
-  return next;
-}
 
 const labels = {
   ar: {
@@ -136,18 +125,30 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
   const [settings, setSettings] = useState(() => readJson(SETTINGS_KEY, DEFAULT_SETTINGS));
   const [nurseries, setNurseries] = useState(() => readJson(NURSERIES_KEY, DEFAULT_NURSERIES));
   const [users, setUsers] = useState(loadUsers);
-  const [audit, setAudit] = useState(() => readJson(AUDIT_KEY, [
-    { id:'L1', date:'05/08/2026، 12:15 م', user:'منيرة الأحمد', action:'تسجيل دخول', details:'دخول مدير النظام' },
-    { id:'L2', date:'05/08/2026، 11:42 ص', user:'حضانة القليعة', action:'رفع فاتورة', details:'رفع فاتورة جديدة للمراجعة' },
-    { id:'L3', date:'05/08/2026، 10:18 ص', user:'منيرة الأحمد', action:'اعتماد طلب أصل', details:'اعتماد طلب نقل أصل' },
-  ]));
+  const [audit, setAudit] = useState(() => {
+    const existing = loadAuditLog();
+    if (existing.length) return existing;
+    return [
+      { id:'L1', createdAt:'2026-08-05T08:15:00.000Z', date:'05/08/2026', time:'12:15 م', user:'منيرة الأحمد', organization:'الإدارة', nursery:'', screen:'تسجيل الدخول', action:'تسجيل دخول', actionType:'login', entityType:'session', entityId:'', details:'دخول مدير النظام', reason:'' },
+      { id:'L2', createdAt:'2026-08-05T07:42:00.000Z', date:'05/08/2026', time:'11:42 ص', user:'حضانة القليعة', organization:'حضانة القليعة', nursery:'القليعة', screen:'الفواتير', action:'رفع فاتورة', actionType:'create', entityType:'invoice', entityId:'INV-2026-00134', details:'مكتبة دبي للتوزيع — 315.00 AED', reason:'' },
+      { id:'L3', createdAt:'2026-08-05T06:18:00.000Z', date:'05/08/2026', time:'10:18 ص', user:'منيرة الأحمد', organization:'الإدارة', nursery:'واسط 2', screen:'الأصول', action:'اعتماد طلب أصل', actionType:'approve', entityType:'asset_request', entityId:'AST-REQ-026', details:'خزانة تخزين خشبية — SEA-000427', reason:'' },
+    ];
+  });
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
+  const [auditFilters, setAuditFilters] = useState({ from:'', to:'', user:'all', nursery:'all', screen:'all', action:'all' });
+  const [selectedAudit, setSelectedAudit] = useState(null);
   const [nurseryModal, setNurseryModal] = useState(null);
   const [newPassword, setNewPassword] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [typeName, setTypeName] = useState('');
   const restoreRef = useRef(null);
+
+  useEffect(() => {
+    const refresh = () => setAudit(loadAuditLog());
+    window.addEventListener('saams:audit-updated', refresh);
+    return () => window.removeEventListener('saams:audit-updated', refresh);
+  }, []);
 
   const isSuperAdmin = profile?.role === 'super_admin';
 
@@ -178,8 +179,8 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
     writeJson(SETTINGS_KEY, settings);
     writeJson(NURSERIES_KEY, nurseries);
     writeJson(USERS_STORAGE_KEY, nextUsers);
-    const logs = addAudit('تحديث الإعدادات', 'تم حفظ إعدادات النظام', profile?.full_name || 'المستخدم');
-    setAudit(logs);
+    recordAudit({profile,screen:'الإعدادات',action:'تحديث الإعدادات',actionType:'update',entityType:'settings',details:'تم حفظ إعدادات النظام'});
+    setAudit(loadAuditLog());
     if (showMessage) {
       setMessage(t.saved);
       window.setTimeout(() => setMessage(''), 2600);
@@ -197,7 +198,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
   function downloadBackup() {
     const backup = {
       exportedAt: new Date().toISOString(),
-      version: 'SAAMS v6.3',
+      version: 'SAAMS v7.0',
       settings,
       nurseries,
       users,
@@ -210,8 +211,8 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
     link.download = `SAAMS_Backup_${new Date().toISOString().slice(0,10)}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    const logs = addAudit('تنزيل نسخة احتياطية', 'تم تنزيل نسخة JSON', profile?.full_name || 'المستخدم');
-    setAudit(logs);
+    recordAudit({profile,screen:'الإعدادات',action:'تنزيل نسخة احتياطية',actionType:'export',entityType:'backup',details:'تم تنزيل نسخة JSON'});
+    setAudit(loadAuditLog());
   }
 
   async function restoreBackup(file) {
@@ -226,7 +227,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
       writeJson(SETTINGS_KEY, parsed.settings);
       writeJson(NURSERIES_KEY, parsed.nurseries);
       writeJson(USERS_STORAGE_KEY, parsed.users);
-      if (Array.isArray(parsed.audit)) writeJson(AUDIT_KEY, parsed.audit);
+      if (Array.isArray(parsed.audit)) saveAuditLog(parsed.audit);
       setMessage(ar ? 'تم استرجاع النسخة الاحتياطية.' : 'Backup restored.');
     } catch {
       alert(ar ? 'ملف النسخة الاحتياطية غير صالح.' : 'Invalid backup file.');
@@ -265,11 +266,48 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
 
   const filteredLogs = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return audit.filter((item) => !q || [item.user,item.action,item.details,item.date].join(' ').toLowerCase().includes(q));
-  }, [audit, search]);
+    return audit.filter((item) => {
+      const created = item.createdAt ? new Date(item.createdAt) : null;
+      const fromOk = !auditFilters.from || (created && created >= new Date(`${auditFilters.from}T00:00:00`));
+      const toOk = !auditFilters.to || (created && created <= new Date(`${auditFilters.to}T23:59:59`));
+      const userOk = auditFilters.user === 'all' || item.user === auditFilters.user;
+      const nurseryOk = auditFilters.nursery === 'all' || item.nursery === auditFilters.nursery;
+      const screenOk = auditFilters.screen === 'all' || item.screen === auditFilters.screen;
+      const actionOk = auditFilters.action === 'all' || item.actionType === auditFilters.action;
+      const textOk = !q || [item.user,item.organization,item.nursery,item.screen,item.action,item.details,item.reason,item.entityId].join(' ').toLowerCase().includes(q);
+      return fromOk && toOk && userOk && nurseryOk && screenOk && actionOk && textOk;
+    });
+  }, [audit, search, auditFilters]);
+
+  const auditOptions = useMemo(() => ({
+    users: [...new Set(audit.map(x => x.user).filter(Boolean))],
+    nurseries: [...new Set(audit.map(x => x.nursery).filter(Boolean))],
+    screens: [...new Set(audit.map(x => x.screen).filter(Boolean))],
+  }), [audit]);
+
+  function exportAuditExcel() {
+    const rows = filteredLogs.map(item => ({
+      'التاريخ': item.date,
+      'الوقت': item.time,
+      'المستخدم': item.user,
+      'الجهة': item.organization,
+      'الحضانة': item.nursery,
+      'الشاشة': item.screen,
+      'العملية': item.action,
+      'الرقم المرجعي': item.entityId,
+      'التفاصيل': item.details,
+      'السبب': item.reason,
+    }));
+    const workbook = XLSX.utils.book_new();
+    const sheet = XLSX.utils.json_to_sheet(rows);
+    sheet['!cols'] = [12,10,20,18,18,16,20,20,35,35].map(wch => ({wch}));
+    XLSX.utils.book_append_sheet(workbook, sheet, 'سجل العمليات');
+    XLSX.writeFile(workbook, `SAAMS_Audit_Log_${new Date().toISOString().slice(0,10)}.xlsx`);
+    recordAudit({profile,screen:'الإعدادات',action:'تصدير سجل العمليات',actionType:'export',entityType:'audit_log',details:`${rows.length} عملية`});
+  }
 
   const systemStats = [
-    [ar ? 'الإصدار' : 'Version', 'SAAMS v6.3'],
+    [ar ? 'الإصدار' : 'Version', 'SAAMS v7.0'],
     [ar ? 'الحضانات' : 'Nurseries', nurseries.length],
     [ar ? 'المستخدمون' : 'Users', users.length],
     [ar ? 'الحسابات النشطة' : 'Active Accounts', users.filter((u) => u.active).length],
@@ -281,7 +319,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
     <section className="settings-page">
       <header className="settings-heading">
         <div>
-          <span className="eyebrow">SAAMS v6.3</span>
+          <span className="eyebrow">SAAMS v7.0</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -418,14 +456,43 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
           )}
 
           {activeTab === 'audit' && (
-            <article className="settings-card">
-              <div className="settings-section-title"><span className="settings-section-icon">◷</span><div><h2>{t.audit}</h2><p>{ar ? 'آخر العمليات المسجلة داخل نسخة المعاينة.' : 'Recent actions recorded in the preview.'}</p></div></div>
-              <div className="settings-search"><span>⌕</span><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder={ar?'بحث في سجل العمليات...':'Search audit log...'}/></div>
+            <article className="settings-card audit-enterprise-card">
+              <div className="settings-section-title settings-title-with-action">
+                <div className="settings-title-group"><span className="settings-section-icon">◷</span><div><h2>{t.audit}</h2><p>{ar ? 'سجل تدقيق كامل لكل العمليات المنفذة في النظام.' : 'Complete audit trail for system actions.'}</p></div></div>
+                <button className="secondary-action" type="button" onClick={exportAuditExcel}>⇩ {ar?'تصدير Excel':'Export Excel'}</button>
+              </div>
+
+              <div className="audit-summary-grid">
+                <div><small>{ar?'إجمالي العمليات':'Total Actions'}</small><strong>{audit.length}</strong></div>
+                <div><small>{ar?'اعتمادات':'Approvals'}</small><strong>{audit.filter(x=>x.actionType==='approve').length}</strong></div>
+                <div><small>{ar?'رفض وإرجاع':'Rejected / Returned'}</small><strong>{audit.filter(x=>['reject','return'].includes(x.actionType)).length}</strong></div>
+                <div><small>{ar?'عمليات اليوم':'Today'}</small><strong>{audit.filter(x=>x.createdAt?.slice(0,10)===new Date().toISOString().slice(0,10)).length}</strong></div>
+              </div>
+
+              <div className="audit-filter-grid">
+                <div className="settings-search audit-search"><span>⌕</span><input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder={ar?'بحث بالباركود أو رقم الفاتورة أو الحضانة...':'Search barcode, invoice, or nursery...'}/></div>
+                <label><span>{ar?'من تاريخ':'From'}</span><input type="date" value={auditFilters.from} onChange={(e)=>setAuditFilters({...auditFilters,from:e.target.value})}/></label>
+                <label><span>{ar?'إلى تاريخ':'To'}</span><input type="date" value={auditFilters.to} onChange={(e)=>setAuditFilters({...auditFilters,to:e.target.value})}/></label>
+                <label><span>{ar?'المستخدم':'User'}</span><select value={auditFilters.user} onChange={(e)=>setAuditFilters({...auditFilters,user:e.target.value})}><option value="all">{ar?'كل المستخدمين':'All Users'}</option>{auditOptions.users.map(x=><option key={x}>{x}</option>)}</select></label>
+                <label><span>{ar?'الحضانة':'Nursery'}</span><select value={auditFilters.nursery} onChange={(e)=>setAuditFilters({...auditFilters,nursery:e.target.value})}><option value="all">{ar?'كل الحضانات':'All Nurseries'}</option>{auditOptions.nurseries.map(x=><option key={x}>{x}</option>)}</select></label>
+                <label><span>{ar?'الشاشة':'Screen'}</span><select value={auditFilters.screen} onChange={(e)=>setAuditFilters({...auditFilters,screen:e.target.value})}><option value="all">{ar?'كل الشاشات':'All Screens'}</option>{auditOptions.screens.map(x=><option key={x}>{x}</option>)}</select></label>
+                <label><span>{ar?'نوع العملية':'Action Type'}</span><select value={auditFilters.action} onChange={(e)=>setAuditFilters({...auditFilters,action:e.target.value})}><option value="all">{ar?'كل العمليات':'All Actions'}</option><option value="create">{ar?'إضافة/رفع':'Create'}</option><option value="approve">{ar?'اعتماد':'Approve'}</option><option value="reject">{ar?'رفض':'Reject'}</option><option value="return">{ar?'إرجاع':'Return'}</option><option value="update">{ar?'تعديل':'Update'}</option><option value="transfer">{ar?'نقل':'Transfer'}</option><option value="surplus">{ar?'فائض':'Surplus'}</option><option value="disposal">{ar?'إسقاط':'Disposal'}</option><option value="delete">{ar?'حذف':'Delete'}</option><option value="login">{ar?'دخول':'Login'}</option></select></label>
+              </div>
+
               <div className="settings-table-wrap">
-                <table className="settings-table">
-                  <thead><tr><th>{ar?'التاريخ':'Date'}</th><th>{ar?'المستخدم':'User'}</th><th>{ar?'العملية':'Action'}</th><th>{ar?'التفاصيل':'Details'}</th></tr></thead>
-                  <tbody>{filteredLogs.map((log)=><tr key={log.id}><td>{log.date}</td><td>{log.user}</td><td><strong>{log.action}</strong></td><td>{log.details}</td></tr>)}</tbody>
+                <table className="settings-table audit-table">
+                  <thead><tr><th>{ar?'التاريخ والوقت':'Date & Time'}</th><th>{ar?'المستخدم':'User'}</th><th>{ar?'الجهة':'Organization'}</th><th>{ar?'الشاشة':'Screen'}</th><th>{ar?'العملية':'Action'}</th><th>{ar?'الرقم المرجعي':'Reference'}</th><th>{ar?'التفاصيل':'Details'}</th></tr></thead>
+                  <tbody>{filteredLogs.map((log)=><tr key={log.id} onClick={()=>setSelectedAudit(log)}>
+                    <td><strong>{log.date}</strong><small>{log.time}</small></td>
+                    <td>{log.user}</td>
+                    <td>{log.organization || log.nursery || '—'}</td>
+                    <td>{log.screen}</td>
+                    <td><span className={`audit-action ${actionTone(log.actionType)}`}>{log.action}</span></td>
+                    <td><code>{log.entityId || '—'}</code></td>
+                    <td>{log.details || '—'}{log.reason&&<small className="audit-reason-inline">{log.reason}</small>}</td>
+                  </tr>)}</tbody>
                 </table>
+                {!filteredLogs.length&&<div className="invoice-empty">◷<strong>{ar?'لا توجد عمليات مطابقة للفلاتر الحالية.':'No matching audit entries.'}</strong></div>}
               </div>
             </article>
           )}
@@ -443,6 +510,30 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
           )}
         </div>
       </div>
+
+
+      {selectedAudit && (
+        <div className="settings-modal-overlay" onClick={()=>setSelectedAudit(null)}>
+          <aside className="audit-detail-modal" onClick={(e)=>e.stopPropagation()}>
+            <div className="drawer-header"><div><small>{ar?'تفاصيل العملية':'Action Details'}</small><h2>{selectedAudit.action}</h2></div><button type="button" onClick={()=>setSelectedAudit(null)}>×</button></div>
+            <div className="audit-detail-status"><span className={`audit-action ${actionTone(selectedAudit.actionType)}`}>{selectedAudit.action}</span><code>{selectedAudit.entityId||'—'}</code></div>
+            <div className="audit-detail-grid">
+              <div><small>{ar?'المستخدم':'User'}</small><strong>{selectedAudit.user}</strong></div>
+              <div><small>{ar?'الجهة':'Organization'}</small><strong>{selectedAudit.organization||'—'}</strong></div>
+              <div><small>{ar?'التاريخ':'Date'}</small><strong>{selectedAudit.date}</strong></div>
+              <div><small>{ar?'الوقت':'Time'}</small><strong>{selectedAudit.time}</strong></div>
+              <div><small>{ar?'الشاشة':'Screen'}</small><strong>{selectedAudit.screen}</strong></div>
+              <div><small>{ar?'الحضانة':'Nursery'}</small><strong>{selectedAudit.nursery||'—'}</strong></div>
+              <div className="wide"><small>{ar?'التفاصيل':'Details'}</small><strong>{selectedAudit.details||'—'}</strong></div>
+              {selectedAudit.reason&&<div className="wide audit-reason-box"><small>{ar?'السبب':'Reason'}</small><strong>{selectedAudit.reason}</strong></div>}
+            </div>
+            {(selectedAudit.before||selectedAudit.after)&&<div className="audit-change-grid">
+              <div><small>{ar?'قبل العملية':'Before'}</small><pre>{JSON.stringify(selectedAudit.before,null,2)}</pre></div>
+              <div><small>{ar?'بعد العملية':'After'}</small><pre>{JSON.stringify(selectedAudit.after,null,2)}</pre></div>
+            </div>}
+          </aside>
+        </div>
+      )}
 
       {nurseryModal && (
         <div className="settings-modal-overlay" onClick={()=>setNurseryModal(null)}>
