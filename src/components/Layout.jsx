@@ -67,14 +67,12 @@ export default function Layout({
         notifications: 'Notifications',
       };
 
-  const items = [
-    'dashboard',
-    'invoices',
-    'assets',
-    'advances',
-    'reports',
-    ...(profile?.role === 'super_admin' ? ['users', 'settings'] : []),
-  ];
+  const baseItems = ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'users', 'settings'];
+  const items = profile?.role === 'super_admin'
+    ? baseItems
+    : profile?.role === 'nursery'
+      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'settings']
+      : baseItems.filter((item) => item === 'dashboard' || Boolean(profile?.permissions?.[item]));
 
   return (
     <div className="app-shell dashboard-shell">
@@ -87,7 +85,7 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v6.2</small>
+          <small>SAAMS v6.3</small>
         </div>
 
         <nav className="side-nav">

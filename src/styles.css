@@ -965,3 +965,55 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
   .settings-heading h1{font-size:25px}.settings-title-with-action{align-items:flex-start;flex-direction:column}.settings-title-with-action .primary-action{width:100%}
   .settings-section-title h2{font-size:16px}.settings-switch-row{min-height:62px}
 }
+
+
+/* SAAMS v6.3 — clearer settings navigation and custom permissions */
+.settings-nav{
+  background:rgba(255,255,255,.96)!important;
+  border-color:#cfe0ea!important;
+}
+.settings-nav button{
+  color:#183b5b!important;
+}
+.settings-nav button>span{color:#0b9994!important}
+.settings-nav button b{color:#5f7890!important}
+.settings-nav button:hover{
+  background:#eef8fb!important;
+  color:#0b7777!important;
+}
+.settings-nav button.active{
+  background:linear-gradient(135deg,#3159ed,#0aa7a2)!important;
+  border-color:transparent!important;
+  color:#fff!important;
+  box-shadow:0 11px 26px rgba(32,100,175,.22)!important;
+}
+.settings-nav button.active>span,
+.settings-nav button.active b{color:#fff!important;opacity:1!important}
+
+.user-password-cell{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.user-password-cell button{
+  width:28px;height:28px;border:1px solid #d4e2eb;border-radius:8px;
+  background:#fff;color:#178f8b;cursor:pointer;font-weight:900;
+}
+.user-permissions{
+  margin:3px 0 0;padding:13px;border:1px solid #d7e5ed;border-radius:15px;background:#f8fcfd;
+}
+.user-permissions legend{padding:0 7px;font-size:11px;font-weight:900;color:#274a66}
+.user-permissions>p{margin:0 0 10px;color:#748b9e;font-size:9.5px}
+.user-permissions-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.user-permissions-grid label{
+  min-height:43px;padding:9px 11px;border:1px solid #dbe7ee;border-radius:12px;background:#fff;
+  display:flex;align-items:center;gap:8px;font-size:10px;font-weight:800;color:#34536c;cursor:pointer;
+}
+.user-permissions-grid label:has(input:checked){background:#eaf9f5;border-color:#b9e6dc;color:#087e77}
+.user-permissions-grid label.locked{opacity:.7;cursor:not-allowed}
+.user-permissions-grid input{accent-color:#0b9b94;width:16px;height:16px}
+.settings-password-input{position:relative}
+.settings-password-input input{width:100%;padding-inline-end:48px}
+.settings-password-input button{
+  position:absolute;top:50%;transform:translateY(-50%);inset-inline-end:7px;
+  width:34px;height:32px;border:0;border-radius:9px;background:#edf8f7;color:#078d87;cursor:pointer;
+}
+@media(max-width:650px){
+  .user-permissions-grid{grid-template-columns:1fr}
+}

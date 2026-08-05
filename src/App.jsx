@@ -47,6 +47,11 @@ export default function App() {
     sessionStorage.setItem(PREVIEW_PROFILE_KEY, JSON.stringify(nextProfile));
   }
 
+  function handleProfileUpdate(nextProfile) {
+    setProfile(nextProfile);
+    sessionStorage.setItem(PREVIEW_PROFILE_KEY, JSON.stringify(nextProfile));
+  }
+
   function handleLogout() {
     sessionStorage.removeItem(PREVIEW_PROFILE_KEY);
     setProfile(null);
@@ -58,11 +63,12 @@ export default function App() {
   }
 
   const isNursery = profile?.role === 'nursery';
+  const allAdminPages = ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'users', 'settings'];
   const allowedPages = isNursery
-    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports']
+    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'settings']
     : profile?.role === 'super_admin'
-      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'users', 'settings']
-      : ['dashboard', 'invoices', 'assets', 'advances', 'reports'];
+      ? allAdminPages
+      : allAdminPages.filter((page) => page === 'dashboard' || Boolean(profile?.permissions?.[page]));
 
 
   const pages = {
@@ -72,7 +78,7 @@ export default function App() {
     advances: <Advances lang={lang} profile={profile} />,
     reports: <Reports lang={lang} profile={profile} />,
     users: <Users lang={lang} profile={profile} />,
-    settings: <Settings lang={lang} profile={profile} />,
+    settings: <Settings lang={lang} profile={profile} onProfileUpdate={handleProfileUpdate} />,
   };
 
   return (

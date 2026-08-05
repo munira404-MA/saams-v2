@@ -129,7 +129,7 @@ function Switch({ checked, onChange, label, description }) {
   );
 }
 
-export default function Settings({ lang, profile }) {
+export default function Settings({ lang, profile, onProfileUpdate }) {
   const ar = lang === 'ar';
   const t = labels[lang] || labels.ar;
   const [activeTab, setActiveTab] = useState('profile');
@@ -144,6 +144,8 @@ export default function Settings({ lang, profile }) {
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
   const [nurseryModal, setNurseryModal] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [typeName, setTypeName] = useState('');
   const restoreRef = useRef(null);
 
@@ -164,9 +166,18 @@ export default function Settings({ lang, profile }) {
   ];
 
   function persistAll(showMessage = true) {
+    let nextUsers = users;
+    let nextProfile = profile;
+    if (newPassword.trim()) {
+      nextUsers = users.map((user) => user.id === profile?.id ? { ...user, password: newPassword.trim() } : user);
+      nextProfile = { ...profile, password: newPassword.trim() };
+      setUsers(nextUsers);
+      setNewPassword('');
+      onProfileUpdate?.(nextProfile);
+    }
     writeJson(SETTINGS_KEY, settings);
     writeJson(NURSERIES_KEY, nurseries);
-    writeJson(USERS_STORAGE_KEY, users);
+    writeJson(USERS_STORAGE_KEY, nextUsers);
     const logs = addAudit('تحديث الإعدادات', 'تم حفظ إعدادات النظام', profile?.full_name || 'المستخدم');
     setAudit(logs);
     if (showMessage) {
@@ -186,7 +197,7 @@ export default function Settings({ lang, profile }) {
   function downloadBackup() {
     const backup = {
       exportedAt: new Date().toISOString(),
-      version: 'SAAMS v6.2',
+      version: 'SAAMS v6.3',
       settings,
       nurseries,
       users,
@@ -258,7 +269,7 @@ export default function Settings({ lang, profile }) {
   }, [audit, search]);
 
   const systemStats = [
-    [ar ? 'الإصدار' : 'Version', 'SAAMS v6.2'],
+    [ar ? 'الإصدار' : 'Version', 'SAAMS v6.3'],
     [ar ? 'الحضانات' : 'Nurseries', nurseries.length],
     [ar ? 'المستخدمون' : 'Users', users.length],
     [ar ? 'الحسابات النشطة' : 'Active Accounts', users.filter((u) => u.active).length],
@@ -270,7 +281,7 @@ export default function Settings({ lang, profile }) {
     <section className="settings-page">
       <header className="settings-heading">
         <div>
-          <span className="eyebrow">SAAMS v6.2</span>
+          <span className="eyebrow">SAAMS v6.3</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -302,7 +313,14 @@ export default function Settings({ lang, profile }) {
                   <label><span>{ar ? 'اسم المستخدم' : 'Username'}</span><input value={profile?.username || ''} readOnly /></label>
                   <label><span>{ar ? 'المسمى الوظيفي' : 'Job Title'}</span><input value={ar ? settings.profile.titleAr : settings.profile.titleEn} onChange={(e) => setSettings({...settings, profile:{...settings.profile, [ar?'titleAr':'titleEn']:e.target.value}})} /></label>
                   <label><span>{ar ? 'البريد الإلكتروني' : 'Email'}</span><input type="email" value={settings.profile.email} onChange={(e) => setSettings({...settings, profile:{...settings.profile, email:e.target.value}})} /></label>
-                  <label className="settings-wide"><span>{ar ? 'كلمة مرور جديدة' : 'New Password'}</span><input type="password" placeholder={ar ? 'اتركيها فارغة إذا لم تريدي التغيير' : 'Leave blank to keep current password'} /></label>
+                  <label className="settings-wide">
+                    <span>{ar ? 'كلمة المرور الحالية' : 'Current Password'}</span>
+                    <div className="settings-password-input">
+                      <input type={showCurrentPassword ? 'text' : 'password'} value={profile?.password || ''} readOnly />
+                      <button type="button" onClick={() => setShowCurrentPassword((value) => !value)}>{showCurrentPassword ? '◉' : '◎'}</button>
+                    </div>
+                  </label>
+                  <label className="settings-wide"><span>{ar ? 'تغيير كلمة المرور' : 'Change Password'}</span><input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={ar ? 'اكتبي كلمة المرور الجديدة ثم اضغطي حفظ' : 'Enter a new password, then save'} /></label>
                 </div>
               </div>
             </article>
