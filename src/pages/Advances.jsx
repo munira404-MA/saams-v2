@@ -1,5 +1,11 @@
 import { recordAudit } from '../utils/audit';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  createAdvance as createAdvanceDb,
+  listAdvances as listAdvancesDb,
+  listNurseries,
+  toggleAdvanceStatus,
+} from '../data/supabaseData';
 
 const NURSERIES = [
   { ar: 'الرحمانية الجديدة', en: 'New Al Rahmaniya' },
@@ -81,7 +87,7 @@ const totalsOf = advance => advance.allocations.reduce((acc, allocation) => {
   return acc;
 }, { allocated: 0, spent: 0 });
 
-export default function Advances({ lang, profile }) {
+export default function Advances({ lang, profile, databaseMode }) {
   const ar = lang === 'ar';
   const t = COPY[lang] || COPY.ar;
   const isAdmin = profile?.role !== 'nursery';
@@ -95,6 +101,32 @@ export default function Advances({ lang, profile }) {
   const [creating, setCreating] = useState(false);
   const [viewing, setViewing] = useState(null);
   const [toast, setToast] = useState('');
+  const [dbNurseries, setDbNurseries] = useState([]);
+  const [dbLoading, setDbLoading] = useState(databaseMode);
+
+  useEffect(() => {
+    let active = true;
+    async function loadDatabaseData() {
+      if (!databaseMode) {
+        setDbLoading(false);
+        return;
+      }
+      try {
+        const [advanceRows, nurseryRows] = await Promise.all([listAdvancesDb(), listNurseries()]);
+        if (active) {
+          setAdvances(advanceRows);
+          setDbNurseries(nurseryRows);
+        }
+      } catch (error) {
+        console.error('Advance database load failed:', error);
+        if (active) notify(ar ? 'تعذر تحميل السلف من Supabase. تأكدي من تشغيل ملف SQL.' : 'Could not load advances from Supabase.');
+      } finally {
+        if (active) setDbLoading(false);
+      }
+    }
+    loadDatabaseData();
+    return () => { active = false; };
+  }, [databaseMode]);
 
   function notify(message) { setToast(message); setTimeout(() => setToast(''), 2600); }
   function currentNurseryAllocation(advance) {
@@ -116,19 +148,47 @@ export default function Advances({ lang, profile }) {
     return acc;
   }, { allocated: 0, spent: 0, open: 0 });
 
-  function createAdvance(form, status) {
+  async function createAdvance(form, status) {
     const allocations = form.rows.filter(row => row.selected && Number(row.amount) > 0).map(row => ({ nurseryAr: row.ar, nurseryEn: row.en, allocated: Number(row.amount), invoices: [] }));
     if (!allocations.length) { notify(t.invalid); return false; }
-    setAdvances(current => [{
-      id: `ADV-2026-${String(current.length + 9).padStart(3, '0')}`,
+    const next = {
+      id: `ADV-2026-${String(advances.length + 9).padStart(3, '0')}`,
       nameAr: form.name, nameEn: form.name,
-      type: form.type, from: form.from, to: form.to, status, allocations
-    }, ...current]);
+      type: form.type, from: form.from, to: form.to, status,
+      allocations: allocations.map((row) => {
+        const match = dbNurseries.find((nursery) => nursery.name_ar === row.nurseryAr || nursery.name_en === row.nurseryEn);
+        return { ...row, nurseryId: match?.id };
+      }),
+    };
+    if (databaseMode) {
+      if (next.allocations.some((row) => !row.nurseryId)) {
+        notify(ar ? 'تعذر مطابقة إحدى الحضانات مع قاعدة البيانات.' : 'A nursery could not be matched.');
+        return false;
+      }
+      try {
+        next.dbId = await createAdvanceDb(next);
+      } catch (error) {
+        console.error(error);
+        notify(ar ? 'تعذر حفظ السلفة في قاعدة البيانات.' : 'Could not save advance to database.');
+        return false;
+      }
+    }
+    setAdvances(current => [next, ...current]);
     setCreating(false); notify(t.created); return true;
   }
-  function toggleStatus(id) {
-    setAdvances(current => current.map(a => a.id === id ? { ...a, status: a.status === 'open' ? 'closed' : 'open' } : a));
+  async function toggleStatus(id) {
     const item = advances.find(a => a.id === id);
+    const nextStatus = item?.status === 'open' ? 'closed' : 'open';
+    if (databaseMode && item) {
+      try {
+        await toggleAdvanceStatus(item, nextStatus);
+      } catch (error) {
+        console.error(error);
+        notify(ar ? 'تعذر تحديث حالة السلفة في قاعدة البيانات.' : 'Could not update advance status.');
+        return;
+      }
+    }
+    setAdvances(current => current.map(a => a.id === id ? { ...a, status: nextStatus } : a));
     notify(item?.status === 'open' ? t.closedMsg : t.reopenedMsg);
   }
   function addDemoInvoice(advanceId, nurseryAr) {
@@ -137,8 +197,10 @@ export default function Advances({ lang, profile }) {
   }
 
   return <section className="advances-page">
+    {databaseMode&&<div className="database-connected-banner">● {ar?'السلف مرتبطة بقاعدة البيانات، والمصروف يُحسب من الفواتير المعتمدة.':'Advances are connected to the database; spending is calculated from approved invoices.'}</div>}
+    {dbLoading&&<div className="database-loading-banner">◷ {ar?'جاري تحميل السلف...':'Loading advances...'}</div>}
     <div className="module-heading advances-heading">
-      <div><span className="eyebrow">SAAMS v8.1</span><h1>{t.title}</h1><p>{t.sub}</p></div>
+      <div><span className="eyebrow">SAAMS v1.0</span><h1>{t.title}</h1><p>{t.sub}</p></div>
       <div className="advances-heading-actions">
         {isAdmin && <button className="preview-nursery-btn" onClick={() => setPreviewNursery(v => !v)}>{previewNursery ? t.backAdmin : t.previewNursery}</button>}
         <div className="role-pill">{nurseryMode ? t.nursery : t.admin}</div>

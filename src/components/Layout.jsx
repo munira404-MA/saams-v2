@@ -10,6 +10,8 @@ const icons = {
   assets: '◇',
   reports: '▥',
   attachments: '▤',
+  whatsnew: '✦',
+  about: 'ⓘ',
   users: '♙',
   settings: '⚙',
 };
@@ -62,6 +64,8 @@ export default function Layout({
         assets: 'الأصول',
         reports: 'التقارير',
         attachments: 'مركز المرفقات',
+        whatsnew: 'ما الجديد',
+        about: 'حول المنظومة',
         users: 'المستخدمون',
         settings: 'الإعدادات',
         logout: 'تسجيل الخروج',
@@ -76,6 +80,8 @@ export default function Layout({
         assets: 'Assets',
         reports: 'Reports',
         attachments: 'Attachment Center',
+        whatsnew: "What's New",
+        about: 'About SAAMS',
         users: 'Users',
         settings: 'Settings',
         logout: 'Sign Out',
@@ -83,11 +89,11 @@ export default function Layout({
         notifications: 'Notifications',
       };
 
-  const baseItems = ['dashboard', 'executive', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings'];
+  const baseItems = ['dashboard', 'executive', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
   const items = profile?.role === 'super_admin'
     ? baseItems
     : profile?.role === 'nursery'
-      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings']
+      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'whatsnew', 'about']
       : baseItems.filter((item) => item === 'dashboard' || Boolean(profile?.permissions?.[item]));
 
   return (
@@ -101,7 +107,7 @@ export default function Layout({
 
         <div className="side-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v8.1</small>
+          <small>SAAMS v1.0</small>
         </div>
 
         <nav className="side-nav">
@@ -155,6 +161,9 @@ export default function Layout({
           </div>
 
           <div className="topbar-actions">
+            <span className={`topbar-database-status ${databaseMode ? 'connected' : 'preview'}`}>
+              {databaseMode ? '● Supabase' : '◷ Preview'}
+            </span>
             <div className="notification-wrap">
               <button className="icon-button notification-button" type="button" aria-label={labels.notifications} onClick={()=>setNotificationsOpen(v=>!v)}>
                 ♧

@@ -47,6 +47,8 @@ const PAGE_PERMISSIONS = [
   ['attachments', 'مركز المرفقات', 'Attachment Center'],
   ['users', 'المستخدمون', 'Users'],
   ['settings', 'الإعدادات', 'Settings'],
+  ['whatsnew', 'ما الجديد', "What's New"],
+  ['about', 'حول المنظومة', 'About SAAMS'],
 ];
 
 const DEFAULT_ADMIN_PERMISSIONS = {
@@ -59,6 +61,8 @@ const DEFAULT_ADMIN_PERMISSIONS = {
   attachments: false,
   users: false,
   settings: false,
+  whatsnew: true,
+  about: true,
 };
 
 const emptyForm = {

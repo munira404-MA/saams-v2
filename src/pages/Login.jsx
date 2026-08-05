@@ -1,7 +1,7 @@
 import { recordAudit } from '../utils/audit';
 import { useState } from 'react';
 
-export default function Login({ lang, setLang, onLogin, busy, error }) {
+export default function Login({ lang, setLang, onLogin, busy, error, databaseMode }) {
   const ar = lang === 'ar';
   const [form, setForm] = useState({ username: '', password: '' });
 
@@ -31,7 +31,7 @@ export default function Login({ lang, setLang, onLogin, busy, error }) {
             />
           </div>
           <div className="brand-copy">
-            <span className="brand-kicker">SAAMS v8.1</span>
+            <span className="brand-kicker">SAAMS v1.0</span>
             <h2>{ar ? 'إدارة أكثر ذكاءً ودقة' : 'Smarter, more accurate management'}</h2>
             <p>
               {ar
@@ -50,6 +50,10 @@ export default function Login({ lang, setLang, onLogin, busy, error }) {
         >
           <h1>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances Management System'}</h1>
           <p>{ar ? 'تسجيل الدخول باسم المستخدم وكلمة المرور' : 'Sign in with username and password'}</p>
+          <div className={`database-mode-badge ${databaseMode ? 'connected' : 'preview'}`}>
+            <span>{databaseMode ? '●' : '◷'}</span>
+            {databaseMode ? (ar ? 'متصل بقاعدة البيانات' : 'Database Connected') : (ar ? 'وضع المعاينة المحلية' : 'Local Preview Mode')}
+          </div>
 
           <label>{ar ? 'اسم المستخدم' : 'Username'}</label>
           <input

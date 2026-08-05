@@ -1,6 +1,13 @@
 import { recordAudit, loadAuditLog } from '../utils/audit';
 import { registerAttachment } from '../utils/attachments';
 import { detectPotentialDuplicates } from '../utils/intelligence';
+import {
+  createInvoice as createInvoiceDb,
+  findNurseryByName,
+  listInvoices as listInvoicesDb,
+  listOpenAdvanceAllocations,
+  updateInvoiceStatus,
+} from '../data/supabaseData';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 
@@ -370,7 +377,7 @@ function StatusBadge({ status, t }) {
   return <span className={`invoice-status ${status}`}>{t[status]}</span>;
 }
 
-export default function Invoices({ lang, profile }) {
+export default function Invoices({ lang, profile, databaseMode }) {
   const invoiceFileInputRef = useRef(null);
   const invoiceCameraInputRef = useRef(null);
   const receiptFileInputRef = useRef(null);
@@ -404,7 +411,34 @@ export default function Invoices({ lang, profile }) {
   const [returnTarget, setReturnTarget] = useState(null);
   const [returnReason, setReturnReason] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const [dbLoading, setDbLoading] = useState(databaseMode);
+  const [advanceOptions, setAdvanceOptions] = useState([]);
   const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+
+  useEffect(() => {
+    let active = true;
+    async function loadDatabaseRows() {
+      if (!databaseMode) {
+        setDbLoading(false);
+        return;
+      }
+      try {
+        const dbRows = await listInvoicesDb();
+        if (active) setRows(dbRows);
+        const options = await listOpenAdvanceAllocations(profile?.nursery_id || null);
+        if (active) setAdvanceOptions(options);
+      } catch (error) {
+        console.error('Invoice database load failed:', error);
+        if (active) {
+          setOcrError(ar ? 'تعذر تحميل بيانات الفواتير من Supabase. تأكدي من تشغيل ملف SQL.' : 'Could not load invoices from Supabase.');
+        }
+      } finally {
+        if (active) setDbLoading(false);
+      }
+    }
+    loadDatabaseRows();
+    return () => { active = false; };
+  }, [databaseMode, profile?.nursery_id]);
 
   useEffect(() => {
     if (!selectedFile) {
@@ -789,6 +823,30 @@ export default function Invoices({ lang, profile }) {
       receiptName: receiptFile?.name || (linkedReceiptPages.length ? `${selectedFile?.name || 'batch.pdf'} - pages ${linkedReceiptPages.join(', ')}` : ''),
       receiptType: receiptFile?.type || (linkedReceiptPages.length ? selectedFile?.type || 'application/pdf' : ''),
     };
+    if (databaseMode) {
+      try {
+        const nurseryRecord = profile?.nursery_id
+          ? { id: profile.nursery_id, name_ar: profile.nursery, name_en: profile.nursery_en }
+          : await findNurseryByName(nurseryName);
+        if (!nurseryRecord?.id) throw new Error('NURSERY_NOT_FOUND');
+        next.nurseryId = nurseryRecord.id;
+        next.nurseryAr = nurseryRecord.name_ar || next.nurseryAr;
+        next.nurseryEn = nurseryRecord.name_en || next.nurseryEn;
+        const chosenAllocation = advanceOptions.find((option) =>
+          option.id === uploadAdvance || option.advances?.name_ar === uploadAdvance || option.advances?.code === uploadAdvance
+        );
+        next.advanceAllocationId = chosenAllocation?.id || null;
+        next.ocrPayload = ocr;
+        const saved = await createInvoiceDb(next, selectedFile, receiptFile);
+        next.dbId = saved.dbId;
+        next.attachmentPath = saved.attachmentPath;
+        next.receiptPath = saved.receiptPath;
+      } catch (error) {
+        console.error(error);
+        setOcrError(ar ? 'تعذر حفظ الفاتورة في قاعدة البيانات. تأكدي من اختيار الحضانة ومن تنفيذ ملف SQL.' : 'Could not save invoice to the database.');
+        return;
+      }
+    }
     setRows((current) => [next, ...current]);
     if (attachmentDataUrl) registerAttachment({entityType:'invoice',entityId:next.id,kind:'invoice',name:next.attachmentName||`${next.id}.pdf`,mime:next.attachmentType,dataUrl:attachmentDataUrl,nursery:next.nurseryAr,supplier:next.supplierAr});
     if (receiptDataUrl) registerAttachment({entityType:'invoice',entityId:next.id,kind:'receipt',name:next.receiptName||`${next.id}_receipt`,mime:next.receiptType,dataUrl:receiptDataUrl,nursery:next.nurseryAr,supplier:next.supplierAr});
@@ -833,10 +891,19 @@ export default function Invoices({ lang, profile }) {
     window.setTimeout(() => setActionMessage(''), 3200);
   }
 
-  function approveInvoice(invoice) {
+  async function approveInvoice(invoice) {
     if (!invoice) return;
     if (!window.confirm(t.approveConfirm)) return;
-    const approvedAt = new Date().toISOString();
+    let approvedAt = new Date().toISOString();
+    if (databaseMode) {
+      try {
+        approvedAt = await updateInvoiceStatus(invoice, 'approved');
+      } catch (error) {
+        console.error(error);
+        showActionMessage(ar ? 'تعذر اعتماد الفاتورة في قاعدة البيانات.' : 'Database approval failed.');
+        return;
+      }
+    }
     setRows((current) => current.map((item) => item.id === invoice.id
       ? { ...item, status: 'approved', approvedAt, returnReason: '' }
       : item));
@@ -864,13 +931,22 @@ export default function Invoices({ lang, profile }) {
     setReturnReason(invoice.returnReason || '');
   }
 
-  function confirmReturnInvoice() {
+  async function confirmReturnInvoice() {
     const reason = returnReason.trim();
     if (!reason) {
       window.alert(t.returnReasonRequired);
       return;
     }
-    const returnedAt = new Date().toISOString();
+    let returnedAt = new Date().toISOString();
+    if (databaseMode) {
+      try {
+        returnedAt = await updateInvoiceStatus(returnTarget, 'returned', reason);
+      } catch (error) {
+        console.error(error);
+        showActionMessage(ar ? 'تعذر إرجاع الفاتورة في قاعدة البيانات.' : 'Database return failed.');
+        return;
+      }
+    }
     setRows((current) => current.map((item) => item.id === returnTarget.id
       ? { ...item, status: 'returned', returnReason: reason, returnedAt }
       : item));
@@ -897,10 +973,12 @@ export default function Invoices({ lang, profile }) {
 
   return (
     <section className="invoice-page">
+      {databaseMode&&<div className="database-connected-banner">● {ar?'الفواتير مرتبطة الآن بقاعدة بيانات Supabase والتخزين الآمن.':'Invoices are connected to Supabase database and private storage.'}</div>}
+      {dbLoading&&<div className="database-loading-banner">◷ {ar?'جاري تحميل الفواتير من قاعدة البيانات...':'Loading invoices from database...'}</div>}
       {actionMessage && <div className="invoice-action-toast">✓ {actionMessage}</div>}
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v8.1</span>
+          <span className="eyebrow">SAAMS v1.0</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>

@@ -10,43 +10,108 @@ import Users, { loadUsers } from './pages/Users';
 import Settings from './pages/Settings';
 import Executive from './pages/Executive';
 import Attachments from './pages/Attachments';
+import SplashScreen from './components/SplashScreen';
+import WhatsNew from './pages/WhatsNew';
+import About from './pages/About';
 import Layout from './components/Layout';
+import { supabase, supabaseConfigured } from './supabase';
+import { getCurrentProfile, signInWithUsername, signOut } from './data/supabaseData';
 
 const PREVIEW_PROFILE_KEY = 'saams-preview-profile';
 
 export default function App() {
   const [lang, setLang] = useState('ar');
-  const [profile, setProfile] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem(PREVIEW_PROFILE_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [profile, setProfile] = useState(null);
+  const [authBusy, setAuthBusy] = useState(supabaseConfigured);
+  const [databaseMode, setDatabaseMode] = useState(supabaseConfigured);
+  const [showSplash, setShowSplash] = useState(true);
   const [active, setActive] = useState('dashboard');
   const [loginError, setLoginError] = useState('');
+
+  useEffect(() => {
+    let mounted = true;
+    async function restoreSession() {
+      if (!supabaseConfigured) {
+        try {
+          const saved = sessionStorage.getItem(PREVIEW_PROFILE_KEY);
+          if (mounted && saved) setProfile(JSON.parse(saved));
+        } catch {}
+        if (mounted) setAuthBusy(false);
+        return;
+      }
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session) {
+          const next = await getCurrentProfile();
+          if (mounted) setProfile(next);
+        }
+      } catch (error) {
+        console.error('Supabase session restore failed:', error);
+      } finally {
+        if (mounted) setAuthBusy(false);
+      }
+    }
+    restoreSession();
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted || !supabaseConfigured) return;
+      if (!session) {
+        setProfile(null);
+        return;
+      }
+      try {
+        const next = await getCurrentProfile();
+        if (mounted) setProfile(next);
+      } catch (error) {
+        console.error(error);
+      }
+    });
+    return () => {
+      mounted = false;
+      authListener?.subscription?.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
   }, [lang]);
 
-  function handlePreviewLogin(credentials) {
+  async function handlePreviewLogin(credentials) {
+    setAuthBusy(true);
+    setLoginError('');
+    if (supabaseConfigured) {
+      try {
+        const nextProfile = await signInWithUsername(credentials.username, credentials.password);
+        setProfile(nextProfile);
+        setDatabaseMode(true);
+      } catch (error) {
+        const message = error?.message === 'ACCOUNT_DISABLED'
+          ? (lang === 'ar' ? 'هذا الحساب موقوف. يرجى التواصل مع الإدارة.' : 'This account is disabled.')
+          : (lang === 'ar' ? 'تعذر تسجيل الدخول. تأكدي من إنشاء الحساب في Supabase ومن صحة البيانات.' : 'Sign-in failed. Verify the Supabase account and credentials.');
+        setLoginError(message);
+      } finally {
+        setAuthBusy(false);
+      }
+      return;
+    }
+
     const username = credentials.username.trim().toLowerCase();
     const user = loadUsers().find((item) => item.username.toLowerCase() === username && item.password === credentials.password);
     if (!user) {
       setLoginError(lang === 'ar' ? 'اسم المستخدم أو كلمة المرور غير صحيحة.' : 'Incorrect username or password.');
+      setAuthBusy(false);
       return;
     }
     if (!user.active) {
       setLoginError(lang === 'ar' ? 'هذا الحساب موقوف. يرجى التواصل مع الإدارة.' : 'This account is disabled. Contact administration.');
+      setAuthBusy(false);
       return;
     }
     const nextProfile = { ...user };
-    setLoginError('');
     setProfile(nextProfile);
     sessionStorage.setItem(PREVIEW_PROFILE_KEY, JSON.stringify(nextProfile));
+    setDatabaseMode(false);
+    setAuthBusy(false);
   }
 
   function handleProfileUpdate(nextProfile) {
@@ -54,20 +119,23 @@ export default function App() {
     sessionStorage.setItem(PREVIEW_PROFILE_KEY, JSON.stringify(nextProfile));
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    if (supabaseConfigured) await signOut();
     sessionStorage.removeItem(PREVIEW_PROFILE_KEY);
     setProfile(null);
     setActive('dashboard');
   }
 
+  if (showSplash) return <SplashScreen onDone={() => setShowSplash(false)} />;
+
   if (!profile) {
-    return <Login lang={lang} setLang={setLang} onLogin={handlePreviewLogin} error={loginError} />;
+    return <Login lang={lang} setLang={setLang} onLogin={handlePreviewLogin} error={loginError} busy={authBusy} databaseMode={databaseMode} />;
   }
 
   const isNursery = profile?.role === 'nursery';
-  const allAdminPages = ['dashboard', 'executive', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings'];
+  const allAdminPages = ['dashboard', 'executive', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
   const allowedPages = isNursery
-    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings']
+    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'whatsnew', 'about']
     : profile?.role === 'super_admin'
       ? allAdminPages
       : allAdminPages.filter((page) => page === 'dashboard' || Boolean(profile?.permissions?.[page]));
@@ -76,11 +144,13 @@ export default function App() {
   const pages = {
     dashboard: <Dashboard lang={lang} profile={profile} setActive={setActive} />,
     executive: <Executive lang={lang} profile={profile} setActive={setActive} />,
-    invoices: <Invoices lang={lang} profile={profile} />,
+    invoices: <Invoices lang={lang} profile={profile} databaseMode={databaseMode} />,
     assets: <Assets lang={lang} profile={profile} />,
-    advances: <Advances lang={lang} profile={profile} />,
+    advances: <Advances lang={lang} profile={profile} databaseMode={databaseMode} />,
     reports: <Reports lang={lang} profile={profile} />,
     attachments: <Attachments lang={lang} profile={profile} />,
+    whatsnew: <WhatsNew lang={lang} />,
+    about: <About lang={lang} />,
     users: <Users lang={lang} profile={profile} />,
     settings: <Settings lang={lang} profile={profile} onProfileUpdate={handleProfileUpdate} />,
   };
@@ -93,6 +163,7 @@ export default function App() {
       onLogout={handleLogout}
       active={active}
       setActive={setActive}
+      databaseMode={databaseMode}
     >
       {pages[allowedPages.includes(active) ? active : 'dashboard'] || pages.dashboard}
     </Layout>
