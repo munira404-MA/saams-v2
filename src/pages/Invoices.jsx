@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
 
 const initialData = [
@@ -189,6 +189,14 @@ const copy = {
     chooseAdvance: 'اختاري السلفة',
     drag: 'اسحبي ملف PDF أو صورة الفاتورة هنا',
     browse: 'اختيار ملف',
+    uploadFromDevice: 'رفع ملف',
+    uploadFromDeviceHint: 'PDF أو صورة من الجهاز',
+    takeInvoicePhoto: 'تصوير الفاتورة',
+    takeInvoicePhotoHint: 'فتح الكاميرا والتقاط الفاتورة مباشرة',
+    takeAnotherPage: 'تصوير صفحة أخرى',
+    cameraAutoRead: 'ستبدأ قراءة الفاتورة تلقائيًا بعد التصوير.',
+    photographReceipt: 'تصوير إيصال البطاقة',
+    uploadReceipt: 'رفع إيصال البطاقة',
     save: 'رفع وحفظ الفاتورة',
     noResults: 'لا توجد فواتير مطابقة للفلاتر الحالية.',
     reason: 'سبب الإرجاع',
@@ -289,6 +297,14 @@ const copy = {
     chooseAdvance: 'Choose Advance',
     drag: 'Drag a PDF or invoice image here',
     browse: 'Choose File',
+    uploadFromDevice: 'Upload File',
+    uploadFromDeviceHint: 'PDF or image from your device',
+    takeInvoicePhoto: 'Take Invoice Photo',
+    takeInvoicePhotoHint: 'Open the camera and capture the invoice directly',
+    takeAnotherPage: 'Take Another Page',
+    cameraAutoRead: 'Invoice reading will start automatically after capture.',
+    photographReceipt: 'Photograph Card Receipt',
+    uploadReceipt: 'Upload Card Receipt',
     save: 'Upload and Save Invoice',
     noResults: 'No invoices match the current filters.',
     reason: 'Return Reason',
@@ -348,6 +364,10 @@ function StatusBadge({ status, t }) {
 }
 
 export default function Invoices({ lang, profile }) {
+  const invoiceFileInputRef = useRef(null);
+  const invoiceCameraInputRef = useRef(null);
+  const receiptFileInputRef = useRef(null);
+  const receiptCameraInputRef = useRef(null);
   const ar = lang === 'ar';
   const isNursery = profile?.role === 'nursery';
   const accountNursery = profile?.nursery || '';
@@ -578,26 +598,27 @@ export default function Invoices({ lang, profile }) {
     setOcrError('');
   }
 
-  async function analyzeInvoice() {
+  async function analyzeInvoice(fileOverride = null) {
     setOcrError('');
-    if (!selectedFile) {
+    const targetFile = fileOverride || selectedFile;
+    if (!targetFile) {
       setOcrError(t.selectFile);
       return;
     }
-    if (selectedFile.size > MAX_UPLOAD_BYTES) {
+    if (targetFile.size > MAX_UPLOAD_BYTES) {
       setOcrError(t.fileTooLarge);
       return;
     }
 
     setReading(true);
     try {
-      const fileData = await fileToDataUrl(selectedFile);
+      const fileData = await fileToDataUrl(targetFile);
       const response = await fetch('/api/ocr', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          filename: selectedFile.name,
-          mimeType: selectedFile.type || 'application/octet-stream',
+          filename: targetFile.name,
+          mimeType: targetFile.type || 'application/octet-stream',
           fileData,
         }),
       });
@@ -622,6 +643,36 @@ export default function Invoices({ lang, profile }) {
     } finally {
       setReading(false);
     }
+  }
+
+  async function handleInvoiceCamera(file) {
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setOcrError(t.fileTooLarge);
+      return;
+    }
+    setSelectedFiles((current) => {
+      const next = [...current, file];
+      setActiveFileIndex(next.length - 1);
+      return next;
+    });
+    setOcr(null);
+    setOcrError('');
+    setManualInvoice(false);
+    setReceiptFile(null);
+    setDetectedInvoices([]);
+    setActiveDetectedIndex(0);
+    setPageClassification([]);
+    await analyzeInvoice(file);
+  }
+
+  function handleInvoiceFileInput(fileList) {
+    addSelectedFiles(fileList);
+  }
+
+  function handleReceiptCamera(file) {
+    if (!file) return;
+    handleReceiptFile(file);
   }
 
   function applyValidation(next, isManual = manualInvoice, hasSeparateReceipt = Boolean(receiptFile)) {
@@ -978,13 +1029,23 @@ export default function Invoices({ lang, profile }) {
                 </div>
 
                 {!selectedFile && (
-                  <label className="drop-zone attachment-drop-zone">
-                    <input type="file" multiple accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => addSelectedFiles(e.target.files)} />
-                    <span className="drop-icon">⇧</span>
-                    <strong>{t.drag}</strong>
-                    <small>PDF, JPG, PNG, WEBP — Max 3 MB</small>
-                    <b>{t.browse}</b>
-                  </label>
+                  <div className="invoice-source-picker">
+                    <input ref={invoiceFileInputRef} className="hidden-file-input" type="file" multiple accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => handleInvoiceFileInput(e.target.files)} />
+                    <input ref={invoiceCameraInputRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={(e) => handleInvoiceCamera(e.target.files?.[0])} />
+                    <button type="button" className="invoice-source-card file-source" onClick={() => invoiceFileInputRef.current?.click()}>
+                      <span className="source-icon">📁</span>
+                      <strong>{t.uploadFromDevice}</strong>
+                      <small>{t.uploadFromDeviceHint}</small>
+                    </button>
+                    <div className="source-divider"><span>{ar ? 'أو' : 'OR'}</span></div>
+                    <button type="button" className="invoice-source-card camera-source" onClick={() => invoiceCameraInputRef.current?.click()}>
+                      <span className="source-icon">📷</span>
+                      <strong>{t.takeInvoicePhoto}</strong>
+                      <small>{t.takeInvoicePhotoHint}</small>
+                      <em>{t.cameraAutoRead}</em>
+                    </button>
+                    <p className="source-formats">PDF, JPG, PNG, WEBP — Max 3 MB</p>
+                  </div>
                 )}
 
                 {selectedFile && (
@@ -1001,7 +1062,11 @@ export default function Invoices({ lang, profile }) {
                       <div><small>{t.fileSize}</small><strong>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</strong></div>
                       <div><small>{t.fileType}</small><strong>{selectedFile.type || '—'}</strong></div>
                     </div>
-                    <button className="remove-attachment" type="button" onClick={removeSelectedFile}>× {t.removeAttachment}</button>
+                    <div className="selected-attachment-actions">
+                      <input ref={invoiceCameraInputRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={(e) => handleInvoiceCamera(e.target.files?.[0])} />
+                      <button className="secondary-camera-action" type="button" onClick={() => invoiceCameraInputRef.current?.click()}>📷 {t.takeAnotherPage}</button>
+                      <button className="remove-attachment" type="button" onClick={removeSelectedFile}>× {t.removeAttachment}</button>
+                    </div>
                   </>
                 )}
               </section>
@@ -1072,7 +1137,12 @@ export default function Invoices({ lang, profile }) {
                       <div className="receipt-upload-card">
                         <div className="receipt-upload-head">
                           <div><strong>{t.receiptAttachment}</strong><small>{t.receiptHint}</small></div>
-                          {!receiptFile && <label className="receipt-file-button">＋ {t.chooseReceipt}<input type="file" accept=".pdf,image/*" onChange={(e) => handleReceiptFile(e.target.files?.[0])} /></label>}
+                          {!receiptFile && <div className="receipt-source-actions">
+                            <input ref={receiptFileInputRef} className="hidden-file-input" type="file" accept=".pdf,image/*" onChange={(e) => handleReceiptFile(e.target.files?.[0])} />
+                            <input ref={receiptCameraInputRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={(e) => handleReceiptCamera(e.target.files?.[0])} />
+                            <button type="button" className="receipt-file-button" onClick={() => receiptFileInputRef.current?.click()}>📁 {t.uploadReceipt}</button>
+                            <button type="button" className="receipt-camera-button" onClick={() => receiptCameraInputRef.current?.click()}>📷 {t.photographReceipt}</button>
+                          </div>}
                         </div>
                         {receiptFile && (
                           <div className="receipt-file-preview">
