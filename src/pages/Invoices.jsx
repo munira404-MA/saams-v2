@@ -978,7 +978,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
       {actionMessage && <div className="invoice-action-toast">✓ {actionMessage}</div>}
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v2.2</span>
+          <span className="eyebrow">SAAMS v3.0</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>

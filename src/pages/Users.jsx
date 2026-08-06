@@ -40,6 +40,7 @@ const NURSERIES = [
 const PAGE_PERMISSIONS = [
   ['dashboard', 'الرئيسية', 'Dashboard'],
   ['executive', 'لوحة المدير العام', 'Executive Dashboard'],
+  ['commandcenter', 'مركز القيادة التنفيذي', 'Executive Command Center'],
   ['operations', 'مركز العمليات', 'Operations Center'],
   ['invoices', 'الفواتير', 'Invoices'],
   ['assets', 'الأصول', 'Assets'],
@@ -55,6 +56,7 @@ const PAGE_PERMISSIONS = [
 const DEFAULT_ADMIN_PERMISSIONS = {
   dashboard: true,
   executive: false,
+  commandcenter: false,
   operations: false,
   invoices: false,
   assets: false,

@@ -9,6 +9,7 @@ import Reports from './pages/Reports';
 import Users, { loadUsers } from './pages/Users';
 import Settings from './pages/Settings';
 import Executive from './pages/Executive';
+import ExecutiveCommandCenter from './pages/ExecutiveCommandCenter';
 import Attachments from './pages/Attachments';
 import SplashScreen from './components/SplashScreen';
 import WhatsNew from './pages/WhatsNew';
@@ -134,7 +135,7 @@ export default function App() {
   }
 
   const isNursery = profile?.role === 'nursery';
-  const allAdminPages = ['dashboard', 'executive', 'operations', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
+  const allAdminPages = ['dashboard', 'executive', 'commandcenter', 'operations', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
   const allowedPages = isNursery
     ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'whatsnew', 'about']
     : profile?.role === 'super_admin'
@@ -145,6 +146,7 @@ export default function App() {
   const pages = {
     dashboard: <Dashboard lang={lang} profile={profile} setActive={setActive} />,
     executive: <Executive lang={lang} profile={profile} setActive={setActive} />,
+    commandcenter: <ExecutiveCommandCenter lang={lang} profile={profile} setActive={setActive} />,
     operations: <EnterpriseOperations lang={lang} setActive={setActive} />,
     invoices: <Invoices lang={lang} profile={profile} databaseMode={databaseMode} />,
     assets: <Assets lang={lang} profile={profile} />,

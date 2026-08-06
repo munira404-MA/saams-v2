@@ -20,7 +20,7 @@ export default function About({ lang }) {
     <section className="official-info-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS Enterprise v2.2</span>
+          <span className="eyebrow">SAAMS Enterprise v3.0</span>
           <h1>{ar ? 'حول المنظومة' : 'About SAAMS'}</h1>
           <p>{ar ? 'معلومات الإصدار والحالة الفنية وسجل التحديثات.' : 'Release information, technical status, and version history.'}</p>
         </div>

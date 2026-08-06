@@ -31,7 +31,7 @@ export default function Login({ lang, setLang, onLogin, busy, error, databaseMod
             />
           </div>
           <div className="brand-copy">
-            <span className="brand-kicker">SAAMS v2.2</span>
+            <span className="brand-kicker">SAAMS v3.0</span>
             <h2>{ar ? 'إدارة أكثر ذكاءً ودقة' : 'Smarter, more accurate management'}</h2>
             <p>
               {ar

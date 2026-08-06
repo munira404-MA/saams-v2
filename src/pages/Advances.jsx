@@ -200,7 +200,7 @@ export default function Advances({ lang, profile, databaseMode }) {
     {databaseMode&&<div className="database-connected-banner">● {ar?'السلف مرتبطة بقاعدة البيانات، والمصروف يُحسب من الفواتير المعتمدة.':'Advances are connected to the database; spending is calculated from approved invoices.'}</div>}
     {dbLoading&&<div className="database-loading-banner">◷ {ar?'جاري تحميل السلف...':'Loading advances...'}</div>}
     <div className="module-heading advances-heading">
-      <div><span className="eyebrow">SAAMS v2.2</span><h1>{t.title}</h1><p>{t.sub}</p></div>
+      <div><span className="eyebrow">SAAMS v3.0</span><h1>{t.title}</h1><p>{t.sub}</p></div>
       <div className="advances-heading-actions">
         {isAdmin && <button className="preview-nursery-btn" onClick={() => setPreviewNursery(v => !v)}>{previewNursery ? t.backAdmin : t.previewNursery}</button>}
         <div className="role-pill">{nurseryMode ? t.nursery : t.admin}</div>
