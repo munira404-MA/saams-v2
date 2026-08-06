@@ -5,6 +5,7 @@ import { DEFAULT_USERS, loadUsers, USERS_STORAGE_KEY } from './Users';
 
 const NURSERIES_KEY = 'saams-settings-nurseries-v1';
 const SETTINGS_KEY = 'saams-system-settings-v1';
+const PRODUCTION_KEY = 'saams-production-readiness-v1';
 
 const DEFAULT_NURSERIES = [
   'الرحمانية الجديدة','اللؤلؤية','السيوح','واسط 2','الرحمانية','البديع','اللية','القليعة','البستان','كلباء',
@@ -44,6 +45,22 @@ const DEFAULT_SETTINGS = {
   },
 };
 
+const DEFAULT_PRODUCTION = {
+  launchMonth: '2026-08',
+  phase: 'pilot',
+  pilotNurseries: ['الرحمانية الجديدة', 'القليعة', 'واسط 2'],
+  rows: DEFAULT_NURSERIES.map((nursery) => ({
+    nurseryId: nursery.id,
+    nursery: nursery.name,
+    openingBalance: 0,
+    accountReady: false,
+    trained: false,
+    dataReady: false,
+    approved: false,
+    notes: '',
+  })),
+};
+
 function readJson(key, fallback) {
   try {
     const value = localStorage.getItem(key);
@@ -62,6 +79,7 @@ const labels = {
   ar: {
     title: 'الإعدادات',
     subtitle: 'مركز التحكم بإعدادات النظام والحضانات والتنبيهات والنسخ الاحتياطي.',
+    production: 'التشغيل الفعلي',
     profile: 'الحساب الشخصي',
     users: 'إدارة المستخدمين',
     nurseries: 'إدارة الحضانات',
@@ -78,6 +96,7 @@ const labels = {
   en: {
     title: 'Settings',
     subtitle: 'Control system settings, nurseries, notifications, and backups.',
+    production: 'Production Launch',
     profile: 'Personal Profile',
     users: 'User Management',
     nurseries: 'Nursery Management',
@@ -94,6 +113,7 @@ const labels = {
 };
 
 const NAV_ICONS = {
+  production: '✓',
   profile: '◉',
   users: '♙',
   nurseries: '⌂',
@@ -123,6 +143,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
   const t = labels[lang] || labels.ar;
   const [activeTab, setActiveTab] = useState('profile');
   const [settings, setSettings] = useState(() => readJson(SETTINGS_KEY, DEFAULT_SETTINGS));
+  const [production, setProduction] = useState(() => readJson(PRODUCTION_KEY, DEFAULT_PRODUCTION));
   const [nurseries, setNurseries] = useState(() => readJson(NURSERIES_KEY, DEFAULT_NURSERIES));
   const [users, setUsers] = useState(loadUsers);
   const [audit, setAudit] = useState(() => {
@@ -155,6 +176,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
   const navItems = [
     ['profile', t.profile],
     ...(isSuperAdmin ? [
+      ['production', t.production],
       ['users', t.users],
       ['nurseries', t.nurseries],
       ['invoices', t.invoices],
@@ -177,6 +199,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
       onProfileUpdate?.(nextProfile);
     }
     writeJson(SETTINGS_KEY, settings);
+    writeJson(PRODUCTION_KEY, production);
     writeJson(NURSERIES_KEY, nurseries);
     writeJson(USERS_STORAGE_KEY, nextUsers);
     recordAudit({profile,screen:'الإعدادات',action:'تحديث الإعدادات',actionType:'update',entityType:'settings',details:'تم حفظ إعدادات النظام'});
@@ -191,6 +214,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
     const ok = window.confirm(ar ? 'هل تريدين استعادة الإعدادات الافتراضية؟' : 'Restore default settings?');
     if (!ok) return;
     setSettings(DEFAULT_SETTINGS);
+    setProduction(DEFAULT_PRODUCTION);
     setNurseries(DEFAULT_NURSERIES);
     setMessage(ar ? 'تمت استعادة الإعدادات الافتراضية. اضغطي حفظ لتثبيتها.' : 'Defaults restored. Save to apply.');
   }
@@ -200,6 +224,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
       exportedAt: new Date().toISOString(),
       version: 'SAAMS Official 3.2',
       settings,
+      production,
       nurseries,
       users,
       audit,
@@ -221,6 +246,7 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
       const parsed = JSON.parse(await file.text());
       if (!parsed.settings || !Array.isArray(parsed.nurseries) || !Array.isArray(parsed.users)) throw new Error('invalid');
       setSettings(parsed.settings);
+      if (parsed.production) { setProduction(parsed.production); writeJson(PRODUCTION_KEY, parsed.production); }
       setNurseries(parsed.nurseries);
       setUsers(parsed.users);
       setAudit(Array.isArray(parsed.audit) ? parsed.audit : audit);
@@ -306,6 +332,28 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
     recordAudit({profile,screen:'الإعدادات',action:'تصدير سجل العمليات',actionType:'export',entityType:'audit_log',details:`${rows.length} عملية`});
   }
 
+  const productionRows = useMemo(() => {
+    const saved = Array.isArray(production.rows) ? production.rows : [];
+    return nurseries.map((nursery) => {
+      const row = saved.find((item) => item.nurseryId === nursery.id || item.nursery === nursery.name);
+      return row || { nurseryId:nursery.id, nursery:nursery.name, openingBalance:0, accountReady:false, trained:false, dataReady:false, approved:false, notes:'' };
+    });
+  }, [production.rows, nurseries]);
+
+  const readinessScore = (row) => [row.accountReady,row.trained,row.dataReady,row.approved].filter(Boolean).length;
+  const readyCount = productionRows.filter((row) => readinessScore(row) === 4).length;
+  const readinessPercent = productionRows.length ? Math.round(productionRows.reduce((sum,row)=>sum+readinessScore(row),0)/(productionRows.length*4)*100) : 0;
+  const updateProductionRow = (nurseryId, patch) => setProduction((current) => ({
+    ...current,
+    rows: productionRows.map((row) => row.nurseryId === nurseryId ? {...row,...patch} : row),
+  }));
+  const togglePilotNursery = (name) => setProduction((current) => ({
+    ...current,
+    pilotNurseries: current.pilotNurseries?.includes(name)
+      ? current.pilotNurseries.filter((item)=>item!==name)
+      : [...(current.pilotNurseries||[]), name],
+  }));
+
   const systemStats = [
     [ar ? 'الإصدار' : 'Version', 'SAAMS Official 3.2'],
     [ar ? 'الحضانات' : 'Nurseries', nurseries.length],
@@ -341,6 +389,46 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
         </aside>
 
         <div className="settings-content">
+          {activeTab === 'production' && (
+            <article className="settings-card production-launch-card">
+              <div className="settings-section-title">
+                <span className="settings-section-icon">✓</span>
+                <div><h2>{t.production}</h2><p>{ar ? 'تجهيز الحضانات والحسابات والأرصدة قبل التعميم الرسمي.' : 'Prepare nurseries, accounts, balances, and training before rollout.'}</p></div>
+              </div>
+
+              <div className="production-summary-grid">
+                <div><small>{ar?'نسبة الجاهزية':'Readiness'}</small><strong>{readinessPercent}%</strong><span><i style={{width:`${readinessPercent}%`}} /></span></div>
+                <div><small>{ar?'الحضانات الجاهزة':'Ready Nurseries'}</small><strong>{readyCount} / {productionRows.length}</strong></div>
+                <div><small>{ar?'المرحلة الحالية':'Current Phase'}</small><strong>{production.phase==='pilot'?(ar?'تشغيل تجريبي':'Pilot'):(ar?'تعميم رسمي':'Full Rollout')}</strong></div>
+                <div><small>{ar?'شهر بداية التشغيل':'Launch Month'}</small><strong>{production.launchMonth || '—'}</strong></div>
+              </div>
+
+              <div className="production-control-grid">
+                <label><span>{ar?'شهر بداية التشغيل':'Launch Month'}</span><input type="month" value={production.launchMonth||''} onChange={(e)=>setProduction({...production,launchMonth:e.target.value})}/></label>
+                <label><span>{ar?'مرحلة التشغيل':'Launch Phase'}</span><select value={production.phase||'pilot'} onChange={(e)=>setProduction({...production,phase:e.target.value})}><option value="pilot">{ar?'تشغيل تجريبي محدود':'Limited Pilot'}</option><option value="full">{ar?'تعميم رسمي':'Full Rollout'}</option></select></label>
+              </div>
+
+              <div className="pilot-nurseries-box">
+                <div><strong>{ar?'الحضانات التجريبية':'Pilot Nurseries'}</strong><small>{ar?'اختاري الحضانات التي ستبدأ أولاً قبل التعميم.':'Select the first nurseries to start before rollout.'}</small></div>
+                <div className="pilot-nursery-chips">{nurseries.filter(n=>n.active).map((n)=><button type="button" key={n.id} className={production.pilotNurseries?.includes(n.name)?'selected':''} onClick={()=>togglePilotNursery(n.name)}>{production.pilotNurseries?.includes(n.name)?'✓ ':''}{n.name}</button>)}</div>
+              </div>
+
+              <div className="settings-table-wrap production-table-wrap">
+                <table className="settings-table production-readiness-table">
+                  <thead><tr><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'الرصيد الافتتاحي':'Opening Balance'}</th><th>{ar?'الحساب':'Account'}</th><th>{ar?'التدريب':'Training'}</th><th>{ar?'البيانات':'Data'}</th><th>{ar?'اعتماد الجاهزية':'Approval'}</th><th>{ar?'الحالة':'Status'}</th><th>{ar?'ملاحظات':'Notes'}</th></tr></thead>
+                  <tbody>{productionRows.map((row)=>{const score=readinessScore(row);return <tr key={row.nurseryId} className={production.pilotNurseries?.includes(row.nursery)?'pilot-row':''}>
+                    <td><strong>{row.nursery}</strong>{production.pilotNurseries?.includes(row.nursery)&&<small className="pilot-badge">{ar?'تجريبي':'Pilot'}</small>}</td>
+                    <td><input className="production-balance-input" type="number" min="0" step="0.01" value={row.openingBalance} onChange={(e)=>updateProductionRow(row.nurseryId,{openingBalance:Number(e.target.value)})}/></td>
+                    {['accountReady','trained','dataReady','approved'].map((field)=><td key={field}><label className="production-check"><input type="checkbox" checked={Boolean(row[field])} onChange={(e)=>updateProductionRow(row.nurseryId,{[field]:e.target.checked})}/><span>✓</span></label></td>)}
+                    <td><span className={`readiness-status score-${score}`}>{score===4?(ar?'جاهزة':'Ready'):`${score}/4`}</span></td>
+                    <td><input className="production-note-input" value={row.notes||''} onChange={(e)=>updateProductionRow(row.nurseryId,{notes:e.target.value})} placeholder={ar?'ملاحظة...':'Note...'}/></td>
+                  </tr>})}</tbody>
+                </table>
+              </div>
+              <div className="production-actions-bar"><p>{ar?'يتم حفظ جميع بيانات الجاهزية عند الضغط على «حفظ جميع الإعدادات».':'Readiness data is saved with Save All Settings.'}</p><button type="button" className="primary-action" onClick={()=>persistAll(true)}>✓ {ar?'حفظ خطة التشغيل':'Save Launch Plan'}</button></div>
+            </article>
+          )}
+
           {activeTab === 'profile' && (
             <article className="settings-card">
               <div className="settings-section-title"><span className="settings-section-icon">◉</span><div><h2>{t.profile}</h2><p>{ar ? 'بيانات الحساب المستخدم حاليًا.' : 'Current account information.'}</p></div></div>
