@@ -259,7 +259,7 @@ html[dir="rtl"] .stat-card::after{border-radius:21px 0 0 21px}
 .stat-card.orange{--accent:#e77927;--wash:#fff0e2}
 @keyframes panelIn{to{opacity:1;transform:translateY(0)}}
 .dashboard-grid{display:grid;gap:14px;margin-top:15px}
-.dashboard-grid-top{grid-template-columns:1.02fr 1.45fr 1.08fr}
+.dashboard-grid-top{grid-template-columns:1.22fr 1.38fr 1.08fr}
 .dashboard-grid-bottom{grid-template-columns:.9fr 2.1fr}
 .glass-panel{
   background:rgba(255,255,255,.78);
@@ -2228,12 +2228,12 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 .alert-item,
 .dashboard-alert-item{
   display:grid!important;
-  grid-template-columns:38px 1fr auto!important;
+  grid-template-columns:44px 1fr auto!important;
   align-items:center!important;
-  gap:10px!important;
-  min-height:66px!important;
-  padding:10px 12px!important;
-  border-radius:14px!important;
+  gap:13px!important;
+  min-height:78px!important;
+  padding:14px 15px!important;
+  border-radius:16px!important;
   border:1px solid #dce9ee!important;
   background:#fff!important;
   box-shadow:0 6px 16px rgba(43,82,108,.045)!important;
@@ -2241,14 +2241,24 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 .notification-card strong,
 .alert-item strong,
 .dashboard-alert-item strong{
-  font-size:10px!important;
+  font-size:13.5px!important;
+  line-height:1.6!important;
 }
 .notification-card small,
 .alert-item small,
 .dashboard-alert-item small{
-  font-size:8px!important;
+  font-size:11px!important;
+  margin-top:4px!important;
   color:#8193a4!important;
 }
+.alert-item .alert-symbol{
+  width:40px!important;
+  height:40px!important;
+  border-radius:12px!important;
+  font-size:17px!important;
+}
+.alerts-panel{padding:20px!important;}
+.alerts-panel .panel-heading h2{font-size:19px!important;}
 
 /* KPI counter animation */
 .dashboard-kpi strong,
