@@ -292,10 +292,10 @@ export default function Layout({
           )}
         </nav>
 
-        <div className="side-logos side-logos-centered">
-          <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
-          <span />
+        <div className="side-logos side-logos-centered side-logos-mobile-only">
           <img src="/academy-logo.png" alt="Sharjah Education Academy" />
+          <span />
+          <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
         </div>
 
         <div className="sidebar-release-brand">
@@ -352,6 +352,12 @@ export default function Layout({
                 </small>
               </div>
             </div>
+          </div>
+
+          <div className="topbar-brand-center" aria-label={ar ? 'شعارات الجهة' : 'Brand logos'}>
+            <img src="/academy-logo.png" alt="Sharjah Education Academy" />
+            <span />
+            <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
           </div>
 
           <div className="topbar-actions">

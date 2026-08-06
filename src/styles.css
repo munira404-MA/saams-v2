@@ -2569,3 +2569,61 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
     display:flex!important;
   }
 }
+
+/* =====================================================
+   SAAMS Header Logos Repositioning - Aug 2026
+   ===================================================== */
+.topbar{
+  position:sticky;
+}
+.topbar-brand-center{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+  padding:0;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  pointer-events:none;
+}
+.topbar-brand-center img{
+  height:62px;
+  width:auto;
+  object-fit:contain;
+  display:block;
+  filter:none;
+  background:transparent;
+}
+.topbar-brand-center span{
+  width:1px;
+  height:54px;
+  background:#cfe0e8;
+  border-radius:999px;
+}
+.side-logos-mobile-only{
+  display:none!important;
+}
+.organized-sidebar .sidebar-release-brand{
+  margin-top:auto;
+}
+@media (max-width:1200px){
+  .topbar-brand-center img{
+    height:54px;
+  }
+  .topbar-brand-center span{
+    height:46px;
+  }
+}
+@media (max-width:900px){
+  .topbar-brand-center{
+    display:none;
+  }
+  .side-logos-mobile-only{
+    display:flex!important;
+  }
+}
