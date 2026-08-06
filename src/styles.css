@@ -2083,3 +2083,206 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
   .help-guide-grid article{grid-template-columns:42px 1fr;padding:14px}
   .help-guide-grid article>span{width:40px;height:40px}
 }
+
+
+/* =====================================================
+   SAAMS ENTERPRISE OFFICIAL RELEASE 3.2.1 — FINAL POLISH
+   ===================================================== */
+
+/* Brand logos: clearer, larger, less empty space */
+.organized-sidebar .side-logos{
+  min-height:84px!important;
+  padding:10px 12px!important;
+  gap:12px!important;
+}
+.organized-sidebar .side-logos img{
+  height:58px!important;
+  max-width:46%!important;
+  object-fit:contain!important;
+}
+.organized-sidebar .side-logos span{
+  height:48px!important;
+}
+
+/* Compact user profile */
+.organized-sidebar .sidebar-profile-card{
+  min-height:58px!important;
+  padding:8px 10px!important;
+  grid-template-columns:34px 1fr!important;
+}
+.organized-sidebar .sidebar-profile-avatar{
+  width:34px!important;
+  height:34px!important;
+  border-radius:11px!important;
+  font-size:15px!important;
+}
+.organized-sidebar .sidebar-profile-copy strong{
+  font-size:11px!important;
+}
+.organized-sidebar .sidebar-profile-copy small{
+  font-size:8px!important;
+}
+
+/* Bigger, clearer navigation typography */
+.organized-sidebar .sidebar-group-button,
+.organized-sidebar .sidebar-standalone{
+  min-height:46px!important;
+  font-size:16px!important;
+  font-weight:800!important;
+}
+.organized-sidebar .sidebar-subitem{
+  min-height:44px!important;
+  font-size:15px!important;
+  font-weight:700!important;
+}
+.organized-sidebar .nav-icon{
+  width:24px!important;
+  height:24px!important;
+  font-size:18px!important;
+}
+
+/* Executive screen as a premium independent action */
+.executive-premium-link{
+  margin:8px 0 6px!important;
+  min-height:50px!important;
+  border-radius:15px!important;
+  background:linear-gradient(135deg,#e7faf7,#edf3ff)!important;
+  border:1px solid #cbe8e9!important;
+  color:#086d77!important;
+  box-shadow:0 8px 18px rgba(35,112,122,.07)!important;
+}
+.executive-premium-link:hover{
+  transform:translateY(-1px)!important;
+  box-shadow:0 12px 22px rgba(35,112,122,.12)!important;
+}
+.executive-premium-link.active{
+  background:#fff!important;
+  border-inline-start:4px solid #15aaa8!important;
+}
+
+/* Sidebar release identity */
+.sidebar-release-brand{
+  margin-top:auto;
+  padding:10px 8px 4px;
+  text-align:center;
+  color:#65818b;
+}
+.sidebar-release-brand strong{
+  display:block;
+  color:#17616d;
+  font-size:9px;
+}
+.sidebar-release-brand small{
+  display:block;
+  margin-top:2px;
+  font-size:7.5px;
+}
+
+/* Dashboard live date */
+.dashboard-live-date{
+  display:inline-flex;
+  align-items:center;
+  min-height:32px;
+  padding:0 11px;
+  margin-bottom:8px;
+  border:1px solid #d5e7eb;
+  border-radius:999px;
+  background:rgba(255,255,255,.72);
+  color:#607c88;
+  font-size:9px;
+  font-weight:800;
+}
+
+/* Equal-height summary cards */
+.dashboard-summary-grid > *,
+.dashboard-kpi-grid > *,
+.stats-grid > *{
+  min-height:150px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+}
+
+/* Quick actions: three balanced cards per row */
+.quick-actions-grid,
+.dashboard-quick-actions{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:10px!important;
+}
+.quick-actions-grid button,
+.dashboard-quick-actions button,
+.quick-action-card{
+  min-height:88px!important;
+  border-radius:16px!important;
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease!important;
+}
+.quick-actions-grid button:hover,
+.dashboard-quick-actions button:hover,
+.quick-action-card:hover{
+  transform:translateY(-3px) scale(1.01)!important;
+  box-shadow:0 14px 28px rgba(35,79,105,.12)!important;
+}
+
+/* Alerts: cleaner Microsoft-style cards */
+.notification-card,
+.alert-item,
+.dashboard-alert-item{
+  display:grid!important;
+  grid-template-columns:38px 1fr auto!important;
+  align-items:center!important;
+  gap:10px!important;
+  min-height:66px!important;
+  padding:10px 12px!important;
+  border-radius:14px!important;
+  border:1px solid #dce9ee!important;
+  background:#fff!important;
+  box-shadow:0 6px 16px rgba(43,82,108,.045)!important;
+}
+.notification-card strong,
+.alert-item strong,
+.dashboard-alert-item strong{
+  font-size:10px!important;
+}
+.notification-card small,
+.alert-item small,
+.dashboard-alert-item small{
+  font-size:8px!important;
+  color:#8193a4!important;
+}
+
+/* KPI counter animation */
+.dashboard-kpi strong,
+.command-kpi strong,
+.stat-card strong{
+  animation:saamsNumberRise .45s ease both;
+}
+@keyframes saamsNumberRise{
+  from{opacity:0;transform:translateY(8px) scale(.96)}
+  to{opacity:1;transform:none}
+}
+
+/* Global card consistency */
+.dashboard-card,
+.command-card,
+.report-preview-card,
+.users-table-card,
+.help-faq-card,
+.help-support-card{
+  border-radius:20px!important;
+  border:1px solid #d8e8ed!important;
+  box-shadow:0 12px 28px rgba(42,77,109,.055)!important;
+}
+
+/* Mobile refinement */
+@media(max-width:900px){
+  .organized-sidebar .side-logos img{height:52px!important}
+  .organized-sidebar .sidebar-group-button,
+  .organized-sidebar .sidebar-standalone{font-size:15px!important}
+  .organized-sidebar .sidebar-subitem{font-size:14px!important}
+  .quick-actions-grid,
+  .dashboard-quick-actions{grid-template-columns:1fr 1fr!important}
+}
+@media(max-width:520px){
+  .quick-actions-grid,
+  .dashboard-quick-actions{grid-template-columns:1fr!important}
+}

@@ -248,7 +248,7 @@ export default function Layout({
           {items.includes('commandcenter') && (
             <button
               type="button"
-              className={`sidebar-standalone executive-navigation-item ${active === 'commandcenter' ? 'active' : ''}`}
+              className={`sidebar-standalone executive-navigation-item executive-premium-link ${active === 'commandcenter' ? 'active' : ''}`}
               onClick={() => goTo('commandcenter')}
               title={collapsed ? labels.commandcenter : undefined}
             >
@@ -292,6 +292,11 @@ export default function Layout({
             </button>
           )}
         </nav>
+
+        <div className="sidebar-release-brand">
+          <strong>SAAMS Enterprise</strong>
+          <small>{ar ? 'الإصدار الرسمي 3.2.1' : 'Official Release 3.2.1'}</small>
+        </div>
 
         <button
           className="side-logout"
