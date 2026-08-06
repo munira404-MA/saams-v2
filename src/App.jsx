@@ -8,13 +8,11 @@ import Advances from './pages/Advances';
 import Reports from './pages/Reports';
 import Users, { loadUsers } from './pages/Users';
 import Settings from './pages/Settings';
-import Executive from './pages/Executive';
 import ExecutiveCommandCenter from './pages/ExecutiveCommandCenter';
 import Attachments from './pages/Attachments';
 import SplashScreen from './components/SplashScreen';
 import WhatsNew from './pages/WhatsNew';
 import About from './pages/About';
-import EnterpriseOperations from './pages/EnterpriseOperations';
 import Layout from './components/Layout';
 import { supabase, supabaseConfigured } from './supabase';
 import { getCurrentProfile, signInWithUsername, signOut } from './data/supabaseData';
@@ -76,6 +74,9 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.title = lang === 'ar'
+      ? 'منظومة الأصول والسلف الذكية'
+      : 'SAAMS Enterprise';
   }, [lang]);
 
   async function handlePreviewLogin(credentials) {
@@ -128,14 +129,14 @@ export default function App() {
     setActive('dashboard');
   }
 
-  if (showSplash) return <SplashScreen onDone={() => setShowSplash(false)} />;
+  if (showSplash) return <SplashScreen lang={lang} onDone={() => setShowSplash(false)} />;
 
   if (!profile) {
     return <Login lang={lang} setLang={setLang} onLogin={handlePreviewLogin} error={loginError} busy={authBusy} databaseMode={databaseMode} />;
   }
 
   const isNursery = profile?.role === 'nursery';
-  const allAdminPages = ['dashboard', 'executive', 'commandcenter', 'operations', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
+  const allAdminPages = ['dashboard', 'commandcenter', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
   const allowedPages = isNursery
     ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'whatsnew', 'about']
     : profile?.role === 'super_admin'
@@ -145,9 +146,7 @@ export default function App() {
 
   const pages = {
     dashboard: <Dashboard lang={lang} profile={profile} setActive={setActive} />,
-    executive: <Executive lang={lang} profile={profile} setActive={setActive} />,
     commandcenter: <ExecutiveCommandCenter lang={lang} profile={profile} setActive={setActive} />,
-    operations: <EnterpriseOperations lang={lang} setActive={setActive} />,
     invoices: <Invoices lang={lang} profile={profile} databaseMode={databaseMode} />,
     assets: <Assets lang={lang} profile={profile} />,
     advances: <Advances lang={lang} profile={profile} databaseMode={databaseMode} />,

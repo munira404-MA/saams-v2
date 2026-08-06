@@ -31,12 +31,12 @@ export default function Login({ lang, setLang, onLogin, busy, error, databaseMod
             />
           </div>
           <div className="brand-copy">
-            <span className="brand-kicker">SAAMS v3.0</span>
-            <h2>{ar ? 'إدارة أكثر ذكاءً ودقة' : 'Smarter, more accurate management'}</h2>
+            <span className="brand-kicker">{ar ? 'الإصدار 3.2' : 'SAAMS Enterprise · Version 3.2'}</span>
+            <h2>{ar ? 'منظومة الأصول والسلف الذكية' : 'SAAMS Enterprise'}</h2>
             <p>
               {ar
-                ? 'منصة موحدة لإدارة الأصول والسلف والفواتير الخاصة بحضانات الشارقة وأكاديمية الشارقة للتعليم.'
-                : 'A unified platform for managing assets, advances, and invoices for Sharjah Nurseries and Sharjah Education Academy.'}
+                ? 'نظام إدارة الأصول والسلف والعمليات المالية'
+                : 'Assets, Advances & Financial Operations Management System'}
             </p>
           </div>
         </section>
@@ -48,7 +48,8 @@ export default function Login({ lang, setLang, onLogin, busy, error, databaseMod
             onLogin(form);
           }}
         >
-          <h1>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances Management System'}</h1>
+          <h1>{ar ? 'مرحبًا بكم' : 'Welcome'}</h1>
+          <h2 className="login-system-name">{ar ? 'منظومة الأصول والسلف الذكية' : 'SAAMS Enterprise'}</h2>
           <p>{ar ? 'تسجيل الدخول باسم المستخدم وكلمة المرور' : 'Sign in with username and password'}</p>
           <div className={`database-mode-badge ${databaseMode ? 'connected' : 'preview'}`}>
             <span>{databaseMode ? '●' : '◷'}</span>

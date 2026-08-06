@@ -3,11 +3,7 @@ import SmartAssistant from './SmartAssistant';
 import { loadAuditLog } from '../utils/audit';
 
 const icons = {
-  dashboard: '⌂',
-  executive: '◫',
-  commandcenter: '◆',
-  operations: '◉',
-  invoices: '▤',
+  dashboard: '⌂',  commandcenter: '◆',  invoices: '▤',
   assets: '◇',
   advances: '▥',
   reports: '▦',
@@ -76,11 +72,7 @@ export default function Layout({
 
   const labels = ar
     ? {
-        dashboard: 'الرئيسية',
-        executive: 'لوحة المدير العام',
-        commandcenter: 'مركز القيادة التنفيذي',
-        operations: 'مركز العمليات',
-        invoices: 'الفواتير',
+        dashboard: 'الرئيسية',        commandcenter: 'مركز القيادة التنفيذي',        invoices: 'الفواتير',
         assets: 'الأصول',
         advances: 'السلف',
         reports: 'التقارير',
@@ -101,11 +93,7 @@ export default function Layout({
         expand: 'فتح القائمة',
       }
     : {
-        dashboard: 'Dashboard',
-        executive: 'Executive Dashboard',
-        commandcenter: 'Executive Command Center',
-        operations: 'Operations Center',
-        invoices: 'Invoices',
+        dashboard: 'Dashboard',        commandcenter: 'Executive Command Center',        invoices: 'Invoices',
         assets: 'Assets',
         advances: 'Advances',
         reports: 'Reports',
@@ -128,9 +116,7 @@ export default function Layout({
 
   const baseItems = [
     'dashboard',
-    'executive',
     'commandcenter',
-    'operations',
     'invoices',
     'assets',
     'advances',
@@ -153,7 +139,7 @@ export default function Layout({
       id: 'home',
       label: labels.homeGroup,
       icon: '⌂',
-      items: ['dashboard', 'executive', 'commandcenter', 'operations'].filter((item) => items.includes(item)),
+      items: ['dashboard', 'commandcenter'].filter((item) => items.includes(item)),
     },
     {
       id: 'management',
@@ -202,9 +188,14 @@ export default function Layout({
           <img src="/academy-logo.png" alt="Sharjah Education Academy" />
         </div>
 
-        <div className="side-product">
-          <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'Smart Assets & Advances'}</strong>
-          <small>SAAMS v3.0</small>
+        <div className="side-product bilingual-product">
+          <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'SAAMS Enterprise'}</strong>
+          <p>
+            {ar
+              ? 'نظام إدارة الأصول والسلف والعمليات المالية'
+              : 'Assets, Advances & Financial Operations Management System'}
+          </p>
+          <small>{ar ? 'الإصدار 3.2' : 'Version 3.2'}</small>
         </div>
 
         <div className="sidebar-profile-card">
