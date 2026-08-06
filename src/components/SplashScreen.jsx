@@ -19,7 +19,7 @@ export default function SplashScreen({ lang, onDone }) {
         <div className="saams-splash-mark">SAAMS</div>
         <h1>{ar ? 'منظومة الأصول والسلف الذكية' : 'SAAMS Enterprise'}</h1>
         <p>{ar ? 'نظام إدارة الأصول والسلف والعمليات المالية' : 'Assets, Advances & Financial Operations Management System'}</p>
-        <div className="saams-splash-version">{ar ? 'الإصدار الرسمي 3.2' : 'Official Release · Version 3.2.1'}</div>
+        <div className="saams-splash-version">{ar ? 'الإصدار الرسمي 3.2' : 'Official Release · Version 3.2'}</div>
         <div className="saams-splash-loader"><i></i></div>
       </div>
     </div>
