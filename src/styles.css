@@ -2286,3 +2286,117 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
   .quick-actions-grid,
   .dashboard-quick-actions{grid-template-columns:1fr!important}
 }
+
+
+/* =====================================================
+   SAAMS v3.2.2 — GROUPED MANUAL PERMISSIONS
+   ===================================================== */
+.user-permissions{
+  padding:16px!important;
+}
+.user-permissions>p{
+  margin:2px 0 14px!important;
+  color:#718794!important;
+  line-height:1.7!important;
+}
+.permission-groups{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+}
+.permission-group{
+  overflow:hidden;
+  border:1px solid #d8e7ec;
+  border-radius:17px;
+  background:#fff;
+  box-shadow:0 8px 20px rgba(42,77,109,.045);
+}
+.permission-group>header{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:12px 13px;
+  background:linear-gradient(135deg,#f4fbfb,#f5f8ff);
+  border-bottom:1px solid #e1ecef;
+}
+.permission-group>header>span{
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  border-radius:11px;
+  background:#e2f7f3;
+  color:#087f78;
+  font-size:17px;
+  font-weight:900;
+}
+.permission-group>header strong{
+  display:block;
+  color:#244d5c;
+  font-size:11px;
+}
+.permission-group>header small{
+  display:block;
+  margin-top:3px;
+  color:#8296a2;
+  font-size:8px;
+}
+.permission-group-items{
+  display:grid;
+  gap:6px;
+  padding:10px;
+}
+.permission-group-items label{
+  min-height:42px;
+  display:grid;
+  grid-template-columns:20px 1fr auto;
+  align-items:center;
+  gap:8px;
+  padding:8px 10px;
+  border:1px solid #e0ebef;
+  border-radius:11px;
+  background:#fbfdfe;
+  cursor:pointer;
+  transition:.18s ease;
+}
+.permission-group-items label:hover{
+  border-color:#bfe1e2;
+  background:#f4fbfa;
+  transform:translateY(-1px);
+}
+.permission-group-items label.locked{
+  background:#eef8f6;
+  border-color:#cfe8e5;
+  cursor:not-allowed;
+}
+.permission-group-items input{
+  width:17px;
+  height:17px;
+  accent-color:#0a9993;
+}
+.permission-group-items label>span{
+  font-size:10px;
+  font-weight:750;
+  color:#385d6d;
+}
+.permission-group-items label>small{
+  color:#178b60;
+  font-size:7.5px;
+  font-weight:800;
+}
+.permission-group-executive>header{
+  background:linear-gradient(135deg,#f2edff,#eef5ff);
+}
+.permission-group-executive>header>span{
+  background:#ede6ff;
+  color:#7351ca;
+}
+.permission-group-system>header>span{
+  background:#edf2f5;
+  color:#62798a;
+}
+@media(max-width:760px){
+  .permission-groups{
+    grid-template-columns:1fr;
+  }
+}

@@ -53,6 +53,41 @@ const PAGE_PERMISSIONS = [
   ['about', 'حول المنظومة', 'About SAAMS'],
 ];
 
+const PERMISSION_GROUPS = [
+  {
+    id: 'main',
+    icon: '⌂',
+    arLabel: 'الرئيسية',
+    enLabel: 'Main',
+    keys: ['dashboard'],
+  },
+  {
+    id: 'management',
+    icon: '▣',
+    arLabel: 'الإدارة',
+    enLabel: 'Management',
+    keys: ['invoices', 'assets', 'advances', 'reports', 'attachments'],
+  },
+  {
+    id: 'executive',
+    icon: '♛',
+    arLabel: 'الإدارة التنفيذية',
+    enLabel: 'Executive',
+    keys: ['commandcenter'],
+  },
+  {
+    id: 'system',
+    icon: '⚙',
+    arLabel: 'النظام',
+    enLabel: 'System',
+    keys: ['users', 'settings', 'help', 'about'],
+  },
+];
+
+const PERMISSION_LOOKUP = Object.fromEntries(
+  PAGE_PERMISSIONS.map(([key, arLabel, enLabel]) => [key, { arLabel, enLabel }])
+);
+
 const DEFAULT_ADMIN_PERMISSIONS = {
   dashboard: true,
   commandcenter: false,
@@ -227,20 +262,48 @@ export default function Users({ lang, profile }) {
               <fieldset className="user-permissions wide">
                 <legend>{ar ? 'الشاشات المسموح للمستخدم بالدخول إليها' : 'Screens this user can access'}</legend>
                 <p>{ar ? 'اختاري الصلاحيات يدويًا حسب مهام الموظف. الشاشة الرئيسية مفعلة دائمًا.' : 'Select permissions manually. Dashboard is always enabled.'}</p>
-                <div className="user-permissions-grid">
-                  {PAGE_PERMISSIONS.map(([key, arLabel, enLabel]) => (
-                    <label key={key} className={key === 'dashboard' ? 'locked' : ''}>
-                      <input
-                        type="checkbox"
-                        checked={key === 'dashboard' ? true : Boolean(form.permissions?.[key])}
-                        disabled={key === 'dashboard'}
-                        onChange={(e) => setForm({
-                          ...form,
-                          permissions: { ...form.permissions, [key]: e.target.checked, dashboard: true },
+                <div className="permission-groups">
+                  {PERMISSION_GROUPS.map((group) => (
+                    <section className={`permission-group permission-group-${group.id}`} key={group.id}>
+                      <header>
+                        <span>{group.icon}</span>
+                        <div>
+                          <strong>{ar ? group.arLabel : group.enLabel}</strong>
+                          <small>
+                            {ar
+                              ? `${group.keys.filter((key) => key === 'dashboard' || form.permissions?.[key]).length} من ${group.keys.length} مفعلة`
+                              : `${group.keys.filter((key) => key === 'dashboard' || form.permissions?.[key]).length} of ${group.keys.length} enabled`}
+                          </small>
+                        </div>
+                      </header>
+
+                      <div className="permission-group-items">
+                        {group.keys.map((key) => {
+                          const labels = PERMISSION_LOOKUP[key];
+                          const locked = key === 'dashboard';
+
+                          return (
+                            <label key={key} className={locked ? 'locked' : ''}>
+                              <input
+                                type="checkbox"
+                                checked={locked ? true : Boolean(form.permissions?.[key])}
+                                disabled={locked}
+                                onChange={(e) => setForm({
+                                  ...form,
+                                  permissions: {
+                                    ...form.permissions,
+                                    [key]: e.target.checked,
+                                    dashboard: true,
+                                  },
+                                })}
+                              />
+                              <span>{ar ? labels.arLabel : labels.enLabel}</span>
+                              {locked && <small>{ar ? 'مفعلة دائمًا' : 'Always enabled'}</small>}
+                            </label>
+                          );
                         })}
-                      />
-                      <span>{ar ? arLabel : enLabel}</span>
-                    </label>
+                      </div>
+                    </section>
                   ))}
                 </div>
               </fieldset>
