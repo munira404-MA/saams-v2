@@ -176,11 +176,22 @@ export default function Layout({
           ☰
         </button>
 
-        <div className="side-logos">
-          <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
-          <span />
-          <img src="/academy-logo.png" alt="Sharjah Education Academy" />
-        </div>
+        {items.includes('commandcenter') && (
+          <button
+            type="button"
+            className={`sidebar-top-command-center ${active === 'commandcenter' ? 'active' : ''}`}
+            onClick={() => goTo('commandcenter')}
+            title={collapsed ? labels.commandcenter : undefined}
+          >
+            <span className="top-command-icon">♛</span>
+            {!collapsed && (
+              <span className="top-command-copy">
+                <small>{ar ? 'الإدارة التنفيذية' : 'Executive Management'}</small>
+                <strong>{labels.commandcenter}</strong>
+              </span>
+            )}
+          </button>
+        )}
 
         <div className="side-product bilingual-product">
           <strong>{ar ? 'منظومة الأصول والسلف الذكية' : 'SAAMS Enterprise'}</strong>
@@ -220,25 +231,6 @@ export default function Layout({
               <span className="nav-icon">{icons.dashboard}</span>
               <span>{labels.dashboard}</span>
             </button>
-          )}
-
-          {items.includes('commandcenter') && (
-            <section className="sidebar-executive-section">
-              {!collapsed && (
-                <div className="sidebar-section-caption">
-                  {ar ? 'الإدارة التنفيذية' : 'Executive Management'}
-                </div>
-              )}
-              <button
-                type="button"
-                className={`sidebar-standalone executive-navigation-item executive-premium-link ${active === 'commandcenter' ? 'active' : ''}`}
-                onClick={() => goTo('commandcenter')}
-                title={collapsed ? labels.commandcenter : undefined}
-              >
-                <span className="nav-icon">♛</span>
-                <span>{labels.commandcenter}</span>
-              </button>
-            </section>
           )}
 
           {groups.filter((group) => group.id === 'management').map((group) => {
@@ -299,6 +291,12 @@ export default function Layout({
             </button>
           )}
         </nav>
+
+        <div className="side-logos side-logos-centered">
+          <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
+          <span />
+          <img src="/academy-logo.png" alt="Sharjah Education Academy" />
+        </div>
 
         <div className="sidebar-release-brand">
           <strong>SAAMS Enterprise</strong>

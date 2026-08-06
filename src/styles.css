@@ -2470,3 +2470,102 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 @media (max-width:900px){
   .sidebar-executive-section{margin:4px 0 7px}
 }
+
+/* =====================================================
+   SIDEBAR REBALANCE — COMMAND CENTER TOP / LOGOS CENTERED
+   ===================================================== */
+.organized-sidebar .sidebar-top-command-center{
+  width:100%;
+  min-height:84px;
+  padding:12px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  border:1px solid #cfe4e8;
+  border-radius:18px;
+  background:linear-gradient(135deg,#ffffff 0%,#eefaf9 55%,#eef4ff 100%);
+  color:#155766;
+  box-shadow:0 12px 28px rgba(43,89,105,.08);
+  cursor:pointer;
+  transition:.2s ease;
+}
+.organized-sidebar .sidebar-top-command-center:hover{
+  transform:translateY(-1px);
+  border-color:#b9dcdf;
+  box-shadow:0 15px 32px rgba(43,89,105,.12);
+}
+.organized-sidebar .sidebar-top-command-center.active{
+  background:#fff;
+  border-color:#82d3cf;
+  box-shadow:0 0 0 3px rgba(21,170,168,.10),0 14px 30px rgba(43,89,105,.10);
+}
+.organized-sidebar .top-command-icon{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  display:grid;
+  place-items:center;
+  border-radius:14px;
+  background:linear-gradient(145deg,#dff8f4,#e7efff);
+  color:#087f78;
+  font-size:24px;
+}
+.organized-sidebar .top-command-copy{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  text-align:start;
+  line-height:1.35;
+}
+.organized-sidebar .top-command-copy small{
+  color:#78919a;
+  font-size:8px;
+  font-weight:800;
+}
+.organized-sidebar .top-command-copy strong{
+  margin-top:3px;
+  color:#155766;
+  font-size:15px;
+  font-weight:900;
+}
+.organized-sidebar .side-logos-centered{
+  margin-top:auto!important;
+  min-height:70px!important;
+  padding:7px 12px!important;
+  background:transparent!important;
+  border:0!important;
+  box-shadow:none!important;
+  justify-content:center!important;
+}
+.organized-sidebar .side-logos-centered img{
+  height:47px!important;
+  max-width:43%!important;
+}
+.organized-sidebar .side-logos-centered span{
+  height:38px!important;
+  background:#cfe2e6!important;
+}
+.organized-sidebar .side-logos-centered + .sidebar-release-brand{
+  margin-top:0!important;
+  padding-top:2px!important;
+}
+.organized-sidebar.is-collapsed .sidebar-top-command-center{
+  min-height:52px;
+  padding:5px;
+  border-radius:15px;
+}
+.organized-sidebar.is-collapsed .top-command-icon{
+  width:36px;
+  height:36px;
+  flex-basis:36px;
+  font-size:20px;
+}
+.organized-sidebar.is-collapsed .side-logos-centered{
+  display:none!important;
+}
+@media(max-width:900px){
+  .organized-sidebar .side-logos-centered{
+    display:flex!important;
+  }
+}
