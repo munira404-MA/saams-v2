@@ -222,6 +222,25 @@ export default function Layout({
             </button>
           )}
 
+          {items.includes('commandcenter') && (
+            <section className="sidebar-executive-section">
+              {!collapsed && (
+                <div className="sidebar-section-caption">
+                  {ar ? 'الإدارة التنفيذية' : 'Executive Management'}
+                </div>
+              )}
+              <button
+                type="button"
+                className={`sidebar-standalone executive-navigation-item executive-premium-link ${active === 'commandcenter' ? 'active' : ''}`}
+                onClick={() => goTo('commandcenter')}
+                title={collapsed ? labels.commandcenter : undefined}
+              >
+                <span className="nav-icon">♛</span>
+                <span>{labels.commandcenter}</span>
+              </button>
+            </section>
+          )}
+
           {groups.filter((group) => group.id === 'management').map((group) => {
             const groupActive = group.items.includes(active);
             const isOpen = openGroups[group.id];
@@ -244,18 +263,6 @@ export default function Layout({
               </section>
             );
           })}
-
-          {items.includes('commandcenter') && (
-            <button
-              type="button"
-              className={`sidebar-standalone executive-navigation-item executive-premium-link ${active === 'commandcenter' ? 'active' : ''}`}
-              onClick={() => goTo('commandcenter')}
-              title={collapsed ? labels.commandcenter : undefined}
-            >
-              <span className="nav-icon">♛</span>
-              <span>{labels.commandcenter}</span>
-            </button>
-          )}
 
           {groups.filter((group) => group.id === 'system').map((group) => {
             const groupActive = group.items.includes(active);
