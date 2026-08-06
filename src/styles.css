@@ -1903,3 +1903,74 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 .organized-sidebar .sidebar-group-button.active-group,.organized-sidebar .sidebar-standalone.active,.organized-sidebar .sidebar-subitem.active{color:#0b6570!important;background:#fff!important;border-color:#cfe8eb!important}
 .organized-sidebar .sidebar-chevron{color:#79939c!important}
 }
+
+
+/* =====================================================
+   SAAMS v3.2.1 — LARGE CENTERED BRAND LOGOS
+   ===================================================== */
+.organized-sidebar .side-logos{
+  width:100%!important;
+  min-height:118px!important;
+  padding:14px 16px!important;
+  margin:4px auto 12px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:18px!important;
+  border-radius:20px!important;
+}
+.organized-sidebar .side-logos img{
+  height:78px!important;
+  width:auto!important;
+  max-width:44%!important;
+  object-fit:contain!important;
+  flex:0 1 auto!important;
+}
+.organized-sidebar .side-logos span{
+  display:block!important;
+  width:1px!important;
+  height:68px!important;
+  background:#c7dde2!important;
+  flex:0 0 1px!important;
+}
+.organized-sidebar .side-product{
+  margin-top:2px!important;
+  margin-bottom:12px!important;
+  text-align:center!important;
+}
+.organized-sidebar .side-product strong{
+  font-size:13px!important;
+  line-height:1.55!important;
+}
+.organized-sidebar .side-product p{
+  margin-top:4px!important;
+  margin-bottom:7px!important;
+  font-size:9px!important;
+  line-height:1.6!important;
+}
+.organized-sidebar.is-collapsed .side-logos{
+  min-height:64px!important;
+  padding:8px!important;
+}
+.organized-sidebar.is-collapsed .side-logos img:first-child,
+.organized-sidebar.is-collapsed .side-logos span{
+  display:none!important;
+}
+.organized-sidebar.is-collapsed .side-logos img{
+  height:48px!important;
+  max-width:100%!important;
+}
+@media(max-width:900px){
+  .organized-sidebar .side-logos{
+    min-height:108px!important;
+    padding:12px!important;
+    gap:12px!important;
+  }
+  .organized-sidebar .side-logos img{
+    height:68px!important;
+    max-width:45%!important;
+  }
+  .organized-sidebar .side-logos span{
+    height:58px!important;
+  }
+}

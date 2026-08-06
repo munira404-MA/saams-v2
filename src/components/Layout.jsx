@@ -195,7 +195,7 @@ export default function Layout({
               ? 'نظام إدارة الأصول والسلف والعمليات المالية'
               : 'Assets, Advances & Financial Operations Management System'}
           </p>
-          <small>{ar ? 'الإصدار 3.2' : 'Version 3.2'}</small>
+          <small>{ar ? 'الإصدار 3.2.1' : 'Version 3.2.1'}</small>
         </div>
 
         <div className="sidebar-profile-card">
