@@ -978,7 +978,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
       {actionMessage && <div className="invoice-action-toast">✓ {actionMessage}</div>}
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS v3.0</span>
+          <span className="eyebrow">SAAMS Official 3.2</span>
           <h1>{t.title}</h1>
           <p>{t.subtitle}</p>
         </div>
@@ -1157,7 +1157,14 @@ export default function Invoices({ lang, profile, databaseMode }) {
             </div>
 
             <div className={`attachment-workspace ${ocr ? 'with-results' : ''}`}>
-              <section className="attachment-preview-panel">
+              <section
+                  className="attachment-preview-panel invoice-drop-zone"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    addSelectedFiles(event.dataTransfer.files);
+                  }}
+                >
                 <div className="attachment-panel-head">
                   <div><small>{t.attachmentPreview}</small><strong>{selectedFile?.name || t.noAttachment}</strong></div>
                   {selectedFileUrl && <button className="attachment-open-button" type="button" onClick={() => showFullAttachment({ dataUrl: selectedFileUrl, name: selectedFile?.name, type: selectedFile?.type })}>↗ {t.openFull}</button>}

@@ -35,8 +35,8 @@ const ADVANCES = [
 ];
 
 const COPY = {
-  ar:{title:'التقارير',sub:'تقارير الأصول والفواتير والسلف، مع تقرير شامل وتصدير كل تقرير إلى Excel.',assets:'تقرير الأصول',invoices:'تقرير الفواتير',advances:'تقرير السلف',comprehensive:'التقرير الشامل',download:'تصدير Excel',downloadAll:'تصدير التقرير الشامل',nursery:'الحضانة',from:'من تاريخ',to:'إلى تاريخ',status:'الحالة',all:'الكل',search:'بحث داخل التقرير...',records:'عدد السجلات',totalValue:'إجمالي القيمة',totalInvoices:'إجمالي الفواتير',totalAllocated:'إجمالي السلف',totalSpent:'إجمالي المصروف',totalRemaining:'إجمالي المتبقي',preview:'معاينة التقرير',noData:'لا توجد بيانات مطابقة للتصفية.',reset:'إعادة التصفية'},
-  en:{title:'Reports',sub:'Asset, invoice, advance and comprehensive reports with Excel export.',assets:'Asset Report',invoices:'Invoice Report',advances:'Advance Report',comprehensive:'Comprehensive Report',download:'Export Excel',downloadAll:'Export Comprehensive',nursery:'Nursery',from:'From Date',to:'To Date',status:'Status',all:'All',search:'Search report...',records:'Records',totalValue:'Total Value',totalInvoices:'Invoice Total',totalAllocated:'Total Advances',totalSpent:'Total Spent',totalRemaining:'Total Remaining',preview:'Report Preview',noData:'No data matches the filters.',reset:'Reset Filters'}
+  ar:{title:'التقارير',sub:'تقارير الأصول والفواتير والسلف، مع تقرير شامل وتصدير كل تقرير إلى Excel.',assets:'تقرير الأصول',invoices:'تقرير الفواتير',advances:'تقرير السلف',comprehensive:'التقرير الشامل',download:'تصدير Excel',downloadAll:'تصدير التقرير الشامل',nursery:'الحضانة',from:'من تاريخ',to:'إلى تاريخ',status:'الحالة',all:'الكل',search:'بحث داخل التقرير...',records:'عدد السجلات',totalValue:'إجمالي القيمة',totalInvoices:'إجمالي الفواتير',totalAllocated:'إجمالي السلف',totalSpent:'إجمالي المصروف',totalRemaining:'إجمالي المتبقي',preview:'معاينة التقرير',noData:'لا توجد بيانات مطابقة للتصفية.',reset:'إعادة التصفية',pdf:'حفظ PDF'},
+  en:{title:'Reports',sub:'Asset, invoice, advance and comprehensive reports with Excel export.',assets:'Asset Report',invoices:'Invoice Report',advances:'Advance Report',comprehensive:'Comprehensive Report',download:'Export Excel',downloadAll:'Export Comprehensive',nursery:'Nursery',from:'From Date',to:'To Date',status:'Status',all:'All',search:'Search report...',records:'Records',totalValue:'Total Value',totalInvoices:'Invoice Total',totalAllocated:'Total Advances',totalSpent:'Total Spent',totalRemaining:'Total Remaining',preview:'Report Preview',noData:'No data matches the filters.',reset:'Reset Filters',pdf:'Save PDF'}
 };
 
 const money = n => Number(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -118,8 +118,11 @@ export default function Reports({lang,profile}){
 
   return <section className="reports-page">
     <div className="module-heading reports-heading">
-      <div><span className="eyebrow">SAAMS v3.0</span><h1>{t.title}</h1><p>{t.sub}</p></div>
-      <button className="primary-action report-master-export" onClick={()=>exportExcel('comprehensive')}>⇩ {t.downloadAll}</button>
+      <div><span className="eyebrow">SAAMS Official 3.2</span><h1>{t.title}</h1><p>{t.sub}</p></div>
+      <div className="report-heading-actions">
+        <button className="secondary-action" onClick={()=>window.print()}>PDF {t.pdf}</button>
+        <button className="primary-action report-master-export" onClick={()=>exportExcel('comprehensive')}>⇩ {t.downloadAll}</button>
+      </div>
     </div>
 
     <div className="report-type-grid">
@@ -142,7 +145,7 @@ export default function Reports({lang,profile}){
     </div>
 
     <div className="report-preview-card">
-      <div className="report-preview-head"><div><small>{t.preview}</small><h2>{tabs.find(x=>x.id===tab)?.label}</h2></div><button onClick={()=>exportExcel(tab)}>⇩ {t.download}</button></div>
+      <div className="report-preview-head"><div><small>{t.preview}</small><h2>{tabs.find(x=>x.id===tab)?.label}</h2></div><div className="report-preview-actions"><button onClick={()=>window.print()}>PDF</button><button onClick={()=>exportExcel(tab)}>⇩ {t.download}</button></div></div>
       {tab==='assets'&&<AssetsTable rows={filtered.assets} ar={ar} empty={t.noData}/>} 
       {tab==='invoices'&&<InvoicesTable rows={filtered.invoices} ar={ar} empty={t.noData}/>} 
       {tab==='advances'&&<AdvancesTable rows={filtered.advances} ar={ar} empty={t.noData}/>} 

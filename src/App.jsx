@@ -11,7 +11,7 @@ import Settings from './pages/Settings';
 import ExecutiveCommandCenter from './pages/ExecutiveCommandCenter';
 import Attachments from './pages/Attachments';
 import SplashScreen from './components/SplashScreen';
-import WhatsNew from './pages/WhatsNew';
+import Help from './pages/Help';
 import About from './pages/About';
 import Layout from './components/Layout';
 import { supabase, supabaseConfigured } from './supabase';
@@ -136,9 +136,9 @@ export default function App() {
   }
 
   const isNursery = profile?.role === 'nursery';
-  const allAdminPages = ['dashboard', 'commandcenter', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'whatsnew', 'about'];
+  const allAdminPages = ['dashboard', 'commandcenter', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'help', 'about'];
   const allowedPages = isNursery
-    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'whatsnew', 'about']
+    ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'help', 'about']
     : profile?.role === 'super_admin'
       ? allAdminPages
       : allAdminPages.filter((page) => page === 'dashboard' || Boolean(profile?.permissions?.[page]));
@@ -152,7 +152,7 @@ export default function App() {
     advances: <Advances lang={lang} profile={profile} databaseMode={databaseMode} />,
     reports: <Reports lang={lang} profile={profile} />,
     attachments: <Attachments lang={lang} profile={profile} />,
-    whatsnew: <WhatsNew lang={lang} />,
+    help: <Help lang={lang} setActive={setActive} />,
     about: <About lang={lang} />,
     users: <Users lang={lang} profile={profile} />,
     settings: <Settings lang={lang} profile={profile} onProfileUpdate={handleProfileUpdate} />,

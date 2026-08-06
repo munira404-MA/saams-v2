@@ -61,7 +61,7 @@ export default function ExecutiveCommandCenter({ lang, setActive }) {
 
   return <section className="command-center-page">
     <div className="module-heading command-center-heading">
-      <div><span className="eyebrow">SAAMS Enterprise v3.0</span><h1>{ar?'مركز القيادة التنفيذي':'Executive Command Center'}</h1><p>{ar?'واجهة مختصرة للإدارة العليا تعرض الأداء والمخاطر والحركات المهمة في مكان واحد.':'A concise executive view of performance, risks, and key activity.'}</p></div>
+      <div><span className="eyebrow">SAAMS Enterprise Official Release 3.2</span><h1>{ar?'مركز القيادة التنفيذي':'Executive Command Center'}</h1><p>{ar?'واجهة مختصرة للإدارة العليا تعرض الأداء والمخاطر والحركات المهمة في مكان واحد.':'A concise executive view of performance, risks, and key activity.'}</p></div>
       <div className="command-center-actions"><button className="secondary-action" onClick={()=>window.print()}>⌘ {ar?'طباعة الملخص':'Print Summary'}</button><button className="primary-action" onClick={()=>setActive('reports')}>{ar?'فتح التقرير الشامل':'Open Comprehensive Report'}</button></div>
     </div>
 

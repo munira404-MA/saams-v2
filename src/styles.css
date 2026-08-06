@@ -1918,3 +1918,168 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
   padding-top:14px!important;
   padding-bottom:14px!important;
 }
+
+
+/* =====================================================
+   SAAMS ENTERPRISE OFFICIAL RELEASE 3.2
+   Production cleanup and visual system
+   ===================================================== */
+.dashboard-main > *{
+  animation:saamsPageEnter .28s ease both;
+}
+@keyframes saamsPageEnter{
+  from{opacity:0;transform:translateY(7px)}
+  to{opacity:1;transform:none}
+}
+.module-heading h1,
+.users-heading h1{
+  letter-spacing:-.25px;
+}
+.module-heading p,
+.users-heading p{
+  line-height:1.75;
+}
+.command-card,
+.report-preview-card,
+.users-table-card,
+.about-card,
+.help-faq-card,
+.help-support-card,
+.invoice-table-card,
+.asset-card,
+.advance-card{
+  border-radius:20px!important;
+  border-color:#d9e8ed!important;
+  box-shadow:0 12px 28px rgba(42,77,109,.055)!important;
+}
+.main-navigation-item,
+.executive-navigation-item,
+.help-navigation-item{
+  min-height:45px!important;
+}
+.executive-navigation-item{
+  margin:4px 0!important;
+  background:linear-gradient(135deg,#e8faf7,#edf3ff)!important;
+  color:#0a6973!important;
+  border:1px solid #cfe9ea!important;
+}
+.executive-navigation-item.active{
+  background:#fff!important;
+  border-inline-start:4px solid #13a7a3!important;
+}
+.help-navigation-item{
+  margin-top:4px!important;
+}
+.invoice-drop-zone{
+  transition:border-color .2s ease,box-shadow .2s ease,background .2s ease;
+}
+.invoice-drop-zone:has(.invoice-source-picker){
+  border:2px dashed #c9e3e8!important;
+  background:linear-gradient(145deg,#fbfeff,#f2fbfa)!important;
+}
+.invoice-drop-zone:hover{
+  border-color:#22aaa8!important;
+  box-shadow:0 14px 34px rgba(26,128,134,.10)!important;
+}
+.invoice-status.approved,
+.user-status.active,
+.report-status.approved{
+  background:#e6f8ed!important;color:#19834e!important;
+}
+.invoice-status.review,
+.invoice-status.pending{
+  background:#eaf2ff!important;color:#3568ce!important;
+}
+.invoice-status.returned,
+.invoice-status.rejected,
+.user-status.inactive{
+  background:#ffedf0!important;color:#cf4155!important;
+}
+.report-heading-actions,
+.report-preview-actions{
+  display:flex;gap:8px;align-items:center;
+}
+.report-preview-actions button{
+  min-height:34px;
+}
+.user-identity-cell{
+  display:flex;align-items:center;gap:9px;min-width:150px;
+}
+.user-identity-cell>span{
+  width:36px;height:36px;border-radius:12px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#def8f3,#e7efff);color:#087f78;font-weight:900;
+}
+.user-identity-cell strong,
+.user-activity-cell strong{
+  display:block;
+}
+.user-identity-cell small,
+.user-activity-cell small{
+  display:block;margin-top:3px;color:#8193a4;font-size:8px;
+}
+.user-activity-cell{min-width:125px}
+
+/* Help Center */
+.help-guide-grid{
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:13px;
+}
+.help-guide-grid article{
+  display:grid;grid-template-columns:50px 1fr;gap:13px;padding:17px;
+  border-radius:19px;background:#fff;border:1px solid #d9e7ed;
+  box-shadow:0 12px 28px rgba(42,77,109,.055);
+}
+.help-guide-grid article>span{
+  width:48px;height:48px;border-radius:15px;display:grid;place-items:center;
+  background:linear-gradient(145deg,#e4faf6,#e9efff);color:#087f78;font-size:20px;
+}
+.help-guide-grid h2{font-size:14px;margin:2px 0 6px}
+.help-guide-grid p{font-size:9.5px;line-height:1.75;color:#71879a;margin:0}
+.help-guide-grid button{
+  margin-top:10px;border:0;background:transparent;color:#087f78;font-size:9px;font-weight:900;cursor:pointer;padding:0;
+}
+.help-faq-card{padding:18px;background:#fff;border:1px solid #d9e7ed;margin-bottom:12px}
+.help-section-heading span{font-size:8px;color:#078d86;font-weight:900}
+.help-section-heading h2{font-size:16px;margin:4px 0 13px}
+.help-faq-list{display:grid;gap:7px}
+.help-faq-list article{border:1px solid #deeaef;border-radius:13px;overflow:hidden;background:#fbfdfe}
+.help-faq-list article>button{
+  width:100%;display:flex;justify-content:space-between;gap:12px;align-items:center;
+  border:0;background:transparent;padding:12px;text-align:start;cursor:pointer;
+}
+.help-faq-list strong{font-size:10px}.help-faq-list button span{font-size:17px;color:#0b8f88}
+.help-faq-list p{margin:0;padding:0 12px 12px;font-size:9px;line-height:1.8;color:#71879a}
+.help-support-card{
+  display:grid;grid-template-columns:48px 1fr;gap:12px;align-items:center;
+  padding:17px;background:linear-gradient(135deg,#eafaf7,#edf4ff);border:1px solid #cfe6e8;
+}
+.help-support-card>span{
+  width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:#fff;color:#087f78;font-size:20px;font-weight:900;
+}
+.help-support-card h2{font-size:13px;margin:0 0 4px}.help-support-card p{font-size:9px;color:#71879a;margin:0}
+
+/* Print/PDF */
+@media print{
+  .side-panel,.topbar,.smart-assistant-fab,.smart-assistant-panel,
+  .report-type-grid,.report-filter-panel,.report-heading-actions,.report-preview-actions{
+    display:none!important;
+  }
+  .dashboard-shell,.dashboard-stage{display:block!important}
+  .dashboard-main{padding:0!important}
+  .reports-page{max-width:none!important}
+  .report-preview-card{box-shadow:none!important;border:0!important}
+}
+
+/* Full mobile cleanup */
+@media(max-width:900px){
+  .help-guide-grid{grid-template-columns:1fr}
+  .report-heading-actions{width:100%}
+  .report-heading-actions button{flex:1}
+  .users-table-wrap{overflow-x:auto}
+  .organized-sidebar .sidebar-group-button,
+  .organized-sidebar .sidebar-standalone{font-size:15px!important}
+  .organized-sidebar .sidebar-subitem{font-size:14px!important;min-height:44px!important}
+}
+@media(max-width:560px){
+  .help-guide-grid article{grid-template-columns:42px 1fr;padding:14px}
+  .help-guide-grid article>span{width:40px;height:40px}
+}

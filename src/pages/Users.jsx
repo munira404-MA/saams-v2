@@ -12,6 +12,8 @@ export const DEFAULT_USERS = [
     role: 'super_admin',
     nursery: '',
     active: true,
+    last_login: 'اليوم',
+    last_activity: 'تسجيل الدخول',
   },
 ];
 
@@ -47,7 +49,7 @@ const PAGE_PERMISSIONS = [
   ['attachments', 'مركز المرفقات', 'Attachment Center'],
   ['users', 'المستخدمون', 'Users'],
   ['settings', 'الإعدادات', 'Settings'],
-  ['whatsnew', 'ما الجديد', "What's New"],
+  ['help', 'المساعدة', 'Help'],
   ['about', 'حول المنظومة', 'About SAAMS'],
 ];
 
@@ -61,7 +63,7 @@ const DEFAULT_ADMIN_PERMISSIONS = {
   attachments: false,
   users: false,
   settings: false,
-  whatsnew: true,
+  help: true,
   about: true,
 };
 
@@ -129,6 +131,8 @@ export default function Users({ lang, profile }) {
       permissions: form.role === 'admin'
         ? { ...DEFAULT_ADMIN_PERMISSIONS, ...(form.permissions || {}), dashboard: true }
         : {},
+      last_login: editingId ? (form.last_login || 'اليوم') : 'لم يسجل الدخول بعد',
+      last_activity: editingId ? (form.last_activity || 'تحديث الحساب') : 'تم إنشاء الحساب',
     };
     if (editingId) {
       persist(users.map((u) => u.id === editingId ? { ...u, ...payload } : u));
@@ -178,9 +182,9 @@ export default function Users({ lang, profile }) {
         </div>
         <div className="users-table-wrap">
           <table className="users-table">
-            <thead><tr><th>{ar ? 'الاسم' : 'Name'}</th><th>{ar ? 'اسم المستخدم' : 'Username'}</th><th>{ar ? 'كلمة المرور' : 'Password'}</th><th>{ar ? 'نوع الحساب' : 'Account type'}</th><th>{ar ? 'الحضانة' : 'Nursery'}</th><th>{ar ? 'الحالة' : 'Status'}</th><th>{ar ? 'الإجراءات' : 'Actions'}</th></tr></thead>
+            <thead><tr><th>{ar ? 'الاسم' : 'Name'}</th><th>{ar ? 'اسم المستخدم' : 'Username'}</th><th>{ar ? 'كلمة المرور' : 'Password'}</th><th>{ar ? 'نوع الحساب' : 'Account type'}</th><th>{ar ? 'الحضانة' : 'Nursery'}</th><th>{ar ? 'آخر نشاط' : 'Last Activity'}</th><th>{ar ? 'الحالة' : 'Status'}</th><th>{ar ? 'الإجراءات' : 'Actions'}</th></tr></thead>
             <tbody>{filtered.map((user) => <tr key={user.id}>
-              <td><strong>{user.full_name}</strong><small>{user.id}</small></td>
+              <td><div className="user-identity-cell"><span>{(user.full_name || '?').charAt(0)}</span><div><strong>{user.full_name}</strong><small>{user.id}</small></div></div></td>
               <td><code>{user.username}</code></td>
               <td>
                 <div className="user-password-cell">
@@ -192,6 +196,7 @@ export default function Users({ lang, profile }) {
               </td>
               <td><span className={`user-role ${user.role}`}>{roleLabel(user.role)}</span></td>
               <td>{user.nursery || '—'}</td>
+              <td><div className="user-activity-cell"><strong>{user.last_activity || (ar ? 'لا يوجد نشاط' : 'No activity')}</strong><small>{user.last_login || (ar ? 'لم يسجل الدخول' : 'Never signed in')}</small></div></td>
               <td><button className={`user-status ${user.active ? 'active' : 'inactive'}`} onClick={() => toggle(user)}>{user.active ? (ar ? 'نشط' : 'Active') : (ar ? 'موقوف' : 'Disabled')}</button></td>
               <td><div className="user-row-actions"><button onClick={() => startEdit(user)}>{ar ? 'تعديل' : 'Edit'}</button><button className="danger" onClick={() => remove(user)}>{ar ? 'حذف' : 'Delete'}</button></div></td>
             </tr>)}</tbody>

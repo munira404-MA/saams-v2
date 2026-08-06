@@ -10,7 +10,7 @@ const icons = {
   attachments: '▱',
   users: '♙',
   settings: '⚙',
-  whatsnew: '✦',
+  help: '?',
   about: 'ⓘ',
 };
 
@@ -79,7 +79,7 @@ export default function Layout({
         attachments: 'مركز المرفقات',
         users: 'المستخدمون',
         settings: 'الإعدادات',
-        whatsnew: 'ما الجديد',
+        help: 'المساعدة',
         about: 'حول المنظومة',
         homeGroup: 'الرئيسية',
         managementGroup: 'الإدارة',
@@ -100,7 +100,7 @@ export default function Layout({
         attachments: 'Attachment Center',
         users: 'Users',
         settings: 'Settings',
-        whatsnew: "What's New",
+        help: 'Help',
         about: 'About SAAMS',
         homeGroup: 'Home',
         managementGroup: 'Management',
@@ -124,23 +124,17 @@ export default function Layout({
     'attachments',
     'users',
     'settings',
-    'whatsnew',
+    'help',
     'about',
   ];
 
   const items = profile?.role === 'super_admin'
     ? baseItems
     : profile?.role === 'nursery'
-      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'whatsnew', 'about']
+      ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'help', 'about']
       : baseItems.filter((item) => item === 'dashboard' || Boolean(profile?.permissions?.[item]));
 
   const groups = [
-    {
-      id: 'home',
-      label: labels.homeGroup,
-      icon: '⌂',
-      items: ['dashboard', 'commandcenter'].filter((item) => items.includes(item)),
-    },
     {
       id: 'management',
       label: labels.managementGroup,
@@ -216,34 +210,33 @@ export default function Layout({
         </div>
 
         <nav className="side-nav organized-side-nav vertical-sidebar-nav">
-          {groups.map((group) => {
+          {items.includes('dashboard') && (
+            <button
+              type="button"
+              className={`sidebar-standalone main-navigation-item ${active === 'dashboard' ? 'active' : ''}`}
+              onClick={() => goTo('dashboard')}
+              title={collapsed ? labels.dashboard : undefined}
+            >
+              <span className="nav-icon">{icons.dashboard}</span>
+              <span>{labels.dashboard}</span>
+            </button>
+          )}
+
+          {groups.filter((group) => group.id === 'management').map((group) => {
             const groupActive = group.items.includes(active);
             const isOpen = openGroups[group.id];
-
             return (
               <section className={`sidebar-group ${groupActive ? 'has-active' : ''}`} key={group.id}>
-                <button
-                  type="button"
-                  className={`sidebar-group-button ${groupActive ? 'active-group' : ''}`}
-                  onClick={() => toggleGroup(group.id)}
-                  title={collapsed ? group.label : undefined}
-                >
+                <button type="button" className={`sidebar-group-button ${groupActive ? 'active-group' : ''}`} onClick={() => toggleGroup(group.id)}>
                   <span className="nav-icon">{group.icon}</span>
                   <span className="sidebar-group-label">{group.label}</span>
                   <b className={`sidebar-chevron ${isOpen ? 'open' : ''}`}>⌄</b>
                 </button>
-
                 {isOpen && !collapsed && (
                   <div className="sidebar-submenu open">
                     {group.items.map((item) => (
-                      <button
-                        key={item}
-                        type="button"
-                        className={`sidebar-subitem section-${item} ${active === item ? 'active' : ''}`}
-                        onClick={() => goTo(item)}
-                      >
-                        <span className="nav-icon">{icons[item]}</span>
-                        <span>{labels[item]}</span>
+                      <button key={item} type="button" className={`sidebar-subitem section-${item} ${active === item ? 'active' : ''}`} onClick={() => goTo(item)}>
+                        <span className="nav-icon">{icons[item]}</span><span>{labels[item]}</span>
                       </button>
                     ))}
                   </div>
@@ -252,15 +245,50 @@ export default function Layout({
             );
           })}
 
-          {items.includes('whatsnew') && (
+          {items.includes('commandcenter') && (
             <button
               type="button"
-              className={`sidebar-standalone ${active === 'whatsnew' ? 'active' : ''}`}
-              onClick={() => goTo('whatsnew')}
-              title={collapsed ? labels.whatsnew : undefined}
+              className={`sidebar-standalone executive-navigation-item ${active === 'commandcenter' ? 'active' : ''}`}
+              onClick={() => goTo('commandcenter')}
+              title={collapsed ? labels.commandcenter : undefined}
             >
-              <span className="nav-icon">{icons.whatsnew}</span>
-              <span>{labels.whatsnew}</span>
+              <span className="nav-icon">♛</span>
+              <span>{labels.commandcenter}</span>
+            </button>
+          )}
+
+          {groups.filter((group) => group.id === 'system').map((group) => {
+            const groupActive = group.items.includes(active);
+            const isOpen = openGroups[group.id];
+            return (
+              <section className={`sidebar-group ${groupActive ? 'has-active' : ''}`} key={group.id}>
+                <button type="button" className={`sidebar-group-button ${groupActive ? 'active-group' : ''}`} onClick={() => toggleGroup(group.id)}>
+                  <span className="nav-icon">{group.icon}</span>
+                  <span className="sidebar-group-label">{group.label}</span>
+                  <b className={`sidebar-chevron ${isOpen ? 'open' : ''}`}>⌄</b>
+                </button>
+                {isOpen && !collapsed && (
+                  <div className="sidebar-submenu open">
+                    {group.items.map((item) => (
+                      <button key={item} type="button" className={`sidebar-subitem section-${item} ${active === item ? 'active' : ''}`} onClick={() => goTo(item)}>
+                        <span className="nav-icon">{icons[item]}</span><span>{labels[item]}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            );
+          })}
+
+          {items.includes('help') && (
+            <button
+              type="button"
+              className={`sidebar-standalone help-navigation-item ${active === 'help' ? 'active' : ''}`}
+              onClick={() => goTo('help')}
+              title={collapsed ? labels.help : undefined}
+            >
+              <span className="nav-icon">{icons.help}</span>
+              <span>{labels.help}</span>
             </button>
           )}
         </nav>
