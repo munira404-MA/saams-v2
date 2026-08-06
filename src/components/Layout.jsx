@@ -298,10 +298,6 @@ export default function Layout({
           <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
         </div>
 
-        <div className="sidebar-release-brand">
-          <strong>SAAMS Enterprise</strong>
-          <small>{ar ? 'الإصدار الرسمي 3.2.1' : 'Official Release 3.2.1'}</small>
-        </div>
 
         <button
           className="side-logout"
@@ -355,9 +351,15 @@ export default function Layout({
           </div>
 
           <div className="topbar-brand-center" aria-label={ar ? 'شعارات الجهة' : 'Brand logos'}>
-            <img src="/academy-logo.png" alt="Sharjah Education Academy" />
-            <span />
-            <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
+            <div className="topbar-brand-logos">
+              <img src="/academy-logo.png" alt="Sharjah Education Academy" />
+              <span />
+              <img src="/nurseries-logo.png" alt="Sharjah Nurseries" />
+            </div>
+            <div className="topbar-release-brand">
+              <strong>SAAMS Enterprise</strong>
+              <small>{ar ? 'الإصدار الرسمي 3.2.1' : 'Official Release 3.2.1'}</small>
+            </div>
           </div>
 
           <div className="topbar-actions">

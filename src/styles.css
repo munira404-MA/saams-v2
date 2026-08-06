@@ -2627,3 +2627,74 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
     display:flex!important;
   }
 }
+
+
+/* SAAMS final header logo adjustment */
+.topbar{
+  min-height:112px;
+  height:112px;
+}
+.topbar-brand-center{
+  flex-direction:column;
+  gap:4px;
+}
+.topbar-brand-logos{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:24px;
+}
+.topbar-brand-logos img{
+  height:78px;
+  width:auto;
+  max-width:none;
+  object-fit:contain;
+  display:block;
+  background:transparent;
+}
+.topbar-brand-logos span{
+  width:1px;
+  height:64px;
+  background:#cfe0e8;
+  border-radius:999px;
+}
+.topbar-release-brand{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  line-height:1.15;
+  margin-top:-3px;
+}
+.topbar-release-brand strong{
+  color:#2f6678;
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.02em;
+}
+.topbar-release-brand small{
+  margin-top:3px;
+  color:#7d94a4;
+  font-size:8px;
+}
+@media (max-width:1200px){
+  .topbar{
+    min-height:104px;
+    height:104px;
+  }
+  .topbar-brand-logos img{
+    height:70px;
+  }
+  .topbar-brand-logos span{
+    height:56px;
+  }
+}
+@media (max-width:900px){
+  .topbar{
+    min-height:78px;
+    height:78px;
+  }
+  .sidebar-release-brand{
+    display:flex;
+  }
+}
