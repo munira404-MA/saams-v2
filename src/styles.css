@@ -2727,3 +2727,18 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 .server-security-note strong{display:block;font-size:11px;margin-bottom:5px;color:#2e6273}
 .server-security-note p{margin:0;font-size:9.5px;line-height:1.8;color:#718b9a}
 @media(max-width:760px){.connection-cards-detailed{grid-template-columns:1fr!important}.connection-cards-detailed .account-readiness-card{grid-column:auto}}
+
+/* SAAMS secure system administrator recovery */
+.login-card form{width:100%;display:flex;flex-direction:column}
+.admin-recovery-link{
+  margin-top:14px;border:0;background:transparent;color:#39708a;font-family:inherit;font-weight:800;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:4px
+}
+.admin-recovery-form h1{font-size:24px!important;margin:0 0 3px!important}
+.admin-recovery-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.admin-recovery-head p{margin:0!important;font-size:12px!important;line-height:1.7!important}
+.admin-recovery-icon{width:42px;height:42px;display:grid;place-items:center;border-radius:13px;background:#e9f7f5;color:#12877d;font-weight:900;font-size:20px;flex:0 0 auto}
+.admin-recovery-notice{padding:11px 12px;border:1px solid #cce8e3;border-radius:13px;background:#eefaf7;color:#326c68;font-size:11px;font-weight:700;line-height:1.7;margin:1px 0 6px}
+.admin-recovery-success{padding:12px 14px;border-radius:13px;background:#eaf9ef;border:1px solid #c9e8d3;color:#21834d;font-size:12px;font-weight:800;line-height:1.7;margin-top:13px}
+.admin-recovery-actions{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:16px}
+.admin-recovery-cancel{min-height:48px;padding:0 15px;border:1px solid #d6e2eb;border-radius:14px;background:#fff;color:#50687b;font-family:inherit;font-weight:800;cursor:pointer}
+@media(max-width:560px){.admin-recovery-actions{grid-template-columns:1fr}.admin-recovery-cancel{width:100%}}
