@@ -78,9 +78,9 @@ export default async function handler(req, res) {
     adminClient = await requireSuperAdmin(req);
   } catch (error) {
     const code = error?.message;
-    if (code === 'MISSING_ENV') return res.status(500).json({ error: 'Missing Supabase server environment variables' });
-    if (code === 'MISSING_TOKEN' || code === 'INVALID_SESSION') return res.status(401).json({ error: 'Invalid session' });
-    if (code === 'FORBIDDEN') return res.status(403).json({ error: 'Super admin required' });
+    if (code === 'MISSING_ENV') return res.status(500).json({ error: 'Missing Supabase server environment variables', code: 'MISSING_ENV' });
+    if (code === 'MISSING_TOKEN' || code === 'INVALID_SESSION') return res.status(401).json({ error: 'Invalid session', code: code || 'INVALID_SESSION' });
+    if (code === 'FORBIDDEN') return res.status(403).json({ error: 'Super admin required', code: 'FORBIDDEN' });
     return res.status(500).json({ error: 'Authentication failed' });
   }
 

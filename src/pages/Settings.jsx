@@ -138,7 +138,7 @@ function Switch({ checked, onChange, label, description }) {
   );
 }
 
-export default function Settings({ lang, profile, onProfileUpdate }) {
+export default function Settings({ lang, profile, onProfileUpdate, databaseMode = false }) {
   const ar = lang === 'ar';
   const t = labels[lang] || labels.ar;
   const [activeTab, setActiveTab] = useState('profile');
@@ -163,12 +163,28 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
   const [newPassword, setNewPassword] = useState('');
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [typeName, setTypeName] = useState('');
+  const [serverStatus, setServerStatus] = useState({ loading: true, serverReachable: false, supabaseServerUrl: false, supabaseAnonKey: false, supabaseServiceRoleKey: false, accountManagementReady: false });
   const restoreRef = useRef(null);
 
   useEffect(() => {
     const refresh = () => setAudit(loadAuditLog());
     window.addEventListener('saams:audit-updated', refresh);
     return () => window.removeEventListener('saams:audit-updated', refresh);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function checkServerStatus() {
+      try {
+        const response = await fetch('/api/system-status', { cache: 'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (!cancelled) setServerStatus({ loading: false, serverReachable: response.ok, ...data });
+      } catch {
+        if (!cancelled) setServerStatus({ loading: false, serverReachable: false, supabaseServerUrl: false, supabaseAnonKey: false, supabaseServiceRoleKey: false, accountManagementReady: false });
+      }
+    }
+    checkServerStatus();
+    return () => { cancelled = true; };
   }, []);
 
   const isSuperAdmin = profile?.role === 'super_admin';
@@ -589,10 +605,18 @@ export default function Settings({ lang, profile, onProfileUpdate }) {
             <article className="settings-card">
               <div className="settings-section-title"><span className="settings-section-icon">ⓘ</span><div><h2>{t.info}</h2><p>{ar ? 'حالة النظام والخدمات المرتبطة.' : 'System and connected-service status.'}</p></div></div>
               <div className="system-info-grid">{systemStats.map(([label,value],index)=><div key={label}><span className={`info-dot ${index===4&&settings.invoice.aiEnabled?'online':''}`}></span><small>{label}</small><strong>{value}</strong></div>)}</div>
-              <div className="connection-cards">
+              <div className="connection-cards connection-cards-detailed">
                 <div><span className="connection-icon online">✓</span><div><strong>{ar?'واجهة النظام':'Web Application'}</strong><small>{ar?'متصلة وتعمل':'Connected and operational'}</small></div></div>
-                <div><span className={`connection-icon ${settings.invoice.aiEnabled?'online':'offline'}`}>{settings.invoice.aiEnabled?'✓':'!'}</span><div><strong>OpenAI OCR</strong><small>{settings.invoice.aiEnabled?(ar?'جاهز لقراءة الفواتير':'Ready for invoice reading'):(ar?'متوقف من الإعدادات':'Disabled in settings')}</small></div></div>
-                <div><span className="connection-icon warning">◷</span><div><strong>Supabase</strong><small>{ar?'وضع المعاينة — الربط النهائي لاحقًا':'Preview mode — final connection pending'}</small></div></div>
+                <div><span className={`connection-icon ${databaseMode?'online':'warning'}`}>{databaseMode?'✓':'◷'}</span><div><strong>{ar?'اتصال Supabase للواجهة':'Supabase Frontend Connection'}</strong><small>{databaseMode?(ar?'مفعّل — بيانات الاتصال العامة موجودة':'Enabled — public connection settings are present'):(ar?'غير مفعّل في نسخة التشغيل الحالية':'Not enabled in the current build')}</small></div></div>
+                <div><span className={`connection-icon ${serverStatus.serverReachable?'online':'offline'}`}>{serverStatus.loading?'…':serverStatus.serverReachable?'✓':'!'}</span><div><strong>{ar?'خادم النظام':'Application Server'}</strong><small>{serverStatus.loading?(ar?'جاري التحقق...':'Checking...'):serverStatus.serverReachable?(ar?'الخادم يستجيب':'Server is reachable'):(ar?'تعذر الوصول إلى خدمة الخادم':'Server API is not reachable')}</small></div></div>
+                <div><span className={`connection-icon ${serverStatus.supabaseServerUrl&&serverStatus.supabaseAnonKey?'online':'warning'}`}>{serverStatus.supabaseServerUrl&&serverStatus.supabaseAnonKey?'✓':'◷'}</span><div><strong>{ar?'إعدادات Supabase على الخادم':'Supabase Server Settings'}</strong><small>{serverStatus.supabaseServerUrl&&serverStatus.supabaseAnonKey?(ar?'عنوان المشروع ومفتاح الاتصال العام موجودان':'Project URL and anon key are configured'):(ar?'عنوان المشروع أو مفتاح الاتصال العام غير مكتمل':'Project URL or anon key is missing')}</small></div></div>
+                <div><span className={`connection-icon ${serverStatus.supabaseServiceRoleKey?'online':'warning'}`}>{serverStatus.supabaseServiceRoleKey?'✓':'◷'}</span><div><strong>{ar?'خدمة إدارة الحسابات':'Account Administration Service'}</strong><small>{serverStatus.supabaseServiceRoleKey?(ar?'مفتاح الإدارة الآمن موجود على الخادم':'Secure service-role key is configured on the server'):(ar?'غير مفعّلة — يلزم إضافة SUPABASE_SERVICE_ROLE_KEY في بيئة الاستضافة':'Not enabled — add SUPABASE_SERVICE_ROLE_KEY to the hosting environment')}</small></div></div>
+                <div className={`account-readiness-card ${serverStatus.accountManagementReady?'ready':'pending'}`}><span className={`connection-icon ${serverStatus.accountManagementReady?'online':'warning'}`}>{serverStatus.accountManagementReady?'✓':'!'}</span><div><strong>{ar?'إنشاء الحسابات الفعلية':'Production Account Creation'}</strong><small>{serverStatus.accountManagementReady?(ar?'جاهز لإنشاء حسابات الحضانات وموظفي الإدارة فعليًا':'Ready to create real nursery and administration accounts'):(ar?'غير جاهز بعد — أكمل إعدادات الخادم الموضحة أعلاه':'Not ready yet — complete the server settings shown above')}</small></div></div>
+                <div><span className={`connection-icon ${settings.invoice.aiEnabled?'online':'offline'}`}>{settings.invoice.aiEnabled?'✓':'!'}</span><div><strong>OpenAI OCR</strong><small>{settings.invoice.aiEnabled?(ar?'مفعّل من إعدادات النظام':'Enabled in system settings'):(ar?'متوقف من الإعدادات':'Disabled in settings')}</small></div></div>
+              </div>
+              <div className="server-security-note">
+                <strong>🔒 {ar?'تنبيه أمني':'Security note'}</strong>
+                <p>{ar?'النظام يعرض حالة المفاتيح فقط (موجود/غير موجود) ولا يعرض قيمة أي مفتاح سري. مفتاح Service Role يجب أن يبقى في بيئة الاستضافة فقط ولا يوضع داخل ملفات الواجهة أو ملف ZIP.':'The system shows only whether keys are configured and never displays secret values. The Service Role key must remain only in the hosting environment and must not be placed in frontend files or the ZIP package.'}</p>
               </div>
             </article>
           )}

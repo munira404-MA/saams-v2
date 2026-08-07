@@ -91,6 +91,27 @@ const emptyForm = {
   data_scope: 'nursery_only',
 };
 
+function friendlyAccountError(error, ar) {
+  const code = error?.code || '';
+  const message = String(error?.message || '');
+
+  if (code === 'MISSING_ENV' || message.includes('Missing Supabase server environment variables')) {
+    return ar
+      ? 'لم يتم تفعيل خدمة إنشاء الحسابات على الخادم بعد. يرجى استكمال إعدادات Supabase من بيئة الاستضافة.'
+      : 'The account-creation service is not enabled on the server yet. Complete the Supabase hosting environment settings.';
+  }
+  if (code === 'INVALID_SESSION' || code === 'MISSING_TOKEN' || /Invalid session/i.test(message)) {
+    return ar ? 'انتهت جلسة الدخول أو لم يتم التحقق منها. سجّلي الدخول مرة أخرى ثم حاولي.' : 'Your session is not valid. Sign in again and retry.';
+  }
+  if (code === 'FORBIDDEN' || /Super admin required/i.test(message)) {
+    return ar ? 'هذه العملية متاحة لمدير النظام فقط.' : 'This action is available to the system administrator only.';
+  }
+  if (/already.*registered|already.*exists|duplicate/i.test(message)) {
+    return ar ? 'اسم المستخدم أو الحساب موجود مسبقًا. اختاري اسم مستخدم مختلفًا.' : 'This username or account already exists. Choose a different username.';
+  }
+  return ar ? `تعذر إكمال العملية: ${message || 'حدث خطأ غير متوقع.'}` : `Could not complete the action: ${message || 'Unexpected error.'}`;
+}
+
 function formatLastLogin(value, ar) {
   if (!value) return ar ? 'لم يسجل الدخول بعد' : 'Never signed in';
   if (value === 'اليوم') return value;
@@ -122,7 +143,11 @@ export default function Users({ lang, profile, databaseMode = false }) {
       body: JSON.stringify(payload),
     });
     const result = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(result.error || 'REQUEST_FAILED');
+    if (!response.ok) {
+      const error = new Error(result.error || 'REQUEST_FAILED');
+      error.code = result.code || '';
+      throw error;
+    }
     return result;
   }
 
@@ -133,7 +158,7 @@ export default function Users({ lang, profile, databaseMode = false }) {
       const result = await adminApi({ action: 'list' });
       setUsers(result.users || []);
     } catch (error) {
-      setMessage(ar ? `تعذر تحميل حسابات التشغيل الفعلي: ${error.message}` : `Could not load production accounts: ${error.message}`);
+      setMessage(friendlyAccountError(error, ar));
     } finally {
       setLoadingUsers(false);
     }
@@ -267,7 +292,7 @@ export default function Users({ lang, profile, databaseMode = false }) {
       }
       setOpen(false);
     } catch (error) {
-      setMessage(ar ? `تعذر حفظ الحساب: ${error.message}` : `Could not save account: ${error.message}`);
+      setMessage(friendlyAccountError(error, ar));
     } finally {
       setBusy(false);
     }
@@ -279,7 +304,7 @@ export default function Users({ lang, profile, databaseMode = false }) {
         const result = await adminApi({ action: 'toggle', id: user.id, active: !user.active });
         setUsers(result.users || []);
       } catch (error) {
-        setMessage(ar ? `تعذر تحديث الحساب: ${error.message}` : `Could not update account: ${error.message}`);
+        setMessage(friendlyAccountError(error, ar));
       }
       return;
     }
@@ -297,7 +322,7 @@ export default function Users({ lang, profile, databaseMode = false }) {
         const result = await adminApi({ action: 'delete', id: user.id });
         setUsers(result.users || []);
       } catch (error) {
-        setMessage(ar ? `تعذر حذف الحساب: ${error.message}` : `Could not delete account: ${error.message}`);
+        setMessage(friendlyAccountError(error, ar));
       }
       return;
     }

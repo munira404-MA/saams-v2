@@ -155,7 +155,7 @@ export default function App() {
     help: <Help lang={lang} setActive={setActive} />,
     about: <About lang={lang} />,
     users: <Users lang={lang} profile={profile} databaseMode={databaseMode} />,
-    settings: <Settings lang={lang} profile={profile} onProfileUpdate={handleProfileUpdate} />,
+    settings: <Settings lang={lang} profile={profile} onProfileUpdate={handleProfileUpdate} databaseMode={databaseMode} />,
   };
 
   return (
