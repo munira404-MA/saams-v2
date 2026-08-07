@@ -6,8 +6,8 @@ function normalizeUsername(value = '') {
 
 function clients(req) {
   const url = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
   if (!url || !anonKey || !serviceKey) throw new Error('MISSING_ENV');
 
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
@@ -29,16 +29,28 @@ async function requireSuperAdmin(req) {
   const { data: callerData, error: callerError } = await userClient.auth.getUser();
   if (callerError || !callerData?.user) throw new Error('INVALID_SESSION');
 
-  const { data: callerProfile } = await adminClient
+  const { data: callerProfile, error: profileError } = await adminClient
     .from('profiles')
-    .select('role,active')
+    .select('role,active,username')
     .eq('id', callerData.user.id)
     .single();
 
-  if (!callerProfile?.active || callerProfile.role !== 'super_admin') {
-    throw new Error('FORBIDDEN');
+  if (profileError || !callerProfile) {
+    const error = new Error('PROFILE_NOT_FOUND');
+    error.callerId = callerData.user.id;
+    throw error;
   }
-  return adminClient;
+
+  // Older production rows may have active = NULL. Treat only an explicit false as disabled.
+  if (callerProfile.active === false || callerProfile.role !== 'super_admin') {
+    const error = new Error('FORBIDDEN');
+    error.callerId = callerData.user.id;
+    error.callerRole = callerProfile.role || '';
+    error.callerUsername = callerProfile.username || '';
+    error.callerActive = callerProfile.active;
+    throw error;
+  }
+  return { adminClient, caller: { id: callerData.user.id, role: callerProfile.role, username: callerProfile.username || '' } };
 }
 
 async function listUsers(adminClient) {
@@ -74,13 +86,24 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   let adminClient;
+  let caller;
   try {
-    adminClient = await requireSuperAdmin(req);
+    const auth = await requireSuperAdmin(req);
+    adminClient = auth.adminClient;
+    caller = auth.caller;
   } catch (error) {
     const code = error?.message;
     if (code === 'MISSING_ENV') return res.status(500).json({ error: 'Missing Supabase server environment variables', code: 'MISSING_ENV' });
     if (code === 'MISSING_TOKEN' || code === 'INVALID_SESSION') return res.status(401).json({ error: 'Invalid session', code: code || 'INVALID_SESSION' });
-    if (code === 'FORBIDDEN') return res.status(403).json({ error: 'Super admin required', code: 'FORBIDDEN' });
+    if (code === 'PROFILE_NOT_FOUND') return res.status(403).json({ error: 'Authenticated user profile was not found', code: 'PROFILE_NOT_FOUND', caller_id: error?.callerId || '' });
+    if (code === 'FORBIDDEN') return res.status(403).json({
+      error: 'Super admin required',
+      code: 'FORBIDDEN',
+      caller_id: error?.callerId || '',
+      caller_role: error?.callerRole || '',
+      caller_username: error?.callerUsername || '',
+      caller_active: error?.callerActive ?? null,
+    });
     return res.status(500).json({ error: 'Authentication failed' });
   }
 
@@ -88,7 +111,7 @@ export default async function handler(req, res) {
 
   try {
     if (action === 'list') {
-      return res.status(200).json({ users: await listUsers(adminClient) });
+      return res.status(200).json({ users: await listUsers(adminClient), caller });
     }
 
     if (action === 'create') {

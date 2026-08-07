@@ -101,10 +101,15 @@ function friendlyAccountError(error, ar) {
       : 'The account-creation service is not enabled on the server yet. Complete the Supabase hosting environment settings.';
   }
   if (code === 'INVALID_SESSION' || code === 'MISSING_TOKEN' || /Invalid session/i.test(message)) {
-    return ar ? 'انتهت جلسة الدخول أو لم يتم التحقق منها. سجّلي الدخول مرة أخرى ثم حاولي.' : 'Your session is not valid. Sign in again and retry.';
+    return ar ? 'انتهت جلسة الدخول أو لم يتم التحقق منها. تم تحديث الجلسة تلقائيًا؛ إذا استمرت الرسالة سجّلي الخروج ثم الدخول مرة أخرى.' : 'Your session is not valid. The app attempted to refresh it automatically; if this continues, sign out and sign in again.';
+  }
+  if (code === 'PROFILE_NOT_FOUND') {
+    return ar ? 'تم تسجيل الدخول في Supabase، لكن ملف المستخدم المرتبط بهذه الجلسة غير موجود في جدول profiles.' : 'You are signed in to Supabase, but the profile linked to this session was not found.';
   }
   if (code === 'FORBIDDEN' || /Super admin required/i.test(message)) {
-    return ar ? 'هذه العملية متاحة لمدير النظام فقط.' : 'This action is available to the system administrator only.';
+    const details = error?.details || {};
+    const role = details.caller_role ? ` (${details.caller_role})` : '';
+    return ar ? `تم التحقق من الجلسة، لكن الخادم لم يتعرف على الحساب كمدير نظام${role}.` : `The session was verified, but the server did not recognize this account as a system administrator${role}.`;
   }
   if (/already.*registered|already.*exists|duplicate/i.test(message)) {
     return ar ? 'اسم المستخدم أو الحساب موجود مسبقًا. اختاري اسم مستخدم مختلفًا.' : 'This username or account already exists. Choose a different username.';
@@ -135,17 +140,36 @@ export default function Users({ lang, profile, databaseMode = false }) {
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   async function adminApi(payload) {
-    const { data } = await supabase.auth.getSession();
-    const token = data?.session?.access_token;
+    // Always refresh the Supabase session before privileged account operations so
+    // the API receives a current access token rather than a stale cached token.
+    let session = null;
+    const refreshed = await supabase.auth.refreshSession();
+    if (!refreshed.error && refreshed.data?.session) session = refreshed.data.session;
+    if (!session) {
+      const current = await supabase.auth.getSession();
+      session = current.data?.session || null;
+    }
+    const token = session?.access_token;
+    if (!token) {
+      const error = new Error('Invalid session');
+      error.code = 'INVALID_SESSION';
+      throw error;
+    }
+
     const response = await fetch('/api/admin-users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+        'Cache-Control': 'no-store',
+      },
       body: JSON.stringify(payload),
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) {
       const error = new Error(result.error || 'REQUEST_FAILED');
       error.code = result.code || '';
+      error.details = result;
       throw error;
     }
     return result;
