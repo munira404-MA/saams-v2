@@ -10,6 +10,7 @@ import {
 } from '../data/supabaseData';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
+import { supabase } from '../supabase';
 
 const initialData = [
   {
@@ -791,6 +792,43 @@ export default function Invoices({ lang, profile, databaseMode }) {
     setPageClassification([]);
   }
 
+  function guessAttachmentType(name = '') {
+    const lower = String(name).toLowerCase();
+    if (lower.endsWith('.pdf')) return 'application/pdf';
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    return '';
+  }
+
+  async function openSavedInvoice(item) {
+    if (!item) return;
+    if (item.attachmentDataUrl) {
+      showFullAttachment({
+        dataUrl: item.attachmentDataUrl,
+        name: item.attachmentName || item.id,
+        type: item.attachmentType || guessAttachmentType(item.attachmentName),
+      });
+      return;
+    }
+    if (item.attachmentPath && databaseMode) {
+      try {
+        const { data, error } = await supabase.storage
+          .from('saams-invoices')
+          .createSignedUrl(item.attachmentPath, 60 * 10);
+        if (error) throw error;
+        if (!data?.signedUrl) throw new Error('SIGNED_URL_MISSING');
+        const fileName = item.attachmentPath.split('/').pop() || item.id;
+        showFullAttachment({ dataUrl: data.signedUrl, name: fileName, type: guessAttachmentType(fileName) });
+        return;
+      } catch (error) {
+        console.error('Invoice attachment open failed:', error);
+        showActionMessage(ar ? 'تعذر فتح مرفق الفاتورة من التخزين. راجعي صلاحيات Storage.' : 'Could not open the invoice attachment from Storage. Review Storage permissions.');
+      }
+    }
+    setSelected(item);
+  }
+
   async function savePreviewInvoice() {
     if (!ocr) return;
     if (!ocr.can_save || ocr.document_quality === 'rejected') {
@@ -1078,7 +1116,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                   <td>
                     <div className="row-actions">
                       <button type="button" onClick={() => setSelected(item)}>{t.view}</button>
-                      {item.attachmentDataUrl && <button className="view-invoice-row" type="button" onClick={() => showFullAttachment({ dataUrl: item.attachmentDataUrl, name: item.attachmentName || item.id, type: item.attachmentType })}>↗ {t.viewInvoice}</button>}
+                      <button className="view-invoice-row" type="button" onClick={() => openSavedInvoice(item)}>↗ {t.viewInvoice}</button>
                       {!isNursery && item.status === 'review' && <button className="approve-row" type="button" onClick={() => approveInvoice(item)}>{t.approve}</button>}
                     </div>
                   </td>
@@ -1097,17 +1135,18 @@ export default function Invoices({ lang, profile, databaseMode }) {
               <div><small>{t.details}</small><h2>{selected.id}</h2></div>
               <button type="button" onClick={() => setSelected(null)}>×</button>
             </div>
-            {selected.attachmentDataUrl && (
-              <div className="invoice-quick-view-bar">
-                <span>{ar ? 'للمراجعة السريعة يمكنك فتح الفاتورة الأصلية مباشرة.' : 'For quick review, open the original invoice directly.'}</span>
-                <button className="attachment-open-button quick-view-primary" type="button" onClick={() => showFullAttachment({ dataUrl: selected.attachmentDataUrl, name: selected.attachmentName || selected.id, type: selected.attachmentType })}>↗ {t.viewInvoice}</button>
+            <div className="invoice-review-shortcut">
+              <div>
+                <strong>{ar ? 'مراجعة الفاتورة' : 'Invoice Review'}</strong>
+                <small>{ar ? 'افتحي الفاتورة الأصلية بسرعة أثناء المراجعة.' : 'Open the original invoice quickly while reviewing.'}</small>
               </div>
-            )}
+              <button className="quick-invoice-view" type="button" onClick={() => openSavedInvoice(selected)}>↗ {t.viewInvoice}</button>
+            </div>
             <div className={`saved-attachment-viewer ${selected.attachmentDataUrl ? 'has-file' : 'no-file'}`}>
               <div className="saved-attachment-head">
                 <div><small>{t.originalInvoice}</small><strong>{selected.attachmentName || selected.id}</strong></div>
-                {selected.attachmentDataUrl && (
-                  <button className="attachment-open-button" type="button" onClick={() => showFullAttachment({ dataUrl: selected.attachmentDataUrl, name: selected.attachmentName || selected.id, type: selected.attachmentType })}>↗ {t.openOriginal}</button>
+                {(selected.attachmentDataUrl || selected.attachmentPath) && (
+                  <button className="attachment-open-button" type="button" onClick={() => openSavedInvoice(selected)}>↗ {t.openOriginal}</button>
                 )}
               </div>
               {selected.attachmentDataUrl ? (
