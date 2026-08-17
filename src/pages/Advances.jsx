@@ -5,6 +5,7 @@ import {
   listAdvances as listAdvancesDb,
   listNurseries,
   toggleAdvanceStatus,
+  deleteAdvance as deleteAdvanceDb,
 } from '../data/supabaseData';
 
 const NURSERIES = [
@@ -34,6 +35,7 @@ const COPY = {
     nurseryBalance: 'رصيد الحضانة', usage: 'نسبة الاستخدام', invoicesCount: 'عدد الفواتير', addInvoiceDemo: 'محاكاة إضافة فاتورة', invoiceDeductionNote: 'عند اعتماد أي فاتورة مرتبطة بهذه السلفة، يُخصم إجماليها تلقائيًا من رصيد الحضانة.',
     created: 'تم إدراج السلفة بنجاح', closedMsg: 'تم إغلاق السلفة', reopenedMsg: 'تمت إعادة فتح السلفة', invalid: 'اختاري حضانة واحدة على الأقل وحددي مبلغًا أكبر من صفر.',
     search: 'بحث باسم السلفة أو الحضانة...', previewNursery: 'معاينة شاشة الحضانة', backAdmin: 'العودة لوضع الإدارة',
+    deleteAdvance: 'حذف السلفة', deleteConfirm: 'هل أنتِ متأكدة من حذف هذه السلفة؟ لا يمكن التراجع عن الحذف.', deleteSuccess: 'تم حذف السلفة بنجاح', deleteBlocked: 'لا يمكن حذف السلفة لأنها مرتبطة بفواتير. أغلقي السلفة بدلًا من حذفها.', deleteFailed: 'تعذر حذف السلفة من قاعدة البيانات.', nurseriesLoading: 'جاري تحديث قائمة الحضانات...', noNurseries: 'لا توجد حضانات نشطة متاحة حاليًا.',
   },
   en: {
     title: 'Advance Management',
@@ -50,6 +52,7 @@ const COPY = {
     nurseryBalance: 'Nursery Balance', usage: 'Usage', invoicesCount: 'Invoice Count', addInvoiceDemo: 'Simulate Invoice', invoiceDeductionNote: 'Once a linked invoice is approved, its total is automatically deducted from the nursery balance.',
     created: 'Advance created successfully', closedMsg: 'Advance closed', reopenedMsg: 'Advance reopened', invalid: 'Select at least one nursery and enter an amount greater than zero.',
     search: 'Search advance or nursery...', previewNursery: 'Preview Nursery View', backAdmin: 'Back to Admin View',
+    deleteAdvance: 'Delete Advance', deleteConfirm: 'Are you sure you want to delete this advance? This cannot be undone.', deleteSuccess: 'Advance deleted successfully', deleteBlocked: 'This advance cannot be deleted because invoices are linked to it. Close it instead.', deleteFailed: 'Could not delete advance from the database.', nurseriesLoading: 'Refreshing nursery list...', noNurseries: 'No active nurseries are currently available.',
   }
 };
 
@@ -149,15 +152,15 @@ export default function Advances({ lang, profile, databaseMode }) {
   }, { allocated: 0, spent: 0, open: 0 });
 
   async function createAdvance(form, status) {
-    const allocations = form.rows.filter(row => row.selected && Number(row.amount) > 0).map(row => ({ nurseryAr: row.ar, nurseryEn: row.en, allocated: Number(row.amount), invoices: [] }));
+    const allocations = form.rows.filter(row => row.selected && Number(row.amount) > 0).map(row => ({ nurseryId: row.id || null, nurseryAr: row.ar, nurseryEn: row.en, allocated: Number(row.amount), invoices: [] }));
     if (!allocations.length) { notify(t.invalid); return false; }
     const next = {
       id: `ADV-2026-${String(advances.length + 9).padStart(3, '0')}`,
       nameAr: form.name, nameEn: form.name,
       type: form.type, from: form.from, to: form.to, status,
       allocations: allocations.map((row) => {
-        const match = dbNurseries.find((nursery) => nursery.name_ar === row.nurseryAr || nursery.name_en === row.nurseryEn);
-        return { ...row, nurseryId: match?.id };
+        const match = row.nurseryId ? null : dbNurseries.find((nursery) => nursery.name_ar === row.nurseryAr || nursery.name_en === row.nurseryEn);
+        return { ...row, nurseryId: row.nurseryId || match?.id };
       }),
     };
     if (databaseMode) {
@@ -191,6 +194,46 @@ export default function Advances({ lang, profile, databaseMode }) {
     setAdvances(current => current.map(a => a.id === id ? { ...a, status: nextStatus } : a));
     notify(item?.status === 'open' ? t.closedMsg : t.reopenedMsg);
   }
+  async function openCreateAdvance() {
+    if (databaseMode) {
+      setDbLoading(true);
+      try {
+        const nurseryRows = await listNurseries();
+        setDbNurseries(nurseryRows);
+      } catch (error) {
+        console.error('Nursery refresh failed:', error);
+        notify(ar ? 'تعذر تحديث قائمة الحضانات من قاعدة البيانات.' : 'Could not refresh nursery list.');
+        return;
+      } finally {
+        setDbLoading(false);
+      }
+    }
+    setCreating(true);
+  }
+
+  async function deleteAdvance(item) {
+    if (!item || !window.confirm(t.deleteConfirm)) return;
+    if (databaseMode) {
+      try {
+        await deleteAdvanceDb(item);
+      } catch (error) {
+        console.error('Advance delete failed:', error);
+        if (error?.code === 'ADVANCE_HAS_INVOICES' || String(error?.message || '').includes('ADVANCE_HAS_INVOICES')) {
+          notify(t.deleteBlocked);
+        } else {
+          notify(t.deleteFailed);
+        }
+        return;
+      }
+    } else if (item.allocations.some((allocation) => (allocation.invoices || []).length > 0)) {
+      notify(t.deleteBlocked);
+      return;
+    }
+    setAdvances((current) => current.filter((advance) => advance.id !== item.id));
+    if (viewing?.advance?.id === item.id) setViewing(null);
+    notify(t.deleteSuccess);
+  }
+
   function addDemoInvoice(advanceId, nurseryAr) {
     const amount = 125;
     setAdvances(current => current.map(a => a.id !== advanceId ? a : { ...a, allocations: a.allocations.map(allocation => allocation.nurseryAr !== nurseryAr ? allocation : { ...allocation, invoices: [...allocation.invoices, { no: `INV-DEMO-${allocation.invoices.length + 1}`, supplierAr: 'مورد تجريبي', supplierEn: 'Demo Supplier', date: new Date().toLocaleDateString('en-GB'), amount }] }) }));
@@ -204,7 +247,7 @@ export default function Advances({ lang, profile, databaseMode }) {
       <div className="advances-heading-actions">
         {isAdmin && <button className="preview-nursery-btn" onClick={() => setPreviewNursery(v => !v)}>{previewNursery ? t.backAdmin : t.previewNursery}</button>}
         <div className="role-pill">{nurseryMode ? t.nursery : t.admin}</div>
-        {!nurseryMode && <button className="primary-action" onClick={() => setCreating(true)}>＋ {t.create}</button>}
+        {!nurseryMode && <button className="primary-action" onClick={openCreateAdvance}>＋ {t.create}</button>}
       </div>
     </div>
 
@@ -234,7 +277,7 @@ export default function Advances({ lang, profile, databaseMode }) {
           <div className="advance-card-top">
             <div className={`advance-type-icon ${advance.type}`}>{advance.type === 'monthly' ? '▥' : '☆'}</div>
             <div className="advance-title"><div><span className={`advance-type-badge ${advance.type}`}>{t[advance.type]}</span><span className={`advance-status ${advance.status}`}>{t[advance.status]}</span></div><h3>{ar ? advance.nameAr : advance.nameEn}</h3><p>{advance.id} · {advance.from} — {advance.to}</p></div>
-            <div className="advance-card-actions"><button onClick={() => setViewing({ advance, allocation })}>{t.view}</button>{!nurseryMode && <button className={advance.status === 'open' ? 'close-advance' : 'reopen-advance'} onClick={() => toggleStatus(advance.id)}>{advance.status === 'open' ? t.close : t.reopen}</button>}</div>
+            <div className="advance-card-actions"><button onClick={() => setViewing({ advance, allocation })}>{t.view}</button>{!nurseryMode && <><button className={advance.status === 'open' ? 'close-advance' : 'reopen-advance'} onClick={() => toggleStatus(advance.id)}>{advance.status === 'open' ? t.close : t.reopen}</button><button className="delete-advance" onClick={() => deleteAdvance(advance)}>⌫ {t.deleteAdvance}</button></>}</div>
           </div>
           <div className="advance-balance-grid">
             <div><small>{t.allocated}</small><strong>{money(allocated)} AED</strong></div>
@@ -248,14 +291,15 @@ export default function Advances({ lang, profile, databaseMode }) {
       })}
     </div>
 
-    {creating && <CreateAdvanceModal ar={ar} t={t} onClose={() => setCreating(false)} onSave={createAdvance} />}
-    {viewing && <AdvanceDetails ar={ar} t={t} data={viewing} nurseryMode={nurseryMode} onClose={() => setViewing(null)} onToggle={() => { toggleStatus(viewing.advance.id); setViewing(null); }} onDemo={allocation => addDemoInvoice(viewing.advance.id, allocation.nurseryAr)} />}
+    {creating && <CreateAdvanceModal ar={ar} t={t} nurseries={databaseMode ? dbNurseries : NURSERIES.map((n, index) => ({ id: `demo-${index}`, name_ar: n.ar, name_en: n.en, active: true }))} loading={dbLoading} onClose={() => setCreating(false)} onSave={createAdvance} />}
+    {viewing && <AdvanceDetails ar={ar} t={t} data={viewing} nurseryMode={nurseryMode} onClose={() => setViewing(null)} onToggle={() => { toggleStatus(viewing.advance.id); setViewing(null); }} onDelete={() => deleteAdvance(viewing.advance)} onDemo={allocation => addDemoInvoice(viewing.advance.id, allocation.nurseryAr)} />}
     {toast && <div className="asset-toast">✓ {toast}</div>}
   </section>;
 }
 
-function CreateAdvanceModal({ ar, t, onClose, onSave }) {
-  const [form, setForm] = useState({ name: '', type: 'monthly', from: '2026-08-01', to: '2026-09-30', sameAmount: '', rows: NURSERIES.map(n => ({ ...n, selected: false, amount: '' })) });
+function CreateAdvanceModal({ ar, t, nurseries, loading, onClose, onSave }) {
+  const activeNurseries = (nurseries || []).filter((nursery) => nursery.active !== false);
+  const [form, setForm] = useState({ name: '', type: 'monthly', from: '2026-08-01', to: '2026-09-30', sameAmount: '', rows: activeNurseries.map((nursery) => ({ id: nursery.id, ar: nursery.name_ar, en: nursery.name_en || nursery.name_ar, selected: false, amount: '' })) });
   function setRows(fn) { setForm(current => ({ ...current, rows: fn(current.rows) })); }
   function applySame() { if (!Number(form.sameAmount)) return; setRows(rows => rows.map(row => row.selected ? { ...row, amount: form.sameAmount } : row)); }
   function submit(status) { if (!form.name.trim()) return; onSave(form, status); }
@@ -270,13 +314,13 @@ function CreateAdvanceModal({ ar, t, onClose, onSave }) {
     <div className="nursery-allocation-section">
       <div className="allocation-heading"><div><h3>{t.chooseNurseries}</h3><p>{ar ? 'يمكن تحديد مبلغ مختلف لكل حضانة حسب احتياجها.' : 'Each nursery can receive a different amount.'}</p></div><div><button onClick={() => setRows(rows => rows.map(r => ({ ...r, selected: true })))}>{t.selectAll}</button><button onClick={() => setRows(rows => rows.map(r => ({ ...r, selected: false })))}>{t.clearAll}</button></div></div>
       <div className="same-amount-row"><span>{t.sameAmount}</span><input type="number" min="0" step="0.01" value={form.sameAmount} onChange={e => setForm({ ...form, sameAmount: e.target.value })} placeholder="0.00" /><button onClick={applySame}>{t.apply}</button></div>
-      <div className="nursery-allocation-list">{form.rows.map((row, index) => <label className={row.selected ? 'selected' : ''} key={row.ar}><input type="checkbox" checked={row.selected} onChange={e => setRows(rows => rows.map((r,i) => i === index ? { ...r, selected: e.target.checked } : r))} /><strong>{ar ? row.ar : row.en}</strong><div><span>{t.amount}</span><input type="number" min="0" step="0.01" disabled={!row.selected} value={row.amount} onChange={e => setRows(rows => rows.map((r,i) => i === index ? { ...r, amount: e.target.value } : r))} /><b>AED</b></div></label>)}</div>
+      {loading ? <div className="advance-empty">◷<span>{t.nurseriesLoading}</span></div> : form.rows.length ? <div className="nursery-allocation-list">{form.rows.map((row, index) => <label className={row.selected ? 'selected' : ''} key={row.id || row.ar}><input type="checkbox" checked={row.selected} onChange={e => setRows(rows => rows.map((r,i) => i === index ? { ...r, selected: e.target.checked } : r))} /><strong>{ar ? row.ar : row.en}</strong><div><span>{t.amount}</span><input type="number" min="0" step="0.01" disabled={!row.selected} value={row.amount} onChange={e => setRows(rows => rows.map((r,i) => i === index ? { ...r, amount: e.target.value } : r))} /><b>AED</b></div></label>)}</div> : <div className="advance-empty">⌁<span>{t.noNurseries}</span></div>}
     </div>
     <div className="create-advance-actions"><button className="secondary-action" onClick={onClose}>{t.cancel}</button><button className="draft-action" onClick={() => submit('draft')}>{t.saveDraft}</button><button className="primary-action" onClick={() => submit('open')}>{t.save}</button></div>
   </div></div>;
 }
 
-function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDemo }) {
+function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDelete, onDemo }) {
   const { advance, allocation } = data;
   const [selected, setSelected] = useState(allocation || advance.allocations[0]);
   const spent = spentOf(selected), remaining = selected.allocated - spent, usage = selected.allocated ? (spent / selected.allocated) * 100 : 0;
@@ -288,6 +332,6 @@ function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDemo })
     <div className="invoice-deduction-note">ⓘ {t.invoiceDeductionNote}</div>
     <div className="linked-invoices-heading"><h3>{t.invoices}</h3>{advance.status === 'open' && <button onClick={() => onDemo(selected)}>＋ {t.addInvoiceDemo}</button>}</div>
     <div className="linked-invoices-list">{selected.invoices.length ? selected.invoices.map(invoice => <article key={invoice.no}><div><strong>{invoice.no}</strong><span>{ar ? invoice.supplierAr : invoice.supplierEn}</span></div><div><b>{money(invoice.amount)} AED</b><small>{invoice.date}</small></div></article>) : <div className="advance-empty">▤<span>{t.noInvoices}</span></div>}</div>
-    {!nurseryMode && <button className={advance.status === 'open' ? 'close-advance wide-action' : 'reopen-advance wide-action'} onClick={onToggle}>{advance.status === 'open' ? t.close : t.reopen}</button>}
+    {!nurseryMode && <div className="advance-detail-actions"><button className={advance.status === 'open' ? 'close-advance wide-action' : 'reopen-advance wide-action'} onClick={onToggle}>{advance.status === 'open' ? t.close : t.reopen}</button><button className="delete-advance wide-action" onClick={onDelete}>⌫ {t.deleteAdvance}</button></div>}
   </aside></div>;
 }

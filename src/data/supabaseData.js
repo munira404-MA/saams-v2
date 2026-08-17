@@ -302,6 +302,45 @@ export async function toggleAdvanceStatus(advance, status) {
   if (error) throw error;
 }
 
+
+export async function deleteAdvance(advance) {
+  let advanceId = advance?.dbId || null;
+  if (!advanceId && advance?.id) {
+    const { data, error } = await supabase
+      .from('advances')
+      .select('id')
+      .eq('code', advance.id)
+      .maybeSingle();
+    if (error) throw error;
+    advanceId = data?.id || null;
+  }
+  if (!advanceId) throw new Error('ADVANCE_NOT_FOUND');
+
+  const { data: allocations, error: allocationsError } = await supabase
+    .from('advance_allocations')
+    .select('id')
+    .eq('advance_id', advanceId);
+  if (allocationsError) throw allocationsError;
+
+  const allocationIds = (allocations || []).map((row) => row.id);
+  if (allocationIds.length) {
+    const { count, error: invoiceError } = await supabase
+      .from('invoices')
+      .select('id', { count: 'exact', head: true })
+      .in('advance_allocation_id', allocationIds);
+    if (invoiceError) throw invoiceError;
+    if (Number(count || 0) > 0) {
+      const error = new Error('ADVANCE_HAS_INVOICES');
+      error.code = 'ADVANCE_HAS_INVOICES';
+      error.invoiceCount = Number(count || 0);
+      throw error;
+    }
+  }
+
+  const { error } = await supabase.from('advances').delete().eq('id', advanceId);
+  if (error) throw error;
+}
+
 export async function writeAuditLog(payload) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) return;

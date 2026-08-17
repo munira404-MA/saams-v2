@@ -2742,3 +2742,25 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 .admin-recovery-actions{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;margin-top:16px}
 .admin-recovery-cancel{min-height:48px;padding:0 15px;border:1px solid #d6e2eb;border-radius:14px;background:#fff;color:#50687b;font-family:inherit;font-weight:800;cursor:pointer}
 @media(max-width:560px){.admin-recovery-actions{grid-template-columns:1fr}.admin-recovery-cancel{width:100%}}
+
+/* SAAMS advances: dynamic nursery source + safe delete */
+.advance-card-actions .delete-advance,
+.advance-detail-actions .delete-advance{
+  border:1px solid #f2c6c9!important;
+  background:#fff5f5!important;
+  color:#c84450!important;
+}
+.advance-card-actions .delete-advance:hover,
+.advance-detail-actions .delete-advance:hover{
+  background:#ffecee!important;
+  box-shadow:0 8px 18px rgba(196,68,80,.10)!important;
+}
+.advance-detail-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+  margin-top:14px;
+}
+@media(max-width:700px){
+  .advance-detail-actions{grid-template-columns:1fr}
+}
