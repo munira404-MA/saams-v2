@@ -211,6 +211,8 @@ export async function createInvoice(payload, invoiceFile, receiptFile) {
     status: payload.status || 'review',
     ocr_payload: payload.ocrPayload || {},
     uploaded_by: userId,
+    // Compatibility with existing SAAMS databases where created_by is required.
+    created_by: userId,
   };
 
   const { data, error } = await supabase
