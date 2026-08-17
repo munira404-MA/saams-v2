@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { supabaseClientOptions } from './_supabase-network.js';
 
 function normalizeUsername(value = '') {
   return String(value).trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
@@ -82,9 +83,7 @@ export default async function handler(req, res) {
     const adminClients = rawKeys.map((item) => ({
       name: item.name,
       kind: keyKind(item.value),
-      client: createClient(url, String(item.value).trim(), {
-        auth: { persistSession: false, autoRefreshToken: false },
-      }),
+      client: createClient(url, String(item.value).trim(), supabaseClientOptions()),
     }));
 
     let selected = adminClients[0];

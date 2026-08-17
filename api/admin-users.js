@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { supabaseClientOptions } from './_supabase-network.js';
 
 function normalizeUsername(value = '') {
   return String(value).trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
@@ -14,13 +15,8 @@ function clients(req) {
   if (!token) throw new Error('MISSING_TOKEN');
 
   return {
-    userClient: createClient(url, anonKey, {
-      global: { headers: { Authorization: `Bearer ${token}` } },
-      auth: { persistSession: false, autoRefreshToken: false },
-    }),
-    adminClients: adminKeys.map((key) => createClient(url, key, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    })),
+    userClient: createClient(url, anonKey, supabaseClientOptions({ global: { headers: { Authorization: `Bearer ${token}` } } })),
+    adminClients: adminKeys.map((key) => createClient(url, key, supabaseClientOptions())),
   };
 }
 
