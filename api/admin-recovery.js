@@ -20,10 +20,14 @@ function keyKind(key = '') {
 }
 
 function safeError(error) {
+  const cause = error?.cause || null;
   return {
     message: error?.message || String(error || 'Unknown error'),
     code: error?.code || error?.error_code || '',
     status: error?.status || '',
+    causeName: cause?.name || '',
+    causeCode: cause?.code || '',
+    causeMessage: cause?.message || '',
   };
 }
 
