@@ -6,9 +6,9 @@ function normalizeUsername(value = '') {
 
 function clients(req) {
   const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY;
-  if (!url || !anonKey || !serviceKey) throw new Error('MISSING_ENV');
+  const anonKey = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+  const adminKeys = [process.env.SUPABASE_SECRET_KEY, process.env.SUPABASE_SERVICE_ROLE_KEY].filter(Boolean);
+  if (!url || !anonKey || !adminKeys.length) throw new Error('MISSING_ENV');
 
   const token = String(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
   if (!token) throw new Error('MISSING_TOKEN');
@@ -18,26 +18,40 @@ function clients(req) {
       global: { headers: { Authorization: `Bearer ${token}` } },
       auth: { persistSession: false, autoRefreshToken: false },
     }),
-    adminClient: createClient(url, serviceKey, {
+    adminClients: adminKeys.map((key) => createClient(url, key, {
       auth: { persistSession: false, autoRefreshToken: false },
-    }),
+    })),
   };
 }
 
 async function requireSuperAdmin(req) {
-  const { userClient, adminClient } = clients(req);
+  const { userClient, adminClients } = clients(req);
   const { data: callerData, error: callerError } = await userClient.auth.getUser();
   if (callerError || !callerData?.user) throw new Error('INVALID_SESSION');
 
-  const { data: callerProfile, error: profileError } = await adminClient
-    .from('profiles')
-    .select('role,active,username')
-    .eq('id', callerData.user.id)
-    .single();
+  let adminClient = adminClients[0];
+  let callerProfile = null;
+  let profileError = null;
+  for (const candidate of adminClients) {
+    const result = await candidate
+      .from('profiles')
+      .select('role,active,username')
+      .eq('id', callerData.user.id)
+      .single();
+    callerProfile = result.data;
+    profileError = result.error;
+    if (!profileError && callerProfile) {
+      adminClient = candidate;
+      break;
+    }
+    const message = String(profileError?.message || '').toLowerCase();
+    if (!message.includes('invalid api key') && !message.includes('bad_jwt')) break;
+  }
 
   if (profileError || !callerProfile) {
     const error = new Error('PROFILE_NOT_FOUND');
     error.callerId = callerData.user.id;
+    error.details = profileError?.message || '';
     throw error;
   }
 
@@ -50,7 +64,7 @@ async function requireSuperAdmin(req) {
     error.callerActive = callerProfile.active;
     throw error;
   }
-  return { adminClient, caller: { id: callerData.user.id, role: callerProfile.role, username: callerProfile.username || '' } };
+  return { adminClient, adminClients, caller: { id: callerData.user.id, role: callerProfile.role, username: callerProfile.username || '' } };
 }
 
 async function listUsers(adminClient) {
@@ -82,14 +96,30 @@ async function listUsers(adminClient) {
   });
 }
 
+async function runAuthAdmin(adminClients, operation) {
+  let lastError = null;
+  for (const candidate of adminClients) {
+    const result = await operation(candidate);
+    if (!result?.error) return { ...result, client: candidate };
+    lastError = result.error;
+    const message = String(result.error?.message || '').toLowerCase();
+    const code = String(result.error?.code || result.error?.error_code || '').toLowerCase();
+    const keyRelated = message.includes('invalid api key') || message.includes('bad jwt') || message.includes('bad_jwt') || code === 'bad_jwt';
+    if (!keyRelated) return { ...result, client: candidate };
+  }
+  return { error: lastError || new Error('Supabase admin authentication failed'), client: adminClients[0] };
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   let adminClient;
+  let adminClients = [];
   let caller;
   try {
     const auth = await requireSuperAdmin(req);
     adminClient = auth.adminClient;
+    adminClients = auth.adminClients || [auth.adminClient];
     caller = auth.caller;
   } catch (error) {
     const code = error?.message;
@@ -123,15 +153,18 @@ export default async function handler(req, res) {
         return res.status(400).json({ error: 'Nursery account requires nursery_id' });
       }
       const email = `${username}@saams.local`;
-      const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+      const createResult = await runAuthAdmin(adminClients, (client) => client.auth.admin.createUser({
         email,
         password: user.password,
         email_confirm: true,
         user_metadata: { username, full_name: user.full_name },
-      });
-      if (createError) return res.status(400).json({ error: createError.message });
+      }));
+      const created = createResult.data;
+      const createError = createResult.error;
+      const writeClient = createResult.client || adminClient;
+      if (createError) return res.status(400).json({ error: createError.message, code: createError.code || createError.error_code || '' });
 
-      const { error: profileError } = await adminClient.from('profiles').insert({
+      const { error: profileError } = await writeClient.from('profiles').insert({
         id: created.user.id,
         username,
         full_name: user.full_name,
@@ -141,7 +174,7 @@ export default async function handler(req, res) {
         active: user.active !== false,
       });
       if (profileError) {
-        await adminClient.auth.admin.deleteUser(created.user.id);
+        await runAuthAdmin(adminClients, (client) => client.auth.admin.deleteUser(created.user.id));
         return res.status(400).json({ error: profileError.message });
       }
       return res.status(200).json({ users: await listUsers(adminClient) });
@@ -163,8 +196,9 @@ export default async function handler(req, res) {
       const authUpdate = { user_metadata: { username, full_name: user.full_name } };
       if (user.password) authUpdate.password = user.password;
       if (username) authUpdate.email = `${username}@saams.local`;
-      const { error: authError } = await adminClient.auth.admin.updateUserById(id, authUpdate);
-      if (authError) return res.status(400).json({ error: authError.message });
+      const authResult = await runAuthAdmin(adminClients, (client) => client.auth.admin.updateUserById(id, authUpdate));
+      const authError = authResult.error;
+      if (authError) return res.status(400).json({ error: authError.message, code: authError.code || authError.error_code || '' });
       return res.status(200).json({ users: await listUsers(adminClient) });
     }
 
@@ -182,8 +216,9 @@ export default async function handler(req, res) {
         const { count } = await adminClient.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'super_admin').eq('active', true);
         if ((count || 0) <= 1) return res.status(400).json({ error: 'Cannot delete the last system administrator' });
       }
-      const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(id);
-      if (deleteAuthError) return res.status(400).json({ error: deleteAuthError.message });
+      const deleteResult = await runAuthAdmin(adminClients, (client) => client.auth.admin.deleteUser(id));
+      const deleteAuthError = deleteResult.error;
+      if (deleteAuthError) return res.status(400).json({ error: deleteAuthError.message, code: deleteAuthError.code || deleteAuthError.error_code || '' });
       return res.status(200).json({ users: await listUsers(adminClient) });
     }
 
