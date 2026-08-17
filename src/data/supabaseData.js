@@ -137,13 +137,70 @@ export async function uploadInvoiceFile({ nurseryId, invoiceDbId, file, kind }) 
 }
 
 export async function createInvoice(payload, invoiceFile, receiptFile) {
-  const { data: userData } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw userError;
   const userId = userData?.user?.id || null;
+  if (!userId) throw new Error('AUTH_SESSION_MISSING');
+
+  // Resolve the current user's scope from Supabase at save time.
+  // Nursery accounts are never allowed to trust a nursery id coming from the UI.
+  const { data: liveProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('id,role,nursery_id,active,nurseries(id,name_ar,name_en)')
+    .eq('id', userId)
+    .single();
+  if (profileError) throw profileError;
+  if (liveProfile?.active === false) throw new Error('ACCOUNT_DISABLED');
+
+  let resolvedNurseryId = payload.nurseryId || null;
+  let resolvedAllocationId = payload.advanceAllocationId || null;
+
+  if (liveProfile?.role === 'nursery') {
+    resolvedNurseryId = liveProfile.nursery_id || null;
+    if (!resolvedNurseryId) throw new Error('NURSERY_SCOPE_MISSING');
+
+    // Validate a chosen allocation against the logged-in nursery.
+    if (resolvedAllocationId) {
+      const { data: selectedAllocation, error: allocationCheckError } = await supabase
+        .from('advance_allocations')
+        .select('id,nursery_id,advances!inner(status)')
+        .eq('id', resolvedAllocationId)
+        .eq('nursery_id', resolvedNurseryId)
+        .eq('advances.status', 'open')
+        .maybeSingle();
+      if (allocationCheckError) throw allocationCheckError;
+      if (!selectedAllocation?.id) resolvedAllocationId = null;
+    }
+
+    // If the nursery has exactly one open allocation, attach it automatically.
+    if (!resolvedAllocationId) {
+      const { data: openAllocations, error: openAllocationError } = await supabase
+        .from('advance_allocations')
+        .select('id,advances!inner(status)')
+        .eq('nursery_id', resolvedNurseryId)
+        .eq('advances.status', 'open')
+        .limit(2);
+      if (openAllocationError) throw openAllocationError;
+      if ((openAllocations || []).length === 1) {
+        resolvedAllocationId = openAllocations[0].id;
+      } else if ((openAllocations || []).length === 0) {
+        const err = new Error('NO_OPEN_ADVANCE');
+        err.code = 'NO_OPEN_ADVANCE';
+        throw err;
+      } else {
+        const err = new Error('MULTIPLE_OPEN_ADVANCES');
+        err.code = 'MULTIPLE_OPEN_ADVANCES';
+        throw err;
+      }
+    }
+  }
+
+  if (!resolvedNurseryId) throw new Error('NURSERY_NOT_FOUND');
 
   const insertPayload = {
     invoice_number: payload.id,
-    nursery_id: payload.nurseryId,
-    advance_allocation_id: payload.advanceAllocationId || null,
+    nursery_id: resolvedNurseryId,
+    advance_allocation_id: resolvedAllocationId,
     supplier_name: payload.supplierAr || payload.supplierEn,
     invoice_date: normalizeDate(payload.date),
     subtotal: Number(payload.subtotal || Math.max(0, Number(payload.total || 0) - Number(payload.vat || 0))),
@@ -167,13 +224,13 @@ export async function createInvoice(payload, invoiceFile, receiptFile) {
   let receiptPath = '';
   try {
     attachmentPath = await uploadInvoiceFile({
-      nurseryId: payload.nurseryId,
+      nurseryId: resolvedNurseryId,
       invoiceDbId: data.id,
       file: invoiceFile,
       kind: 'invoice',
     });
     receiptPath = await uploadInvoiceFile({
-      nurseryId: payload.nurseryId,
+      nurseryId: resolvedNurseryId,
       invoiceDbId: data.id,
       file: receiptFile,
       kind: 'receipt',

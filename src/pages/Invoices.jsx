@@ -842,8 +842,27 @@ export default function Invoices({ lang, profile, databaseMode }) {
         next.attachmentPath = saved.attachmentPath;
         next.receiptPath = saved.receiptPath;
       } catch (error) {
-        console.error(error);
-        setOcrError(ar ? 'تعذر حفظ الفاتورة في قاعدة البيانات. تأكدي من اختيار الحضانة ومن تنفيذ ملف SQL.' : 'Could not save invoice to the database.');
+        console.error('Invoice save failed:', error);
+        const code = String(error?.code || error?.message || '');
+        let messageAr = 'تعذر حفظ الفاتورة في قاعدة البيانات.';
+        let messageEn = 'Could not save invoice to the database.';
+        if (code.includes('NO_OPEN_ADVANCE')) {
+          messageAr = 'لا توجد سلفة مفتوحة لهذه الحضانة. افتحي السلفة أولًا ثم أعيدي حفظ الفاتورة.';
+          messageEn = 'There is no open advance for this nursery. Open an advance first, then save the invoice again.';
+        } else if (code.includes('MULTIPLE_OPEN_ADVANCES')) {
+          messageAr = 'يوجد أكثر من سلفة مفتوحة لهذه الحضانة. اختاري السلفة المطلوبة قبل حفظ الفاتورة.';
+          messageEn = 'More than one advance is open for this nursery. Select the required advance before saving.';
+        } else if (code.includes('NURSERY_SCOPE_MISSING')) {
+          messageAr = 'حساب الحضانة غير مربوط بحضانة في قاعدة البيانات. يرجى مراجعة إعداد المستخدم.';
+          messageEn = 'This nursery account is not linked to a nursery in the database. Review the user setup.';
+        } else if (code.includes('row-level security') || code.includes('42501')) {
+          messageAr = 'رفضت قاعدة البيانات الحفظ بسبب صلاحيات الحضانة. يرجى مراجعة سياسات RLS.';
+          messageEn = 'The database rejected the save because of nursery access policies. Review RLS policies.';
+        } else if (error?.message) {
+          messageAr = `تعذر حفظ الفاتورة: ${error.message}`;
+          messageEn = `Could not save invoice: ${error.message}`;
+        }
+        setOcrError(ar ? messageAr : messageEn);
         return;
       }
     }
