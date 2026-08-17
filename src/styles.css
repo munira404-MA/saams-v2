@@ -376,16 +376,16 @@ html[dir="rtl"] .stat-card::after{border-radius:21px 0 0 21px}
 .invoice-status,.payment-badge{display:inline-flex;align-items:center;justify-content:center;min-height:26px;padding:0 9px;border-radius:999px;font-size:9.5px;font-weight:800;white-space:nowrap}
 .invoice-status.approved{color:#168b50;background:#e8f8ee}.invoice-status.review{color:#2665c8;background:#eaf1ff}.invoice-status.returned{color:#c46a13;background:#fff1e3}.invoice-status.late{color:#d44151;background:#ffecef}
 .payment-badge.card{color:#3565d8;background:#edf2ff}.payment-badge.cash{color:#07877e;background:#e8faf6}
-.row-actions{display:flex;gap:6px}.row-actions button{border:1px solid #d4e2ec;background:#fff;color:#45627e;border-radius:9px;padding:6px 9px;font-size:9px;font-weight:800;cursor:pointer}.row-actions .approve-row{color:#168b50;border-color:#cbead7;background:#f1fbf5}
+.row-actions{display:flex;gap:6px;flex-wrap:wrap}.row-actions button{border:1px solid #d4e2ec;background:#fff;color:#2f4f6b;border-radius:10px;padding:7px 11px;font-size:10px;font-weight:900;cursor:pointer;line-height:1.2}.row-actions .approve-row{color:#168b50;border-color:#cbead7;background:#f1fbf5}.row-actions .view-invoice-row{background:#eef4ff;border-color:#c8d9f5;color:#2f57c7}
 .invoice-empty{padding:55px;display:grid;place-items:center;gap:10px;color:#8395a6}.invoice-empty:first-letter{font-size:30px}
 .invoice-overlay{position:fixed;inset:0;background:rgba(10,27,45,.35);backdrop-filter:blur(5px);z-index:20;display:flex;justify-content:flex-start;animation:fadeOverlay .18s ease}
 @keyframes fadeOverlay{from{opacity:0}to{opacity:1}}
 .invoice-drawer{width:min(470px,94vw);height:100%;overflow:auto;background:#f8fbfd;padding:22px;box-shadow:18px 0 50px rgba(10,35,60,.18);animation:drawerIn .25s ease}
 html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:min(680px,94vw);margin:auto;background:#f8fbfd;border-radius:24px;padding:23px;box-shadow:0 25px 70px rgba(10,35,60,.22);animation:modalIn .22s ease}
 @keyframes drawerIn{from{transform:translateX(-30px);opacity:0}to{transform:translateX(0);opacity:1}}@keyframes modalIn{from{transform:translateY(15px) scale(.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
-.drawer-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:17px}.drawer-header small{color:#7890a7}.drawer-header h2{margin:3px 0 0;font-size:22px}.drawer-header button{width:36px;height:36px;border:1px solid #d7e5ee;border-radius:11px;background:#fff;color:#617a92;font-size:21px;cursor:pointer}
+.drawer-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}.drawer-header small{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;background:#eef4ff;color:#2e58c5;font-size:10px;font-weight:900}.drawer-header h2{margin:8px 0 0;font-size:22px;color:#16324a}.drawer-header button{width:36px;height:36px;border:1px solid #d7e5ee;border-radius:11px;background:#fff;color:#617a92;font-size:21px;cursor:pointer}
 .document-preview{height:220px;border:1px dashed #b9d1df;border-radius:18px;background:linear-gradient(145deg,#f1f8fc,#fff);display:grid;place-items:center;align-content:center;gap:8px;color:#668096;margin-bottom:16px}.document-preview>span{font-size:28px;font-weight:900;color:#e44d5e}.document-preview strong{color:#203a55}
-.invoice-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.invoice-detail-grid>div{padding:11px;border-radius:13px;background:#fff;border:1px solid #e0eaf0}.invoice-detail-grid small{display:block;color:#8193a5;font-size:9px;margin-bottom:4px}.invoice-detail-grid strong{font-size:11px;color:#20384f}.detail-wide{grid-column:1/-1}.detail-total{font-size:20px!important;color:#079b95!important}
+.invoice-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.invoice-detail-grid>div{padding:11px;border-radius:13px;background:#fff;border:1px solid #e0eaf0}.invoice-detail-grid small{display:block;color:#4d6a84;font-size:10px;font-weight:800;margin-bottom:5px}.invoice-detail-grid strong{font-size:11.5px;color:#183853}.detail-wide{grid-column:1/-1}.detail-total{font-size:20px!important;color:#079b95!important}
 .receipt-check{margin-top:10px;padding:10px 12px;border-radius:12px;background:#e8faf1;color:#168b50;font-weight:800;font-size:11px}
 .drawer-actions{display:grid;grid-template-columns:1fr 1.25fr;gap:9px;margin-top:16px}.return-button{min-height:44px;border:1px solid #f2d4b9;background:#fff7ef;color:#cf6b18;border-radius:14px;font-weight:800;cursor:pointer}
 .upload-form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.upload-form-grid label span{display:block;font-size:11px;font-weight:800;color:#435b72;margin-bottom:6px}.upload-form-grid select{width:100%}
@@ -453,9 +453,9 @@ html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:mi
 /* SAAMS v3.7 — original invoice viewer in details drawer */
 .saved-attachment-viewer{margin-bottom:16px;border:1px solid #d8e6ef;border-radius:18px;background:#fff;overflow:hidden}
 .saved-attachment-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 13px;border-bottom:1px solid #e5edf3;background:#f8fbfd}
-.saved-attachment-head small{display:block;color:#8294a6;font-size:9px;margin-bottom:3px}
-.saved-attachment-head strong{display:block;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#20384f;font-size:11px}
-.saved-attachment-head a,.saved-receipt-link{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 11px;border-radius:10px;border:1px solid #ccdafa;background:#eef3ff;color:#3f5ed7;text-decoration:none;font-size:9.5px;font-weight:800}
+.saved-attachment-head small{display:block;color:#44657f;font-size:10px;font-weight:800;margin-bottom:4px}
+.saved-attachment-head strong{display:block;max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#163754;font-size:12px;font-weight:900}
+.saved-attachment-head a,.saved-receipt-link{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:0 11px;border-radius:10px;border:1px solid #ccdafa;background:#eef3ff;color:#2f57c7;text-decoration:none;font-size:10px;font-weight:900}
 .saved-attachment-viewer iframe{display:block;width:100%;height:390px;border:0;background:#f1f5f8}
 .saved-attachment-viewer img{display:block;width:100%;max-height:520px;object-fit:contain;background:#eef3f6}
 .saved-attachment-empty{height:220px;display:grid;place-items:center;align-content:center;gap:7px;background:linear-gradient(145deg,#f1f7fb,#fff);color:#71879c;text-align:center;padding:20px}
@@ -467,8 +467,8 @@ html[dir="rtl"] .invoice-overlay{justify-content:flex-end}.upload-modal{width:mi
 
 
 /* SAAMS v3.8 — full attachment viewer and exports */
-.attachment-open-button{border:1px solid #cbdcf0;background:#eef4ff;color:#365fd6;border-radius:10px;padding:7px 10px;font-weight:800;cursor:pointer}
-.saved-attachment-head .attachment-open-button{font-size:10px}
+.attachment-open-button{border:1px solid #cbdcf0;background:#eef4ff;color:#2f57c7;border-radius:10px;padding:8px 11px;font-weight:900;cursor:pointer}
+.saved-attachment-head .attachment-open-button{font-size:10px}.quick-view-primary{background:linear-gradient(90deg,#0ca5a2,#4b5df6);color:#fff;border-color:transparent;box-shadow:0 10px 20px rgba(45,95,214,.18)}.invoice-quick-view-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 13px;margin:0 0 12px;border:1px solid #d7e6f0;border-radius:16px;background:linear-gradient(135deg,#f2f9ff,#eefcf7)}.invoice-quick-view-bar span{color:#45647d;font-size:10px;font-weight:800;line-height:1.7}
 .saved-receipt-link{width:100%;margin-top:9px;min-height:40px;border:1px solid #bfe8dc;background:#ecfbf5;color:#168b50;border-radius:12px;font-weight:800;cursor:pointer}
 .attachments-download-action{color:#087f78;border-color:#bfe6df;background:#f0fbf9}
 .full-attachment-overlay{position:fixed;inset:0;z-index:80;background:rgba(7,23,40,.78);backdrop-filter:blur(7px);padding:18px;display:grid;place-items:center;animation:fadeOverlay .18s ease}
@@ -2764,3 +2764,5 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 @media(max-width:700px){
   .advance-detail-actions{grid-template-columns:1fr}
 }
+
+@media(max-width:560px){.invoice-quick-view-bar{flex-direction:column;align-items:stretch}.invoice-quick-view-bar .attachment-open-button{width:100%}}

@@ -179,7 +179,8 @@ const copy = {
     actions: 'الإجراءات',
     card: 'بطاقة',
     cash: 'نقد',
-    view: 'عرض',
+    view: 'تفاصيل',
+    viewInvoice: 'عرض الفاتورة',
     approve: 'اعتماد',
     return: 'إرجاع',
     details: 'تفاصيل الفاتورة',
@@ -287,7 +288,8 @@ const copy = {
     actions: 'Actions',
     card: 'Card',
     cash: 'Cash',
-    view: 'View',
+    view: 'Details',
+    viewInvoice: 'View Invoice',
     approve: 'Approve',
     return: 'Return',
     details: 'Invoice Details',
@@ -1076,6 +1078,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                   <td>
                     <div className="row-actions">
                       <button type="button" onClick={() => setSelected(item)}>{t.view}</button>
+                      {item.attachmentDataUrl && <button className="view-invoice-row" type="button" onClick={() => showFullAttachment({ dataUrl: item.attachmentDataUrl, name: item.attachmentName || item.id, type: item.attachmentType })}>↗ {t.viewInvoice}</button>}
                       {!isNursery && item.status === 'review' && <button className="approve-row" type="button" onClick={() => approveInvoice(item)}>{t.approve}</button>}
                     </div>
                   </td>
@@ -1094,6 +1097,12 @@ export default function Invoices({ lang, profile, databaseMode }) {
               <div><small>{t.details}</small><h2>{selected.id}</h2></div>
               <button type="button" onClick={() => setSelected(null)}>×</button>
             </div>
+            {selected.attachmentDataUrl && (
+              <div className="invoice-quick-view-bar">
+                <span>{ar ? 'للمراجعة السريعة يمكنك فتح الفاتورة الأصلية مباشرة.' : 'For quick review, open the original invoice directly.'}</span>
+                <button className="attachment-open-button quick-view-primary" type="button" onClick={() => showFullAttachment({ dataUrl: selected.attachmentDataUrl, name: selected.attachmentName || selected.id, type: selected.attachmentType })}>↗ {t.viewInvoice}</button>
+              </div>
+            )}
             <div className={`saved-attachment-viewer ${selected.attachmentDataUrl ? 'has-file' : 'no-file'}`}>
               <div className="saved-attachment-head">
                 <div><small>{t.originalInvoice}</small><strong>{selected.attachmentName || selected.id}</strong></div>
