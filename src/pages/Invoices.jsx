@@ -844,23 +844,27 @@ export default function Invoices({ lang, profile, databaseMode }) {
       } catch (error) {
         console.error('Invoice save failed:', error);
         const code = String(error?.code || error?.message || '');
-        let messageAr = 'تعذر حفظ الفاتورة في قاعدة البيانات.';
-        let messageEn = 'Could not save invoice to the database.';
+        let messageAr = 'تعذر حفظ الفاتورة في النسخة التشغيلية الجديدة.';
+        let messageEn = 'Could not save the invoice in the new production flow.';
         if (code.includes('NO_OPEN_ADVANCE')) {
           messageAr = 'لا توجد سلفة مفتوحة لهذه الحضانة. افتحي السلفة أولًا ثم أعيدي حفظ الفاتورة.';
           messageEn = 'There is no open advance for this nursery. Open an advance first, then save the invoice again.';
         } else if (code.includes('MULTIPLE_OPEN_ADVANCES')) {
           messageAr = 'يوجد أكثر من سلفة مفتوحة لهذه الحضانة. اختاري السلفة المطلوبة قبل حفظ الفاتورة.';
           messageEn = 'More than one advance is open for this nursery. Select the required advance before saving.';
-        } else if (code.includes('NURSERY_SCOPE_MISSING')) {
-          messageAr = 'حساب الحضانة غير مربوط بحضانة في قاعدة البيانات. يرجى مراجعة إعداد المستخدم.';
-          messageEn = 'This nursery account is not linked to a nursery in the database. Review the user setup.';
+        } else if (code.includes('NURSERY_SCOPE_MISSING') || code.includes('NURSERY_NOT_FOUND')) {
+          messageAr = 'تعذر تحديد حضانة الحساب من قاعدة البيانات. سجلي خروجًا ثم دخولًا مرة أخرى، وإذا استمرت الرسالة راجعي ربط المستخدم بالحضانة.';
+          messageEn = 'The nursery could not be resolved from the database. Sign out and back in; if it continues, review the user-to-nursery link.';
+        } else if (code.includes('AUTH_SESSION_MISSING')) {
+          messageAr = 'انتهت جلسة الدخول. سجلي خروجًا ثم دخولًا مرة أخرى قبل حفظ الفاتورة.';
+          messageEn = 'Your session has expired. Sign out and back in before saving the invoice.';
         } else if (code.includes('row-level security') || code.includes('42501')) {
           messageAr = 'رفضت قاعدة البيانات الحفظ بسبب صلاحيات الحضانة. يرجى مراجعة سياسات RLS.';
           messageEn = 'The database rejected the save because of nursery access policies. Review RLS policies.';
         } else if (error?.message) {
-          messageAr = `تعذر حفظ الفاتورة: ${error.message}`;
-          messageEn = `Could not save invoice: ${error.message}`;
+          const technicalCode = error?.code ? ` [${error.code}]` : '';
+          messageAr = `تعذر حفظ الفاتورة: ${error.message}${technicalCode}`;
+          messageEn = `Could not save invoice: ${error.message}${technicalCode}`;
         }
         setOcrError(ar ? messageAr : messageEn);
         return;
