@@ -2,6 +2,13 @@ export const config = {
   maxDuration: 60,
 };
 
+// Large invoice packets are intentionally processed in small PDF chunks.
+// A single vision request over 30-40 scanned pages can silently under-classify
+// later pages even when the model returns valid JSON. Eight pages keeps each
+// request focused while sequence-based grouping below can still join logical
+// invoices that cross a chunk boundary.
+const PDF_CHUNK_PAGES = 8;
+
 // Vercel Functions accept at most 4.5 MB per request. Base64 increases the
 // original file size by roughly one third, so the browser is limited to 3 MB.
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
@@ -266,6 +273,91 @@ function sendError(res, status, message, code = 'OCR_ERROR') {
   return res.status(status).json({ error: message, code });
 }
 
+async function uploadOpenAiPdf(pdfBytes, filename) {
+  const uploadForm = new FormData();
+  uploadForm.append('purpose', 'user_data');
+  uploadForm.append('file', new Blob([pdfBytes], { type: 'application/pdf' }), String(filename));
+  const uploadResponse = await fetch('https://api.openai.com/v1/files', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    body: uploadForm,
+  });
+  const uploadPayload = await uploadResponse.json().catch(() => ({}));
+  if (!uploadResponse.ok || !uploadPayload?.id) {
+    const error = new Error(uploadPayload?.error?.message || 'OpenAI PDF upload failed.');
+    error.status = uploadResponse.status || 502;
+    error.code = 'OPENAI_FILE_UPLOAD_FAILED';
+    throw error;
+  }
+  return uploadPayload.id;
+}
+
+async function requestStructuredExtraction(fileInput, promptText) {
+  const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: process.env.OPENAI_OCR_MODEL || 'gpt-4.1-mini',
+      input: [{ role: 'user', content: [{ type: 'input_text', text: promptText }, fileInput] }],
+      text: { format: { type: 'json_schema', name: 'invoice_extraction', strict: true, schema } },
+    }),
+  });
+  const payload = await openaiResponse.json().catch(() => ({}));
+  if (!openaiResponse.ok) {
+    const error = new Error(payload?.error?.message || 'OpenAI request failed.');
+    error.status = openaiResponse.status || 502;
+    error.code = 'OPENAI_REQUEST_FAILED';
+    throw error;
+  }
+  const outputText = extractOutputText(payload);
+  if (!outputText) {
+    const error = new Error('No structured OCR result was returned.');
+    error.status = 502;
+    error.code = 'EMPTY_MODEL_RESPONSE';
+    throw error;
+  }
+  try {
+    return { data: JSON.parse(outputText), requestId: payload.id || '', model: payload.model || process.env.OPENAI_OCR_MODEL || 'gpt-4.1-mini' };
+  } catch {
+    const error = new Error('The OCR result could not be parsed.');
+    error.status = 502;
+    error.code = 'INVALID_MODEL_RESPONSE';
+    throw error;
+  }
+}
+
+function offsetChunkResult(result, pageOffset) {
+  const data = result?.data || {};
+  const offsetPage = (value) => {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0 ? n + pageOffset : value;
+  };
+  data.page_classification = (Array.isArray(data.page_classification) ? data.page_classification : []).map((page) => ({
+    ...page,
+    page_number: offsetPage(page.page_number),
+    linked_invoice_page: page.linked_invoice_page == null ? null : offsetPage(page.linked_invoice_page),
+  }));
+  data.batch_invoices = (Array.isArray(data.batch_invoices) ? data.batch_invoices : []).map((row) => ({
+    ...row,
+    invoice_page: offsetPage(row.invoice_page),
+    receipt_pages: uniqueSortedPages((row.receipt_pages || []).map(offsetPage)),
+    payment_proof_pages: uniqueSortedPages((row.payment_proof_pages || []).map(offsetPage)),
+  }));
+  return data;
+}
+
+function mergeChunkResults(chunks = []) {
+  const first = chunks.find(Boolean) || {};
+  return {
+    ...first,
+    page_classification: chunks.flatMap((x) => Array.isArray(x?.page_classification) ? x.page_classification : []),
+    batch_invoices: chunks.flatMap((x) => Array.isArray(x?.batch_invoices) ? x.batch_invoices : []),
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
 
@@ -316,6 +408,7 @@ export default async function handler(req, res) {
   // Images can be sent as data URLs. PDFs are uploaded first to the OpenAI
   // Files API and then referenced by file_id. This is more reliable than
   // embedding a large PDF directly in input_file.file_data.
+  const uploadedFileIds = [];
   let uploadedFileId = '';
   let expectedPageCount = 0;
   let fileInput = isPdf
@@ -333,7 +426,8 @@ A PDF can contain a deliberately arranged packet of MANY documents: supplier inv
 STEP 1 — CLASSIFY EVERY PAGE independently:
 - The PDF page count supplied by the server is EXPECTED_PAGE_COUNT. page_classification MUST contain exactly one record for every physical PDF page from 1 through EXPECTED_PAGE_COUNT, in order, with no skipped page numbers and no duplicates.
 - If a page visually looks like any supplier invoice/receipt with invoice/tax invoice/bill fields, classify it as invoice even when it resembles another invoice from the same supplier. NEVER deduplicate invoice pages.
-- invoice: tax invoice, supplier invoice, handwritten/manual invoice, cash invoice.
+- A continuation page (Page 2/2, 2/13, continued item list, totals page, etc.) of a supplier invoice is ALSO document_type=invoice, even if that continuation page does not repeat the words TAX INVOICE. Preserve its sequence_mark so it can be grouped with the first page.
+- invoice: tax invoice, supplier invoice, handwritten/manual invoice, cash invoice, or continuation page of an invoice.
 - card_receipt: POS/network/Visa/Mastercard/debit/credit terminal receipt.
 - bank_message: SMS/text/bank notification showing a debit/card purchase, merchant and amount.
 - bank_app_proof: transaction details or debit transaction screenshot from a banking app.
@@ -402,97 +496,63 @@ Copy the FIRST invoice in batch_invoices into top-level invoice fields for backw
 Return only the requested structured result.`
 
   try {
+    let extracted;
+    let requestId = '';
+    let responseModel = process.env.OPENAI_OCR_MODEL || 'gpt-4.1-mini';
+
     if (isPdf) {
       const pdfBytes = Buffer.from(base64Data, 'base64');
-      expectedPageCount = estimatePdfPageCount(pdfBytes);
-      const uploadForm = new FormData();
-      uploadForm.append('purpose', 'user_data');
-      uploadForm.append(
-        'file',
-        new Blob([pdfBytes], { type: 'application/pdf' }),
-        String(filename),
-      );
+      // pdf-lib gives an authoritative physical page count, including compressed PDFs where
+      // scanning the raw bytes for /Type /Page can be inaccurate.
+      const { PDFDocument } = await import('pdf-lib');
+      const sourcePdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+      expectedPageCount = sourcePdf.getPageCount();
 
-      const uploadResponse = await fetch('https://api.openai.com/v1/files', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        body: uploadForm,
-      });
+      // For large packets, split into focused chunks and process all chunks in parallel.
+      // We intentionally use pdf-lib here because it is already a production dependency.
+      if (expectedPageCount > PDF_CHUNK_PAGES) {
+        const jobs = [];
+        for (let startPage = 0; startPage < expectedPageCount; startPage += PDF_CHUNK_PAGES) {
+          const endPage = Math.min(startPage + PDF_CHUNK_PAGES, expectedPageCount);
+          const chunkPdf = await PDFDocument.create();
+          const pageIndexes = Array.from({ length: endPage - startPage }, (_, i) => startPage + i);
+          const copiedPages = await chunkPdf.copyPages(sourcePdf, pageIndexes);
+          copiedPages.forEach((page) => chunkPdf.addPage(page));
+          const chunkBytes = Buffer.from(await chunkPdf.save({ useObjectStreams: false }));
+          jobs.push({ startPage, endPage, chunkBytes });
+        }
 
-      const uploadPayload = await uploadResponse.json().catch(() => ({}));
-      if (!uploadResponse.ok || !uploadPayload?.id) {
-        const uploadMessage = uploadPayload?.error?.message || 'OpenAI PDF upload failed.';
-        return sendError(
-          res,
-          uploadResponse.status || 502,
-          uploadMessage,
-          'OPENAI_FILE_UPLOAD_FAILED',
+        const chunkResults = await Promise.all(jobs.map(async (job, index) => {
+          const id = await uploadOpenAiPdf(job.chunkBytes, `${String(filename).replace(/\.pdf$/i, '')}_part_${index + 1}.pdf`);
+          uploadedFileIds.push(id);
+          const chunkPrompt = prompt
+            .replace('EXPECTED_PAGE_COUNT', String(job.endPage - job.startPage))
+            + `\n\nCHUNK INSTRUCTION: This temporary PDF contains original pages ${job.startPage + 1}-${job.endPage}. Use LOCAL page numbers 1-${job.endPage - job.startPage} in the structured output. The server will restore original page numbers after extraction. Do not omit any local page.`;
+          const result = await requestStructuredExtraction({ type: 'input_file', file_id: id }, chunkPrompt);
+          return { ...result, data: offsetChunkResult(result, job.startPage) };
+        }));
+        requestId = chunkResults.map((x) => x.requestId).filter(Boolean).join(',');
+        responseModel = chunkResults.find((x) => x.model)?.model || responseModel;
+        extracted = mergeChunkResults(chunkResults.map((x) => x.data));
+      } else {
+        uploadedFileId = await uploadOpenAiPdf(pdfBytes, String(filename));
+        uploadedFileIds.push(uploadedFileId);
+        const result = await requestStructuredExtraction(
+          { type: 'input_file', file_id: uploadedFileId },
+          prompt.replace('EXPECTED_PAGE_COUNT', String(expectedPageCount || 'all physical PDF pages')),
         );
+        requestId = result.requestId;
+        responseModel = result.model;
+        extracted = result.data;
       }
-
-      uploadedFileId = uploadPayload.id;
-      fileInput = {
-        type: 'input_file',
-        file_id: uploadedFileId,
-      };
-    }
-
-    const openaiResponse = await fetch('https://api.openai.com/v1/responses', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_OCR_MODEL || 'gpt-4.1-mini',
-        input: [
-          {
-            role: 'user',
-            content: [
-              { type: 'input_text', text: prompt.replace('EXPECTED_PAGE_COUNT', String(expectedPageCount || 'all physical PDF pages')) },
-              fileInput,
-            ],
-          },
-        ],
-        text: {
-          format: {
-            type: 'json_schema',
-            name: 'invoice_extraction',
-            strict: true,
-            schema,
-          },
-        },
-      }),
-    });
-
-    const payload = await openaiResponse.json().catch(() => ({}));
-    if (!openaiResponse.ok) {
-      const upstreamMessage = payload?.error?.message || 'OpenAI request failed.';
-      return sendError(res, openaiResponse.status, upstreamMessage, 'OPENAI_REQUEST_FAILED');
-    }
-
-    const outputText = extractOutputText(payload);
-    if (!outputText) {
-      return sendError(
-        res,
-        502,
-        'No structured OCR result was returned.',
-        'EMPTY_MODEL_RESPONSE',
+    } else {
+      const result = await requestStructuredExtraction(
+        fileInput,
+        prompt.replace('EXPECTED_PAGE_COUNT', '1'),
       );
-    }
-
-    let extracted;
-    try {
-      extracted = JSON.parse(outputText);
-    } catch {
-      return sendError(
-        res,
-        502,
-        'The OCR result could not be parsed.',
-        'INVALID_MODEL_RESPONSE',
-      );
+      requestId = result.requestId;
+      responseModel = result.model;
+      extracted = result.data;
     }
 
     const rawClassification = Array.isArray(extracted.page_classification) ? extracted.page_classification : [];
@@ -818,8 +878,8 @@ Return only the requested structured result.`
 
     return res.status(200).json({
       data: extracted,
-      requestId: payload.id || '',
-      model: payload.model || process.env.OPENAI_OCR_MODEL || 'gpt-4.1-mini',
+      requestId,
+      model: responseModel,
     });
   } catch (error) {
     console.error('SAAMS OCR error:', error instanceof Error ? error.message : error);
@@ -832,12 +892,10 @@ Return only the requested structured result.`
   } finally {
     // Remove the temporary OpenAI file after extraction so uploaded PDFs do
     // not accumulate in the project storage.
-    if (uploadedFileId) {
-      fetch(`https://api.openai.com/v1/files/${uploadedFileId}`, {
+    for (const fileId of [...new Set(uploadedFileIds.filter(Boolean))]) {
+      fetch(`https://api.openai.com/v1/files/${fileId}`, {
         method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
+        headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
       }).catch(() => {});
     }
   }
