@@ -332,7 +332,7 @@ STEP 1 — CLASSIFY EVERY PAGE independently:
 - card_receipt: POS/network/Visa/Mastercard/debit/credit terminal receipt.
 - bank_message: SMS/text/bank notification showing a debit/card purchase, merchant and amount.
 - bank_app_proof: transaction details or debit transaction screenshot from a banking app.
-- order_summary: online order summary / purchase summary that is not itself a tax invoice.
+- order_summary: online order summary / purchase summary that is not itself a tax invoice. HOWEVER, if it has a sequence mark, merchant, total and payment method and there is no separate invoice for the same sequence, keep it as a purchase-document candidate for review instead of dropping it.
 - other: cover sheet or unrelated page.
 Return page_classification for EVERY page.
 
@@ -346,8 +346,8 @@ Accepted payment proof for CARD invoices can be ANY ONE of:
 1) card_receipt,
 2) bank_message,
 3) bank_app_proof.
-- Pair using sequence_mark first when available, then page adjacency, amount, date, supplier/merchant and card details.
-- A proof page is normally immediately before or after its invoice, but sequence/amount/date can override adjacency.
+- Pair using sequence_mark first when available, then page adjacency in BOTH directions, amount, date, supplier/merchant and card details.
+- A proof page can be immediately BEFORE or AFTER its invoice. Search both neighboring directions before deciding proof is missing. Sequence/amount/date can override adjacency.
 - Do not pair a bank message to the wrong invoice only because it is nearby.
 - order_summary is NOT payment proof by itself.
 - Cash invoices normally need no payment proof.
@@ -375,6 +375,7 @@ VISUAL REJECTION RULES APPLY PER PAGE, NOT TO THE WHOLE PDF:
 
 EXTRACTION:
 - invoice_number comes from the SAME invoice page only, never from POS receipt/reference and never from a different invoice page.
+- Some UAE retail invoices print the invoice number as a long numeric barcode value directly UNDER a barcode, sometimes without the words Invoice No. If no explicit Invoice No/Bill No/Receipt No is present, treat the long numeric string printed immediately under the invoice barcode as a strong invoice_number candidate. Do NOT use card/POS authorization, merchant ID, terminal ID, TRN, or approval code as invoice_number.
 - amount_before_vat, vat_amount and total_amount must all come from the SAME invoice page as invoice_number. Do not mix fields across pages.
 - invoice_date DD/MM/YYYY when readable.
 - UAE TRN normally 15 digits.
@@ -590,6 +591,56 @@ Return only the requested structured result.`
         page.linked_invoice_page = primaryBySequence.get(seq);
         page.reason = `صفحة إضافية لنفس الفاتورة متسلسل ${row.sequence_mark}.`;
       }
+    }
+
+    // Promote an order summary into a reviewable purchase-document row when it has its own
+    // sequence and there is no invoice row for that sequence. This prevents the last purchase
+    // in a packet (for example Amazon order summary + preceding bank debit message) from disappearing.
+    const existingSeqs = new Set(groupedRows.map((x)=>normalizedSequence(x.sequence_mark)).filter(Boolean));
+    for (const page of extracted.page_classification.filter((p)=>p.document_type === 'order_summary')) {
+      const seq = normalizedSequence(page.sequence_mark);
+      if (!seq || existingSeqs.has(seq)) continue;
+      groupedRows.push({
+        invoice_page: Number(page.page_number) || 1,
+        invoice_pages: [Number(page.page_number) || 1],
+        sequence_mark: String(page.sequence_mark || ''),
+        receipt_pages: [], payment_proof_pages: [], payment_proof_types: [],
+        supplier_name: String(page.supplier_hint || ''),
+        invoice_number: String(page.invoice_number_hint || ''),
+        invoice_date: '', amount_before_vat: null, vat_amount: null, total_amount: null, trn: '',
+        payment_method: 'unknown', card_receipt_detected: false, currency: 'AED',
+        document_quality: 'needs_review', rejection_reasons: [], confidence: 0.5, needs_review: true,
+        review_message: `مستند شراء متسلسل ${String(page.sequence_mark || page.page_number)} يحتاج مراجعة قبل الحفظ.`, can_save: false,
+        source_document_type: 'order_summary'
+      });
+      existingSeqs.add(seq);
+    }
+
+    // Re-link payment proof after logical grouping. The model can miss a proof simply because it
+    // appears before the invoice. Sequence is strongest; otherwise use nearest page on either side.
+    const proofPagesAll = extracted.page_classification.filter((p)=>['card_receipt','bank_message','bank_app_proof'].includes(p.document_type));
+    for (const row of groupedRows) {
+      const currentProofs = uniqueSortedPages(row.payment_proof_pages || row.receipt_pages || []);
+      const currentTypes = Array.isArray(row.payment_proof_types) ? [...row.payment_proof_types] : [];
+      const seq = normalizedSequence(row.sequence_mark);
+      const rowPages = uniqueSortedPages(row.invoice_pages || [row.invoice_page]);
+      let candidates = proofPagesAll.filter((p)=>seq && normalizedSequence(p.sequence_mark) === seq);
+      if (!candidates.length) {
+        const minPage = Math.min(...rowPages), maxPage = Math.max(...rowPages);
+        candidates = proofPagesAll.filter((p)=>{ const pn=Number(p.page_number); return pn===minPage-1 || pn===maxPage+1; });
+      }
+      for (const proof of candidates) {
+        const pn=Number(proof.page_number);
+        if (!currentProofs.includes(pn)) currentProofs.push(pn);
+        if (!currentTypes.includes(proof.document_type)) currentTypes.push(proof.document_type);
+        proof.linked_invoice_page = Number(row.invoice_page) || rowPages[0] || null;
+        if (!proof.reason) proof.reason = `إثبات خصم مرتبط بالفاتورة متسلسل ${row.sequence_mark || row.invoice_number || row.invoice_page}.`;
+      }
+      row.payment_proof_pages = uniqueSortedPages(currentProofs);
+      row.receipt_pages = uniqueSortedPages(currentProofs);
+      row.payment_proof_types = currentTypes;
+      row.card_receipt_detected = row.payment_proof_pages.length > 0;
+      if (row.card_receipt_detected && row.payment_method === 'unknown') row.payment_method = 'card';
     }
 
     const batchInvoices = groupedRows.map((item) => {
