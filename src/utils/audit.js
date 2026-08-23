@@ -1,7 +1,19 @@
 export const AUDIT_STORAGE_KEY = 'saams-audit-log-v2';
+const AUDIT_CLEANUP_KEY = 'saams-production-clean-audit-v1';
+
+function runOneTimeProductionAuditCleanup() {
+  try {
+    if (localStorage.getItem(AUDIT_CLEANUP_KEY) === 'done') return;
+    localStorage.removeItem(AUDIT_STORAGE_KEY);
+    localStorage.setItem(AUDIT_CLEANUP_KEY, 'done');
+  } catch {
+    // Ignore storage access errors; the audit log will simply render empty.
+  }
+}
 
 export function loadAuditLog() {
   try {
+    runOneTimeProductionAuditCleanup();
     const saved = localStorage.getItem(AUDIT_STORAGE_KEY);
     if (saved) return JSON.parse(saved);
   } catch {}
