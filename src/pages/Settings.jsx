@@ -6,6 +6,7 @@ import { DEFAULT_USERS, loadUsers, USERS_STORAGE_KEY } from './Users';
 const NURSERIES_KEY = 'saams-settings-nurseries-v2-official-36';
 const SETTINGS_KEY = 'saams-system-settings-v1';
 const PRODUCTION_KEY = 'saams-production-readiness-v2-official-36';
+const FULL_ROLLOUT_RESET_KEY = 'saams-production-full-rollout-reset-v1';
 
 const DEFAULT_NURSERIES = [
   'الرحمانية الجديدة',
@@ -79,8 +80,8 @@ const DEFAULT_SETTINGS = {
 
 const DEFAULT_PRODUCTION = {
   launchMonth: '2026-08',
-  phase: 'pilot',
-  pilotNurseries: ['الرحمانية الجديدة', 'القليعة', 'واسط 2'],
+  phase: 'full',
+  pilotNurseries: [],
   rows: DEFAULT_NURSERIES.map((nursery) => ({
     nurseryId: nursery.id,
     nursery: nursery.name,
@@ -178,15 +179,7 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
   const [production, setProduction] = useState(() => readJson(PRODUCTION_KEY, DEFAULT_PRODUCTION));
   const [nurseries, setNurseries] = useState(() => readJson(NURSERIES_KEY, DEFAULT_NURSERIES));
   const [users, setUsers] = useState(loadUsers);
-  const [audit, setAudit] = useState(() => {
-    const existing = loadAuditLog();
-    if (existing.length) return existing;
-    return [
-      { id:'L1', createdAt:'2026-08-05T08:15:00.000Z', date:'05/08/2026', time:'12:15 م', user:'منيرة الأحمد', organization:'الإدارة', nursery:'', screen:'تسجيل الدخول', action:'تسجيل دخول', actionType:'login', entityType:'session', entityId:'', details:'دخول مدير النظام', reason:'' },
-      { id:'L2', createdAt:'2026-08-05T07:42:00.000Z', date:'05/08/2026', time:'11:42 ص', user:'حضانة القليعة', organization:'حضانة القليعة', nursery:'القليعة', screen:'الفواتير', action:'رفع فاتورة', actionType:'create', entityType:'invoice', entityId:'INV-2026-00134', details:'مكتبة دبي للتوزيع — 315.00 AED', reason:'' },
-      { id:'L3', createdAt:'2026-08-05T06:18:00.000Z', date:'05/08/2026', time:'10:18 ص', user:'منيرة الأحمد', organization:'الإدارة', nursery:'واسط 2', screen:'الأصول', action:'اعتماد طلب أصل', actionType:'approve', entityType:'asset_request', entityId:'AST-REQ-026', details:'خزانة تخزين خشبية — SEA-000427', reason:'' },
-    ];
-  });
+  const [audit, setAudit] = useState(() => loadAuditLog());
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
   const [auditFilters, setAuditFilters] = useState({ from:'', to:'', user:'all', nursery:'all', screen:'all', action:'all' });
@@ -202,6 +195,20 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
     const refresh = () => setAudit(loadAuditLog());
     window.addEventListener('saams:audit-updated', refresh);
     return () => window.removeEventListener('saams:audit-updated', refresh);
+  }, []);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem(FULL_ROLLOUT_RESET_KEY) === '1') return;
+      setProduction((current) => {
+        const next = { ...current, phase: 'full', pilotNurseries: [] };
+        writeJson(PRODUCTION_KEY, next);
+        return next;
+      });
+      localStorage.setItem(FULL_ROLLOUT_RESET_KEY, '1');
+    } catch {
+      // Keep the page usable even when browser storage is unavailable.
+    }
   }, []);
 
   useEffect(() => {
@@ -441,25 +448,27 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
             <article className="settings-card production-launch-card">
               <div className="settings-section-title">
                 <span className="settings-section-icon">✓</span>
-                <div><h2>{t.production}</h2><p>{ar ? 'تجهيز الحضانات والحسابات والأرصدة قبل التعميم الرسمي.' : 'Prepare nurseries, accounts, balances, and training before rollout.'}</p></div>
+                <div><h2>{t.production}</h2><p>{ar ? 'متابعة جاهزية الحضانات والحسابات والأرصدة ضمن التشغيل الفعلي.' : 'Prepare nurseries, accounts, balances, and training before rollout.'}</p></div>
               </div>
 
               <div className="production-summary-grid">
                 <div><small>{ar?'نسبة الجاهزية':'Readiness'}</small><strong>{readinessPercent}%</strong><span><i style={{width:`${readinessPercent}%`}} /></span></div>
                 <div><small>{ar?'الحضانات الجاهزة':'Ready Nurseries'}</small><strong>{readyCount} / {productionRows.length}</strong></div>
-                <div><small>{ar?'المرحلة الحالية':'Current Phase'}</small><strong>{production.phase==='pilot'?(ar?'تشغيل تجريبي':'Pilot'):(ar?'تعميم رسمي':'Full Rollout')}</strong></div>
+                <div><small>{ar?'المرحلة الحالية':'Current Phase'}</small><strong>{production.phase==='pilot'?(ar?'تشغيل تجريبي':'Pilot'):(ar?'تشغيل فعلي':'Production')}</strong></div>
                 <div><small>{ar?'شهر بداية التشغيل':'Launch Month'}</small><strong>{production.launchMonth || '—'}</strong></div>
               </div>
 
               <div className="production-control-grid">
                 <label><span>{ar?'شهر بداية التشغيل':'Launch Month'}</span><input type="month" value={production.launchMonth||''} onChange={(e)=>setProduction({...production,launchMonth:e.target.value})}/></label>
-                <label><span>{ar?'مرحلة التشغيل':'Launch Phase'}</span><select value={production.phase||'pilot'} onChange={(e)=>setProduction({...production,phase:e.target.value})}><option value="pilot">{ar?'تشغيل تجريبي محدود':'Limited Pilot'}</option><option value="full">{ar?'تعميم رسمي':'Full Rollout'}</option></select></label>
+                <label><span>{ar?'مرحلة التشغيل':'Launch Phase'}</span><select value={production.phase||'full'} onChange={(e)=>setProduction({...production,phase:e.target.value})}><option value="pilot">{ar?'تشغيل تجريبي محدود':'Limited Pilot'}</option><option value="full">{ar?'تشغيل فعلي':'Production'}</option></select></label>
               </div>
 
-              <div className="pilot-nurseries-box">
-                <div><strong>{ar?'الحضانات التجريبية':'Pilot Nurseries'}</strong><small>{ar?'اختاري الحضانات التي ستبدأ أولاً قبل التعميم.':'Select the first nurseries to start before rollout.'}</small></div>
-                <div className="pilot-nursery-chips">{nurseries.filter(n=>n.active).map((n)=><button type="button" key={n.id} className={production.pilotNurseries?.includes(n.name)?'selected':''} onClick={()=>togglePilotNursery(n.name)}>{production.pilotNurseries?.includes(n.name)?'✓ ':''}{n.name}</button>)}</div>
-              </div>
+              {production.phase === 'pilot' && (
+                <div className="pilot-nurseries-box">
+                  <div><strong>{ar?'الحضانات التجريبية':'Pilot Nurseries'}</strong><small>{ar?'اختاري الحضانات التي ستبدأ أولاً قبل التعميم.':'Select the first nurseries to start before rollout.'}</small></div>
+                  <div className="pilot-nursery-chips">{nurseries.filter(n=>n.active).map((n)=><button type="button" key={n.id} className={production.pilotNurseries?.includes(n.name)?'selected':''} onClick={()=>togglePilotNursery(n.name)}>{production.pilotNurseries?.includes(n.name)?'✓ ':''}{n.name}</button>)}</div>
+                </div>
+              )}
 
               <div className="settings-table-wrap production-table-wrap">
                 <table className="settings-table production-readiness-table">
