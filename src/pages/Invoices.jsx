@@ -1319,7 +1319,21 @@ export default function Invoices({ lang, profile, databaseMode }) {
             )}
             <div className="upload-form-grid">
               {!isNursery ? <label><span>{t.chooseNursery}</span><select value={uploadNursery} onChange={(e) => setUploadNursery(e.target.value)}><option value="">{t.nursery}</option>{nurseries.map((name) => <option key={name}>{name}</option>)}</select></label> : <label><span>{t.chooseNursery}</span><input value={accountNursery} readOnly /></label>}
-              <label><span>{t.chooseAdvance}</span><select value={uploadAdvance} onChange={(e) => setUploadAdvance(e.target.value)}><option value="">{t.advance}</option><option>{ar ? 'فواتير أغسطس 2026' : 'August 2026 Invoices'}</option><option>{ar ? 'سلفة نشاط التخرج 2026' : 'Graduation Advance 2026'}</option></select></label>
+              <label><span>{t.chooseAdvance}</span><select value={uploadAdvance} onChange={(e) => setUploadAdvance(e.target.value)}>
+                <option value="">{t.advance}</option>
+                {advanceOptions
+                  .filter((option) => {
+                    if (isNursery) return !profile?.nursery_id || option.nursery_id === profile.nursery_id;
+                    if (!uploadNursery) return true;
+                    const optionNursery = ar ? option.nurseries?.name_ar : option.nurseries?.name_en;
+                    return optionNursery === uploadNursery || option.nurseries?.name_ar === uploadNursery || option.nurseries?.name_en === uploadNursery;
+                  })
+                  .map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {ar ? (option.advances?.name_ar || option.advances?.code) : (option.advances?.name_en || option.advances?.name_ar || option.advances?.code)}
+                    </option>
+                  ))}
+              </select></label>
             </div>
 
             <div className={`attachment-workspace ${ocr ? 'with-results' : ''}`}>
