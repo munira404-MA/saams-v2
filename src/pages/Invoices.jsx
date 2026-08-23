@@ -10,6 +10,7 @@ import {
 } from '../data/supabaseData';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import JSZip from 'jszip';
+import { PDFDocument } from 'pdf-lib';
 import { supabase } from '../supabase';
 
 const initialData = [
@@ -746,18 +747,95 @@ export default function Invoices({ lang, profile, databaseMode }) {
 
     setReading(true);
     try {
-      const fileData = await fileToDataUrl(targetFile);
-      const response = await fetch('/api/ocr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          filename: targetFile.name,
-          mimeType: targetFile.type || 'application/octet-stream',
-          fileData,
-        }),
-      });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || t.readFailed);
+      async function callOcrApi(file, originalPageOffset = 0) {
+        const fileData = await fileToDataUrl(file);
+        const response = await fetch('/api/ocr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            filename: file.name,
+            mimeType: file.type || 'application/octet-stream',
+            fileData,
+          }),
+        });
+
+        // Vercel can return a plain-text platform error (timeout/function crash).
+        // Never feed that directly to JSON.parse; surface a useful Arabic error instead.
+        const raw = await response.text();
+        let payload = null;
+        try { payload = raw ? JSON.parse(raw) : {}; } catch {
+          const platformMessage = raw?.trim()?.slice(0, 220) || '';
+          throw new Error(platformMessage || (ar ? 'تعذر قراءة جزء من الملف. يرجى المحاولة مرة أخرى.' : 'A PDF chunk could not be read. Please try again.'));
+        }
+        if (!response.ok) throw new Error(payload?.error || t.readFailed);
+
+        const offsetPage = (value) => {
+          const n = Number(value);
+          return Number.isInteger(n) && n > 0 ? n + originalPageOffset : value;
+        };
+        const data = payload?.data || {};
+        const page_classification = (Array.isArray(data.page_classification) ? data.page_classification : []).map((page) => ({
+          ...page,
+          page_number: offsetPage(page.page_number),
+          linked_invoice_page: page.linked_invoice_page == null ? null : offsetPage(page.linked_invoice_page),
+        }));
+        const batch_invoices = (Array.isArray(data.batch_invoices) ? data.batch_invoices : []).map((item) => ({
+          ...item,
+          invoice_page: offsetPage(item.invoice_page),
+          invoice_pages: (Array.isArray(item.invoice_pages) ? item.invoice_pages : [item.invoice_page]).map(offsetPage),
+          receipt_pages: (Array.isArray(item.receipt_pages) ? item.receipt_pages : []).map(offsetPage),
+          payment_proof_pages: (Array.isArray(item.payment_proof_pages) ? item.payment_proof_pages : []).map(offsetPage),
+        }));
+        return { ...payload, data: { ...data, page_classification, batch_invoices } };
+      }
+
+      let payload;
+      const isLargePdf = targetFile.type === 'application/pdf' && targetFile.size > 0;
+      if (isLargePdf) {
+        const sourceBytes = await targetFile.arrayBuffer();
+        const sourcePdf = await PDFDocument.load(sourceBytes, { ignoreEncryption: true });
+        const totalPages = sourcePdf.getPageCount();
+        const CLIENT_CHUNK_PAGES = 7;
+
+        if (totalPages > CLIENT_CHUNK_PAGES) {
+          const jobs = [];
+          for (let start = 0; start < totalPages; start += CLIENT_CHUNK_PAGES) {
+            const end = Math.min(start + CLIENT_CHUNK_PAGES, totalPages);
+            const chunkPdf = await PDFDocument.create();
+            const indexes = Array.from({ length: end - start }, (_, i) => start + i);
+            const copied = await chunkPdf.copyPages(sourcePdf, indexes);
+            copied.forEach((page) => chunkPdf.addPage(page));
+            const bytes = await chunkPdf.save({ useObjectStreams: false });
+            const chunkFile = new File([bytes], `${targetFile.name.replace(/\.pdf$/i, '')}_pages_${start + 1}-${end}.pdf`, { type: 'application/pdf' });
+            jobs.push({ start, file: chunkFile });
+          }
+
+          // Each chunk is a separate Vercel request, avoiding one long-running 39-page function.
+          // Run two at a time to avoid stressing the browser/function concurrency.
+          const results = [];
+          for (let i = 0; i < jobs.length; i += 2) {
+            const batch = jobs.slice(i, i + 2);
+            const settled = await Promise.allSettled(batch.map((job) => callOcrApi(job.file, job.start)));
+            settled.forEach((result, idx) => {
+              if (result.status === 'fulfilled') results.push(result.value);
+              else throw new Error(`${ar ? 'تعذر قراءة الصفحات' : 'Failed to read pages'} ${batch[idx].start + 1}-${Math.min(batch[idx].start + CLIENT_CHUNK_PAGES, totalPages)}: ${result.reason?.message || t.readFailed}`);
+            });
+          }
+
+          payload = {
+            requestId: results.map((r) => r.requestId).filter(Boolean).join(','),
+            data: {
+              page_classification: results.flatMap((r) => r?.data?.page_classification || []),
+              batch_invoices: results.flatMap((r) => r?.data?.batch_invoices || []),
+            },
+          };
+        } else {
+          payload = await callOcrApi(targetFile, 0);
+        }
+      } else {
+        payload = await callOcrApi(targetFile, 0);
+      }
+
       const found = Array.isArray(payload?.data?.batch_invoices)
         ? payload.data.batch_invoices.map(normalizeDetectedInvoice)
         : [];
