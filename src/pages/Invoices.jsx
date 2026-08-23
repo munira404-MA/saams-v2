@@ -211,12 +211,12 @@ const copy = {
     takeInvoicePhotoHint: 'فتح الكاميرا والتقاط الفاتورة مباشرة',
     takeAnotherPage: 'تصوير صفحة أخرى',
     cameraAutoRead: 'ستبدأ قراءة الفاتورة تلقائيًا بعد التصوير.',
-    photographReceipt: 'تصوير إيصال البطاقة',
-    uploadReceipt: 'رفع إيصال البطاقة',
+    photographReceipt: 'تصوير إثبات الخصم',
+    uploadReceipt: 'رفع إثبات الخصم',
     save: 'رفع وحفظ الفاتورة',
     noResults: 'لا توجد فواتير مطابقة للفلاتر الحالية.',
     reason: 'سبب الإرجاع',
-    bankReceipt: 'إيصال البطاقة مرفق',
+    bankReceipt: 'إثبات الخصم مرفق',
     preview: 'معاينة المستند',
     viewOriginal: 'عرض الفاتورة الأصلية',
     originalInvoice: 'الفاتورة الأصلية',
@@ -238,8 +238,8 @@ const copy = {
     confidence: 'درجة الثقة',
     quality: 'جودة المستند',
     currency: 'العملة',
-    receiptFound: 'تم اكتشاف إيصال البطاقة',
-    receiptMissing: 'لم يتم اكتشاف إيصال البطاقة',
+    receiptFound: 'تم اكتشاف إثبات الخصم',
+    receiptMissing: 'لم يتم إرفاق إثبات الخصم',
     savePreview: 'حفظ الفاتورة تجريبيًا',
     unknown: 'غير محدد',
     clear: 'واضح',
@@ -247,14 +247,14 @@ const copy = {
     rejected: 'مرفوض',
     uploadRejected: 'تم رفض المرفق',
     reviewNeeded: 'الفاتورة واضحة، لكن بعض البيانات تحتاج مراجعة أو إدخالًا يدويًا.',
-    blockedSave: 'لا يمكن حفظ الفاتورة قبل استكمال الحقول المطلوبة أو إرفاق إيصال البطاقة عند الدفع بالبطاقة.',
+    blockedSave: 'لا يمكن حفظ الفاتورة قبل استكمال الحقول المطلوبة أو إرفاق أحد إثباتات الخصم المقبولة عند الدفع بالبطاقة.',
     manualInvoice: 'فاتورة يدوية / غير ضريبية',
     manualInvoiceHint: 'فعّلي هذا الخيار للفواتير اليدوية التي لا تحتوي رقمًا ضريبيًا. يجب إدخال البيانات الأساسية يدويًا.',
-    receiptAttachment: 'إرفاق إيصال الخصم / البطاقة',
-    receiptHint: 'يجب أن يكون الإيصال منفصلًا عن الفاتورة، وليس فوقها.',
+    receiptAttachment: 'إرفاق إثبات الخصم',
+    receiptHint: 'يُقبل أحد الخيارات التالية: إيصال الخصم، رسالة الخصم من البنك، أو لقطة شاشة لعملية الخصم من تطبيق البنك. يجب أن يكون الإثبات واضحًا ومنفصلًا عن الفاتورة.',
     chooseReceipt: 'اختيار إيصال',
     removeReceipt: 'حذف الإيصال',
-    receiptAttached: 'تم إرفاق إيصال البطاقة منفصلًا',
+    receiptAttached: 'تم إرفاق إثبات الخصم',
   },
   en: {
     title: 'Invoice Management',
@@ -320,12 +320,12 @@ const copy = {
     takeInvoicePhotoHint: 'Open the camera and capture the invoice directly',
     takeAnotherPage: 'Take Another Page',
     cameraAutoRead: 'Invoice reading will start automatically after capture.',
-    photographReceipt: 'Photograph Card Receipt',
-    uploadReceipt: 'Upload Card Receipt',
+    photographReceipt: 'Photograph Payment Proof',
+    uploadReceipt: 'Upload Payment Proof',
     save: 'Upload and Save Invoice',
     noResults: 'No invoices match the current filters.',
     reason: 'Return Reason',
-    bankReceipt: 'Card receipt attached',
+    bankReceipt: 'Payment proof attached',
     preview: 'Document Preview',
     viewOriginal: 'View Original Invoice',
     originalInvoice: 'Original Invoice',
@@ -347,27 +347,27 @@ const copy = {
     confidence: 'Confidence',
     quality: 'Document Quality',
     currency: 'Currency',
-    receiptFound: 'Card receipt detected',
-    receiptMissing: 'Card receipt not detected',
+    receiptFound: 'Payment proof detected',
+    receiptMissing: 'Payment proof not attached',
     savePreview: 'Save Invoice in Preview',
     unknown: 'Unknown',
     clear: 'Clear',
     needs_review: 'Needs Review',
     rejected: 'Rejected',
     uploadRejected: 'Attachment Rejected',
-    blockedSave: 'This invoice cannot be saved. Complete the required fields and attach a separate card receipt when payment is by card.',
+    blockedSave: 'This invoice cannot be saved. Complete the required fields and attach one accepted payment proof when payment is by card.',
     manualInvoice: 'Handwritten / Non-tax Invoice',
     manualInvoiceHint: 'Enable for handwritten invoices without a TRN. Enter the core details manually.',
-    receiptAttachment: 'Attach Card / Debit Receipt',
-    receiptHint: 'The receipt must be separate from the invoice and must not cover it.',
+    receiptAttachment: 'Attach Payment Proof',
+    receiptHint: 'Accepted: debit/card receipt, bank debit SMS/message, or a screenshot of the debit transaction from the banking app. The proof must be clear and separate from the invoice.',
     chooseReceipt: 'Choose Receipt',
     removeReceipt: 'Remove Receipt',
-    receiptAttached: 'Separate card receipt attached',
+    receiptAttached: 'Payment proof attached',
     approveConfirm: 'Approve this invoice?',
     approvedSuccess: 'Invoice approved successfully.',
     returnTitle: 'Return Invoice to Nursery',
     returnInstruction: 'Enter a clear reason so the nursery can correct the invoice.',
-    returnPlaceholder: 'Example: Attach the card receipt separately or correct the total amount...',
+    returnPlaceholder: 'Example: Attach a valid payment proof separately or correct the total amount...',
     cancel: 'Cancel',
     confirmReturn: 'Confirm Return',
     returnReasonRequired: 'Enter a return reason.',
@@ -1177,7 +1177,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
               <>
                 <div className="receipt-check">✓ {t.bankReceipt}</div>
                 {selected.receiptDataUrl && (
-                  <button className="saved-receipt-link" type="button" onClick={() => showFullAttachment({ dataUrl: selected.receiptDataUrl, name: selected.receiptName || `${selected.id}_receipt`, type: selected.receiptType })}>↗ {ar ? 'عرض إيصال البطاقة' : 'View Card Receipt'}</button>
+                  <button className="saved-receipt-link" type="button" onClick={() => showFullAttachment({ dataUrl: selected.receiptDataUrl, name: selected.receiptName || `${selected.id}_receipt`, type: selected.receiptType })}>↗ {ar ? 'عرض إثبات الخصم' : 'View Payment Proof'}</button>
                 )}
               </>
             )}
@@ -1349,7 +1349,15 @@ export default function Invoices({ lang, profile, databaseMode }) {
                     {ocr.payment_method === 'card' && (
                       <div className="receipt-upload-card">
                         <div className="receipt-upload-head">
-                          <div><strong>{t.receiptAttachment}</strong><small>{t.receiptHint}</small></div>
+                          <div>
+                            <strong>{t.receiptAttachment}</strong>
+                            <small>{t.receiptHint}</small>
+                            <div className="accepted-payment-proof-types">
+                              <span>✓ {ar ? 'إيصال الخصم' : 'Debit / card receipt'}</span>
+                              <span>✓ {ar ? 'رسالة الخصم من البنك' : 'Bank debit message / SMS'}</span>
+                              <span>✓ {ar ? 'لقطة شاشة من تطبيق البنك' : 'Banking app debit screenshot'}</span>
+                            </div>
+                          </div>
                           {!receiptFile && <div className="receipt-source-actions">
                             <input ref={receiptFileInputRef} className="hidden-file-input" type="file" accept=".pdf,image/*" onChange={(e) => handleReceiptFile(e.target.files?.[0])} />
                             <input ref={receiptCameraInputRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={(e) => handleReceiptCamera(e.target.files?.[0])} />
