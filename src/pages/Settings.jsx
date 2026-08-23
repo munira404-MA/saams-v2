@@ -44,7 +44,7 @@ const DEFAULT_NURSERIES = [
   'جامعة كلباء',
   'وادي الحلو',
   'شيص'
-]map((name, index) => ({ id: `NUR-${String(index + 1).padStart(3, '0')}`, name, manager: '', active: true }));
+].map((name, index) => ({ id: `NUR-${String(index + 1).padStart(3, '0')}`, name, manager: '', active: true }));
 
 const DEFAULT_SETTINGS = {
   invoice: {
