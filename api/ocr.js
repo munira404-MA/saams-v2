@@ -79,9 +79,14 @@ const schema = {
           sequence_mark: { type: 'string' },
           supplier_hint: { type: 'string' },
           invoice_number_hint: { type: 'string' },
+          invoice_date_hint: { type: 'string' },
+          amount_before_vat_hint: { type: ['number','null'] },
+          vat_amount_hint: { type: ['number','null'] },
+          total_amount_hint: { type: ['number','null'] },
+          payment_method_hint: { type: 'string', enum: ['card','cash','unknown'] },
           reason: { type: 'string' },
         },
-        required: ['page_number','document_type','linked_invoice_page','sequence_mark','supplier_hint','invoice_number_hint','reason'],
+        required: ['page_number','document_type','linked_invoice_page','sequence_mark','supplier_hint','invoice_number_hint','invoice_date_hint','amount_before_vat_hint','vat_amount_hint','total_amount_hint','payment_method_hint','reason'],
       },
     },
     batch_invoices: { type: 'array', items: invoiceItemSchema },
@@ -375,7 +380,9 @@ VISUAL REJECTION RULES APPLY PER PAGE, NOT TO THE WHOLE PDF:
 
 EXTRACTION:
 - invoice_number comes from the SAME invoice page only, never from POS receipt/reference and never from a different invoice page.
-- Some UAE retail invoices print the invoice number as a long numeric barcode value directly UNDER a barcode, sometimes without the words Invoice No. If no explicit Invoice No/Bill No/Receipt No is present, treat the long numeric string printed immediately under the invoice barcode as a strong invoice_number candidate. Do NOT use card/POS authorization, merchant ID, terminal ID, TRN, or approval code as invoice_number.
+- HARD VALIDATION: invoice_number MUST NEVER equal the UAE tax registration number (TRN). If a candidate exactly equals TRN, reject that candidate and keep searching the same invoice page/group for Invoice No, Bill No, POS BILL NO, Receipt No, order number, or the numeric code printed directly under the invoice barcode. If no safe alternative exists, leave invoice_number empty and mark needs_review=true.
+- For Amazon / online Order Summary pages: invoice_number MUST be the value immediately following "Order #" (for example 402-7301997-2576356). Do not use the card ending, TRN-like values, sequence mark, or product code. Extract total_amount from the TOP Order Summary box: prefer Grand Total, otherwise Total. Extract amount_before_vat from Total before VAT when shown, and vat_amount from Estimated VAT.
+- Some UAE retail invoices print the invoice number as a long numeric barcode value directly UNDER a barcode, sometimes without the words Invoice No. If no explicit Invoice No/Bill No/POS BILL NO/Receipt No/Order # is present, treat the long numeric string printed immediately under the invoice barcode as a strong invoice_number candidate. Do NOT use card/POS authorization, merchant ID, terminal ID, TRN, or approval code as invoice_number.
 - amount_before_vat, vat_amount and total_amount must all come from the SAME invoice page as invoice_number. Do not mix fields across pages.
 - invoice_date DD/MM/YYYY when readable.
 - UAE TRN normally 15 digits.
@@ -383,6 +390,11 @@ EXTRACTION:
 - payment_method=card when invoice prints card/CC/Visa/Mastercard or a linked accepted proof confirms it; cash only when invoice clearly says cash; otherwise unknown.
 - card_receipt_detected=true when payment_proof_pages is not empty (legacy name; it means accepted payment proof detected).
 - confidence 0..1.
+
+PAGE CLASSIFICATION HINTS:
+- For every page, populate invoice_number_hint/invoice_date_hint/amount_before_vat_hint/vat_amount_hint/total_amount_hint/payment_method_hint whenever the page itself visibly provides them.
+- For order_summary pages, invoice_number_hint is the exact value after Order #, and monetary hints come from the top summary box (Total before VAT / Estimated VAT / Grand Total).
+- Never put a TRN value into invoice_number_hint.
 
 TOP-LEVEL FIELDS:
 Copy the FIRST invoice in batch_invoices into top-level invoice fields for backward compatibility. If no invoice exists, return empty/null fields and rejected.
@@ -493,7 +505,7 @@ Return only the requested structured result.`
     if (expectedPageCount > 0) {
       for (let n = 1; n <= expectedPageCount; n += 1) {
         if (!byPage.has(n)) {
-          byPage.set(n, { page_number:n, document_type:'other', linked_invoice_page:null, sequence_mark:'', supplier_hint:'', invoice_number_hint:'', reason:'لم يتم تصنيف هذه الصفحة آليًا؛ تحتاج مراجعة يدوية.' });
+          byPage.set(n, { page_number:n, document_type:'other', linked_invoice_page:null, sequence_mark:'', supplier_hint:'', invoice_number_hint:'', invoice_date_hint:'', amount_before_vat_hint:null, vat_amount_hint:null, total_amount_hint:null, payment_method_hint:'unknown', reason:'لم يتم تصنيف هذه الصفحة آليًا؛ تحتاج مراجعة يدوية.' });
         }
       }
     }
@@ -577,6 +589,27 @@ Return only the requested structured result.`
       };
     });
 
+
+    // Guard against a common OCR failure: TRN being copied into invoice_number.
+    // Prefer another invoice-number candidate from the same logical invoice group; otherwise clear it for review.
+    for (let gi = 0; gi < groupedRows.length; gi += 1) {
+      const row = groupedRows[gi];
+      const trnNorm = String(row.trn || '').replace(/\D/g, '');
+      const invNorm = String(row.invoice_number || '').replace(/\D/g, '');
+      if (trnNorm && invNorm && trnNorm === invNorm) {
+        const sourceGroup = groups[gi] || [];
+        const alternate = sourceGroup.map((x)=>String(x.invoice_number || '').trim()).find((candidate)=>{
+          const c = candidate.replace(/\D/g, '');
+          return candidate && (!trnNorm || c !== trnNorm);
+        });
+        row.invoice_number = alternate || '';
+        row.needs_review = true;
+        row.review_message = alternate
+          ? `تم استبعاد الرقم الضريبي من رقم الفاتورة واستخدام الرقم البديل ${alternate}. يرجى المراجعة.`
+          : 'تم استبعاد الرقم الضريبي لأنه لا يجوز استخدام TRN كرقم فاتورة. يرجى مراجعة رقم الفاتورة.';
+      }
+    }
+
     // Link continuation invoice pages to the primary invoice page so the audit strip makes grouping visible.
     const primaryBySequence = new Map();
     for (const item of groupedRows) {
@@ -607,8 +640,8 @@ Return only the requested structured result.`
         receipt_pages: [], payment_proof_pages: [], payment_proof_types: [],
         supplier_name: String(page.supplier_hint || ''),
         invoice_number: String(page.invoice_number_hint || ''),
-        invoice_date: '', amount_before_vat: null, vat_amount: null, total_amount: null, trn: '',
-        payment_method: 'unknown', card_receipt_detected: false, currency: 'AED',
+        invoice_date: String(page.invoice_date_hint || ''), amount_before_vat: page.amount_before_vat_hint ?? null, vat_amount: page.vat_amount_hint ?? null, total_amount: page.total_amount_hint ?? null, trn: '',
+        payment_method: String(page.payment_method_hint || 'unknown'), card_receipt_detected: false, currency: 'AED',
         document_quality: 'needs_review', rejection_reasons: [], confidence: 0.5, needs_review: true,
         review_message: `مستند شراء متسلسل ${String(page.sequence_mark || page.page_number)} يحتاج مراجعة قبل الحفظ.`, can_save: false,
         source_document_type: 'order_summary'
