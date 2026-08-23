@@ -657,6 +657,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
       payment_proof_pages: proofPages,
       payment_proof_types: proofTypes,
       invoice_page: Number(item?.invoice_page) || 1,
+      invoice_pages: Array.isArray(item?.invoice_pages) && item.invoice_pages.length ? item.invoice_pages.map(Number).filter(Boolean) : [Number(item?.invoice_page) || 1],
       sequence_mark: String(item?.sequence_mark || ''),
       card_receipt_detected: Boolean(item?.card_receipt_detected || proofPages.length),
     };
@@ -1339,7 +1340,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                   <div className="ocr-results embedded-results">
                     {detectedInvoices.length > 0 && (
                       <div className="detected-invoice-queue batch-review-card">
-                        <div className="detected-queue-head"><strong>{t.detectedInvoices}</strong><span>{detectedInvoices.length} {ar ? 'فاتورة' : 'invoice(s)'}</span></div>
+                        <div className="detected-queue-head"><strong>{t.detectedInvoices}</strong><span>{ar ? `${pageClassification.length} صفحة • ${detectedInvoices.length} فاتورة فعلية • ${pageClassification.filter(p=>['card_receipt','bank_message','bank_app_proof'].includes(p.document_type)).length} إثبات خصم` : `${pageClassification.length} pages • ${detectedInvoices.length} logical invoices • ${pageClassification.filter(p=>['card_receipt','bank_message','bank_app_proof'].includes(p.document_type)).length} payment proofs`}</span></div>
                         <div className="batch-review-table-wrap">
                           <table className="batch-review-table">
                             <thead><tr>
@@ -1355,7 +1356,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                                 const needsReview = item.needs_review || item.document_quality === 'needs_review' || !item.can_save;
                                 return <tr key={`${item.invoice_page}-${item.invoice_number}-${index}`} className={index === activeDetectedIndex ? 'active' : ''}>
                                   <td><strong>{item.sequence_mark || '—'}</strong></td>
-                                  <td>ص{item.invoice_page}</td>
+                                  <td>{ar ? `ص${(item.invoice_pages || [item.invoice_page]).join('،')}` : `p.${(item.invoice_pages || [item.invoice_page]).join(', ')}`}</td>
                                   <td><strong>{item.invoice_number || '—'}</strong></td>
                                   <td>{item.supplier_name || '—'}</td>
                                   <td>{Number(item.total_amount || 0).toFixed(2)} AED</td>
@@ -1482,6 +1483,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
 
       {fullScreenAttachment && (
         <div className="full-attachment-overlay" onClick={() => setFullScreenAttachment(null)}>
+          <button className="full-attachment-floating-close" type="button" aria-label={ar ? 'إغلاق الفاتورة' : 'Close invoice'} onClick={() => setFullScreenAttachment(null)}>× <span>{ar ? 'إغلاق' : 'Close'}</span></button>
           <div className="full-attachment-modal" onClick={(event) => event.stopPropagation()}>
             <header>
               <div><small>{t.originalFullScreen}</small><strong>{fullScreenAttachment.name}</strong></div>

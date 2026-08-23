@@ -227,11 +227,16 @@ Accepted payment proof for CARD invoices can be ANY ONE of:
 - Cash invoices normally need no payment proof.
 - Keep receipt_pages for backward compatibility, but put ALL accepted proof pages in payment_proof_pages and their types in payment_proof_types.
 
-STEP 4 — CREATE batch_invoices:
-Create EXACTLY ONE row for EVERY page classified as invoice, in original invoice-page order. The number of batch_invoices MUST equal the number of page_classification rows whose document_type is invoice. Never omit an invoice because it has weak OCR, duplicate supplier, duplicate amount, similar date, or similar-looking layout. A weak/uncertain invoice must still get its own row with needs_review=true.
-NEVER merge two different invoice pages into one record. NEVER copy invoice_number, date, TRN, or monetary fields from another invoice page. All invoice identity and amount fields MUST come from the SAME invoice_page. Use proof pages only to confirm card payment/proof presence.
-Only treat a second page as continuation of the same invoice when it is clearly a continuation page AND it does not present a separate invoice number/total/tax invoice header. Otherwise it is a separate invoice.
-If two invoice pages have the same supplier and same amount, they STILL remain separate rows.
+STEP 4 — CREATE batch_invoices FROM LOGICAL INVOICES:
+First identify every physical invoice page, but remember that ONE logical invoice can span more than one physical page. Handwritten/circled sequence_mark is the strongest grouping key. Pages carrying the SAME non-empty sequence_mark normally belong to the SAME logical invoice packet, even if one page is a printed tax invoice and another page is a manual/duplicate invoice copy from the same supplier.
+- Return one batch_invoices row per LOGICAL invoice, not per physical invoice page.
+- invoice_page is the primary/best invoice page for extraction.
+- Do not merge pages with different non-empty sequence_mark values.
+- If sequence_mark is missing, only group pages when they clearly say Page 1/2, Page 2/2, continuation, or share the same invoice number and are visibly continuations.
+- A card/POS receipt, bank message, or bank app screenshot is payment proof, never an extra invoice row.
+- When multiple invoice pages belong to the same logical invoice, extract the authoritative values from the clearest/most complete tax-invoice page in that group. Do not combine fields from unrelated logical invoices.
+- If grouped pages disagree materially on supplier, total amount, or date, keep the group but set needs_review=true and explain the conflict.
+Never omit a logical invoice because OCR is weak. A weak/uncertain logical invoice must still get a row with needs_review=true.
 For every invoice calculate:
 - needs_review: true if any mandatory field is missing/uncertain, image quality is weak, payment method is unknown, or card payment lacks accepted payment proof.
 - review_message: short Arabic message explaining exactly what needs attention. For a card invoice with no proof use exactly: "يرجى إرفاق إثبات الخصم للفاتورة متسلسل X" where X is sequence_mark; if sequence_mark is empty use the invoice number instead.
@@ -374,14 +379,83 @@ Return only the requested structured result.`
       if (Number.isInteger(n) && n > 0 && !invoiceRowByPage.has(n)) invoiceRowByPage.set(n, row);
     }
     const classifiedInvoicePages = uniqueSortedPages(extracted.page_classification.filter((p)=>p.document_type === 'invoice').map((p)=>p.page_number));
-    const reconciledRows = classifiedInvoicePages.map((pageNo) => invoiceRowByPage.get(pageNo) || ({
+    const physicalInvoiceRows = classifiedInvoicePages.map((pageNo) => invoiceRowByPage.get(pageNo) || ({
       invoice_page: pageNo, sequence_mark:'', receipt_pages:[], payment_proof_pages:[], payment_proof_types:[],
       supplier_name:'', invoice_number:'', invoice_date:'', amount_before_vat:null, vat_amount:null, total_amount:null, trn:'',
       payment_method:'unknown', card_receipt_detected:false, currency:'AED', document_quality:'needs_review',
       rejection_reasons:[], confidence:0, needs_review:true,
       review_message:`صفحة الفاتورة ${pageNo} تم اكتشافها لكن تعذر استخراج بياناتها بشكل موثوق. راجعيها يدويًا.`, can_save:false
     }));
-    const batchInvoices = reconciledRows.map((item) => {
+
+    const normalizedSequence = (value) => String(value || '').trim().replace(/[^0-9A-Za-z_-]/g, '').toLowerCase();
+    const groups = [];
+    const groupBySequence = new Map();
+    for (const row of physicalInvoiceRows) {
+      const seq = normalizedSequence(row.sequence_mark);
+      if (seq) {
+        if (!groupBySequence.has(seq)) {
+          const group = [];
+          groupBySequence.set(seq, group);
+          groups.push(group);
+        }
+        groupBySequence.get(seq).push(row);
+      } else {
+        groups.push([row]);
+      }
+    }
+
+    const scoreRow = (row) => {
+      let score = Number(row.confidence || 0) * 10;
+      for (const key of ['supplier_name','invoice_number','invoice_date','trn']) if (String(row?.[key] || '').trim()) score += 2;
+      for (const key of ['amount_before_vat','vat_amount','total_amount']) if (row?.[key] !== null && row?.[key] !== undefined) score += 2;
+      if (row.payment_method && row.payment_method !== 'unknown') score += 1;
+      if (row.document_quality === 'clear') score += 2;
+      return score;
+    };
+
+    const groupedRows = groups.map((group) => {
+      const ordered = [...group].sort((a,b)=>Number(a.invoice_page)-Number(b.invoice_page));
+      const best = [...ordered].sort((a,b)=>scoreRow(b)-scoreRow(a))[0] || ordered[0];
+      const invoicePages = uniqueSortedPages(ordered.map((x)=>x.invoice_page));
+      const allProofPages = uniqueSortedPages(ordered.flatMap((x)=>Array.isArray(x.payment_proof_pages)&&x.payment_proof_pages.length ? x.payment_proof_pages : (Array.isArray(x.receipt_pages)?x.receipt_pages:[])));
+      const allProofTypes = [];
+      for (const x of ordered) for (const kind of (Array.isArray(x.payment_proof_types)?x.payment_proof_types:[])) if (!allProofTypes.includes(kind)) allProofTypes.push(kind);
+      const suppliers = [...new Set(ordered.map((x)=>String(x.supplier_name||'').trim().toLowerCase()).filter(Boolean))];
+      const totals = [...new Set(ordered.map((x)=>x.total_amount).filter((x)=>x!==null&&x!==undefined).map((x)=>Number(x).toFixed(2)))];
+      const dates = [...new Set(ordered.map((x)=>String(x.invoice_date||'').trim()).filter(Boolean))];
+      const groupConflict = ordered.length > 1 && (suppliers.length > 1 || totals.length > 1 || dates.length > 1);
+      return {
+        ...best,
+        invoice_page: Number(best.invoice_page) || invoicePages[0] || 1,
+        invoice_pages: invoicePages,
+        receipt_pages: allProofPages.filter((_,i)=>allProofTypes[i] === 'card_receipt' || !allProofTypes.length),
+        payment_proof_pages: allProofPages,
+        payment_proof_types: allProofTypes,
+        card_receipt_detected: allProofPages.length > 0,
+        needs_review: Boolean(best.needs_review || groupConflict),
+        review_message: groupConflict
+          ? `تحتاج مراجعة: الصفحات ${invoicePages.join('، ')} تحمل نفس المتسلسل لكن توجد اختلافات بين بعض بياناتها. راجعي الفاتورة متعددة الصفحات.`
+          : String(best.review_message || ''),
+      };
+    });
+
+    // Link continuation invoice pages to the primary invoice page so the audit strip makes grouping visible.
+    const primaryBySequence = new Map();
+    for (const item of groupedRows) {
+      const seq = normalizedSequence(item.sequence_mark);
+      if (seq) primaryBySequence.set(seq, Number(item.invoice_page));
+    }
+    for (const page of extracted.page_classification) {
+      if (page.document_type !== 'invoice') continue;
+      const row = physicalInvoiceRows.find((x)=>Number(x.invoice_page)===Number(page.page_number));
+      const seq = normalizedSequence(row?.sequence_mark);
+      if (seq && primaryBySequence.has(seq) && Number(page.page_number) !== primaryBySequence.get(seq)) {
+        page.linked_invoice_page = primaryBySequence.get(seq);
+        page.reason = `صفحة إضافية لنفس الفاتورة متسلسل ${row.sequence_mark}.`;
+      }
+    }
+
+    const batchInvoices = groupedRows.map((item) => {
       const proofPages = Array.isArray(item.payment_proof_pages) && item.payment_proof_pages.length
         ? item.payment_proof_pages
         : (Array.isArray(item.receipt_pages) ? item.receipt_pages : []);
@@ -397,60 +471,39 @@ Return only the requested structured result.`
         ['trn', item.trn],
         ['payment_method', item.payment_method === 'unknown' ? '' : item.payment_method],
       ];
-      for (const [field, value] of checks) {
-        if (value === '' || value === null || value === undefined) missing.push(field);
-      }
+      for (const [field, value] of checks) if (value === '' || value === null || value === undefined) missing.push(field);
       const proofDetected = proofPages.length > 0;
       const cardProofMissing = item.payment_method === 'card' && !proofDetected;
       const visualReject = item.document_quality === 'rejected';
-      const needsReview = Boolean(visualReject || missing.length || cardProofMissing || Number(item.confidence || 0) < 0.9 || item.document_quality === 'needs_review');
+      const needsReview = Boolean(item.needs_review || visualReject || missing.length || cardProofMissing || Number(item.confidence || 0) < 0.9 || item.document_quality === 'needs_review');
       let reviewMessage = String(item.review_message || '').trim();
       if (cardProofMissing) {
         const ref = String(item.sequence_mark || item.invoice_number || item.invoice_page || '').trim();
         reviewMessage = `يرجى إرفاق إثبات الخصم للفاتورة متسلسل ${ref}`;
-      } else if (!reviewMessage && missing.length) {
-        reviewMessage = `تحتاج مراجعة: بيانات غير مكتملة (${missing.join(', ')})`;
-      } else if (!reviewMessage && visualReject) {
-        reviewMessage = 'المستند يحتاج إعادة رفع بصورة أوضح وكاملة.';
-      } else if (!reviewMessage && needsReview) {
-        reviewMessage = 'تحتاج مراجعة قبل الحفظ.';
-      }
+      } else if (!reviewMessage && missing.length) reviewMessage = `تحتاج مراجعة: بيانات غير مكتملة (${missing.join(', ')})`;
+      else if (!reviewMessage && visualReject) reviewMessage = 'المستند يحتاج إعادة رفع بصورة أوضح وكاملة.';
+      else if (!reviewMessage && needsReview) reviewMessage = 'تحتاج مراجعة قبل الحفظ.';
       return {
         ...item,
-        receipt_pages: proofPages.filter((_, i) => proofTypes[i] === 'card_receipt' || !proofTypes.length),
+        invoice_pages: Array.isArray(item.invoice_pages) && item.invoice_pages.length ? item.invoice_pages : [item.invoice_page],
         payment_proof_pages: proofPages,
         payment_proof_types: proofTypes,
         card_receipt_detected: proofDetected,
         needs_review: needsReview,
         review_message: reviewMessage,
-        can_save: !visualReject && !cardProofMissing && missing.length === 0,
+        can_save: !visualReject && !cardProofMissing && missing.length === 0 && !item.needs_review,
       };
     });
-    // Never silently collapse distinct invoice pages. Flag suspicious identical identity+amount pairs for review instead.
-    const fingerprintMap = new Map();
-    for (const item of batchInvoices) {
-      const fp = [String(item.invoice_number||'').trim().toLowerCase(), Number(item.total_amount ?? -1), String(item.supplier_name||'').trim().toLowerCase()].join('|');
-      if (!item.invoice_number || item.total_amount == null) continue;
-      if (fingerprintMap.has(fp)) {
-        const prior = fingerprintMap.get(fp);
-        item.needs_review = true;
-        item.can_save = false;
-        item.review_message = item.review_message || `تحتاج مراجعة: بيانات هذه الفاتورة مطابقة بشكل غير معتاد للفاتورة في الصفحة ${prior.invoice_page}. تأكدي من رقم الفاتورة والمبلغ.`;
-        prior.needs_review = true;
-        prior.can_save = false;
-        prior.review_message = prior.review_message || `تحتاج مراجعة: بيانات هذه الفاتورة مطابقة بشكل غير معتاد للفاتورة في الصفحة ${item.invoice_page}. تأكدي من رقم الفاتورة والمبلغ.`;
-      } else {
-        fingerprintMap.set(fp, item);
-      }
-    }
+
     extracted.batch_invoices = batchInvoices;
     extracted.batch_audit = {
       expected_page_count: expectedPageCount || null,
       classified_page_count: extracted.page_classification.length,
-      classified_invoice_count: classifiedInvoicePages.length,
+      physical_invoice_page_count: classifiedInvoicePages.length,
+      logical_invoice_count: batchInvoices.length,
       returned_invoice_count: batchInvoices.length,
       complete_page_classification: expectedPageCount ? extracted.page_classification.length === expectedPageCount : true,
-      complete_invoice_rows: batchInvoices.length === classifiedInvoicePages.length,
+      complete_invoice_rows: classifiedInvoicePages.every((pageNo) => batchInvoices.some((item) => (item.invoice_pages || [item.invoice_page]).includes(pageNo))),
     };
     if (batchInvoices.length) {
       const first = batchInvoices[0];
