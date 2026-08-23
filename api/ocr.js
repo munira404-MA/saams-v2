@@ -76,9 +76,12 @@ const schema = {
           page_number: { type: 'integer', minimum: 1 },
           document_type: { type: 'string', enum: ['invoice', 'card_receipt', 'bank_message', 'bank_app_proof', 'order_summary', 'other'] },
           linked_invoice_page: { type: ['integer', 'null'], minimum: 1 },
+          sequence_mark: { type: 'string' },
+          supplier_hint: { type: 'string' },
+          invoice_number_hint: { type: 'string' },
           reason: { type: 'string' },
         },
-        required: ['page_number','document_type','linked_invoice_page','reason'],
+        required: ['page_number','document_type','linked_invoice_page','sequence_mark','supplier_hint','invoice_number_hint','reason'],
       },
     },
     batch_invoices: { type: 'array', items: invoiceItemSchema },
@@ -116,6 +119,129 @@ function estimatePdfPageCount(buffer) {
 
 function uniqueSortedPages(values = []) {
   return [...new Set((Array.isArray(values) ? values : []).map(Number).filter((n) => Number.isInteger(n) && n > 0))].sort((a,b)=>a-b);
+}
+
+
+function completenessScore(item = {}) {
+  const fields = ['supplier_name','invoice_number','invoice_date','amount_before_vat','vat_amount','total_amount','trn'];
+  return fields.reduce((score, key) => score + (item[key] !== '' && item[key] !== null && item[key] !== undefined ? 1 : 0), 0) + Number(item.confidence || 0);
+}
+
+function blankInvoiceForPage(page) {
+  const seq = String(page?.sequence_mark || '').trim();
+  const invNo = String(page?.invoice_number_hint || '').trim();
+  return {
+    invoice_page: Number(page?.page_number) || 1,
+    invoice_pages: [Number(page?.page_number) || 1],
+    sequence_mark: seq,
+    receipt_pages: [],
+    payment_proof_pages: [],
+    payment_proof_types: [],
+    supplier_name: String(page?.supplier_hint || ''),
+    invoice_number: invNo,
+    invoice_date: '',
+    amount_before_vat: null,
+    vat_amount: null,
+    total_amount: null,
+    trn: '',
+    payment_method: 'unknown',
+    card_receipt_detected: false,
+    currency: 'AED',
+    document_quality: 'needs_review',
+    rejection_reasons: [],
+    confidence: 0,
+    needs_review: true,
+    review_message: `تعذر قراءة بيانات كاملة من صفحة الفاتورة ${Number(page?.page_number) || 1}. يرجى مراجعتها يدويًا.`,
+    can_save: false,
+  };
+}
+
+function repairBatchInvoices(data = {}, expectedPageCount = 0) {
+  const classifications = Array.isArray(data.page_classification) ? data.page_classification : [];
+  const rows = Array.isArray(data.batch_invoices) ? data.batch_invoices.map((item) => ({
+    ...item,
+    invoice_pages: uniqueSortedPages(item.invoice_pages?.length ? item.invoice_pages : [item.invoice_page]),
+    payment_proof_pages: uniqueSortedPages(item.payment_proof_pages || item.receipt_pages || []),
+    receipt_pages: uniqueSortedPages(item.receipt_pages || item.payment_proof_pages || []),
+  })) : [];
+
+  // Merge logical rows by a non-empty sequence mark first. This is deterministic and prevents
+  // a two-page invoice from appearing as a complete row plus a second blank/weak row.
+  const grouped = new Map();
+  const noSeq = [];
+  for (const row of rows) {
+    const seq = String(row.sequence_mark || '').trim();
+    if (!seq) { noSeq.push(row); continue; }
+    if (!grouped.has(seq)) grouped.set(seq, []);
+    grouped.get(seq).push(row);
+  }
+  const merged = [];
+  for (const [seq, group] of grouped) {
+    const best = [...group].sort((a,b)=>completenessScore(b)-completenessScore(a))[0];
+    const pages = uniqueSortedPages(group.flatMap((x)=>x.invoice_pages || [x.invoice_page]));
+    const proofs = uniqueSortedPages(group.flatMap((x)=>x.payment_proof_pages || x.receipt_pages || []));
+    const proofTypes = [...new Set(group.flatMap((x)=>Array.isArray(x.payment_proof_types)?x.payment_proof_types:[]))];
+    const conflicts = ['supplier_name','invoice_number','invoice_date','total_amount'].some((key) => {
+      const values = [...new Set(group.map((x)=>String(x[key] ?? '').trim()).filter(Boolean))];
+      return values.length > 1;
+    });
+    merged.push({
+      ...best,
+      sequence_mark: seq,
+      invoice_page: Number(best.invoice_page) || pages[0] || 1,
+      invoice_pages: pages,
+      payment_proof_pages: proofs,
+      receipt_pages: proofs,
+      payment_proof_types: proofTypes,
+      card_receipt_detected: Boolean(proofs.length),
+      needs_review: Boolean(best.needs_review || conflicts),
+      review_message: conflicts ? `توجد بيانات متعارضة بين صفحات الفاتورة متسلسل ${seq}. يرجى مراجعتها.` : String(best.review_message || ''),
+      can_save: Boolean(best.can_save && !conflicts),
+    });
+  }
+  merged.push(...noSeq);
+
+  // Use page-level sequence hints to attach invoice pages that the model returned as a separate
+  // weak row or omitted from batch_invoices.
+  const seqMap = new Map(merged.filter((r)=>String(r.sequence_mark||'').trim()).map((r)=>[String(r.sequence_mark).trim(), r]));
+  const covered = new Set(merged.flatMap((r)=>r.invoice_pages || [r.invoice_page]).map(Number));
+  for (const page of classifications.filter((p)=>p.document_type === 'invoice')) {
+    const pn = Number(page.page_number);
+    const seq = String(page.sequence_mark || '').trim();
+    if (seq && seqMap.has(seq)) {
+      const target = seqMap.get(seq);
+      target.invoice_pages = uniqueSortedPages([...(target.invoice_pages || [target.invoice_page]), pn]);
+      covered.add(pn);
+      continue;
+    }
+    if (!covered.has(pn)) {
+      const fallback = blankInvoiceForPage(page);
+      merged.push(fallback);
+      if (seq) seqMap.set(seq, fallback);
+      covered.add(pn);
+    }
+  }
+
+  // Guarantee physical page accounting. If the model classification itself skipped a page,
+  // append a neutral classification record so the UI can show that nothing disappeared silently.
+  if (expectedPageCount > 0) {
+    const byPage = new Map(classifications.map((p)=>[Number(p.page_number), p]));
+    const repairedClass = [];
+    for (let pn=1; pn<=expectedPageCount; pn+=1) {
+      repairedClass.push(byPage.get(pn) || {
+        page_number: pn,
+        document_type: 'other',
+        linked_invoice_page: null,
+        sequence_mark: '',
+        supplier_hint: '',
+        invoice_number_hint: '',
+        reason: 'لم يتم تصنيف الصفحة آليًا؛ يرجى مراجعتها.',
+      });
+    }
+    data.page_classification = repairedClass;
+  }
+  data.batch_invoices = merged.sort((a,b)=>(Math.min(...(a.invoice_pages || [a.invoice_page])))-(Math.min(...(b.invoice_pages || [b.invoice_page]))));
+  return data;
 }
 
 function extractOutputText(response) {
@@ -366,7 +492,7 @@ Return only the requested structured result.`
     if (expectedPageCount > 0) {
       for (let n = 1; n <= expectedPageCount; n += 1) {
         if (!byPage.has(n)) {
-          byPage.set(n, { page_number:n, document_type:'other', linked_invoice_page:null, reason:'لم يتم تصنيف هذه الصفحة آليًا؛ تحتاج مراجعة يدوية.' });
+          byPage.set(n, { page_number:n, document_type:'other', linked_invoice_page:null, sequence_mark:'', supplier_hint:'', invoice_number_hint:'', reason:'لم يتم تصنيف هذه الصفحة آليًا؛ تحتاج مراجعة يدوية.' });
         }
       }
     }
@@ -375,17 +501,28 @@ Return only the requested structured result.`
     const rawBatchInvoices = Array.isArray(extracted.batch_invoices) ? extracted.batch_invoices : [];
     const invoiceRowByPage = new Map();
     for (const row of rawBatchInvoices) {
-      const n = Number(row?.invoice_page);
-      if (Number.isInteger(n) && n > 0 && !invoiceRowByPage.has(n)) invoiceRowByPage.set(n, row);
+      const rowPages = uniqueSortedPages(Array.isArray(row?.invoice_pages) && row.invoice_pages.length ? row.invoice_pages : [row?.invoice_page]);
+      for (const n of rowPages) {
+        if (!invoiceRowByPage.has(n)) invoiceRowByPage.set(n, row);
+      }
     }
     const classifiedInvoicePages = uniqueSortedPages(extracted.page_classification.filter((p)=>p.document_type === 'invoice').map((p)=>p.page_number));
-    const physicalInvoiceRows = classifiedInvoicePages.map((pageNo) => invoiceRowByPage.get(pageNo) || ({
-      invoice_page: pageNo, sequence_mark:'', receipt_pages:[], payment_proof_pages:[], payment_proof_types:[],
-      supplier_name:'', invoice_number:'', invoice_date:'', amount_before_vat:null, vat_amount:null, total_amount:null, trn:'',
-      payment_method:'unknown', card_receipt_detected:false, currency:'AED', document_quality:'needs_review',
-      rejection_reasons:[], confidence:0, needs_review:true,
-      review_message:`صفحة الفاتورة ${pageNo} تم اكتشافها لكن تعذر استخراج بياناتها بشكل موثوق. راجعيها يدويًا.`, can_save:false
-    }));
+    const physicalInvoiceRows = classifiedInvoicePages.map((pageNo) => {
+      const existing = invoiceRowByPage.get(pageNo);
+      if (existing) return { ...existing, invoice_page: pageNo };
+      const pageHint = extracted.page_classification.find((p)=>Number(p.page_number)===Number(pageNo)) || {};
+      return {
+        invoice_page: pageNo,
+        sequence_mark:String(pageHint.sequence_mark || ''),
+        receipt_pages:[], payment_proof_pages:[], payment_proof_types:[],
+        supplier_name:String(pageHint.supplier_hint || ''),
+        invoice_number:String(pageHint.invoice_number_hint || ''),
+        invoice_date:'', amount_before_vat:null, vat_amount:null, total_amount:null, trn:'',
+        payment_method:'unknown', card_receipt_detected:false, currency:'AED', document_quality:'needs_review',
+        rejection_reasons:[], confidence:0, needs_review:true,
+        review_message:`صفحة الفاتورة ${pageNo} تم اكتشافها لكن تعذر استخراج بياناتها بشكل موثوق. راجعيها يدويًا.`, can_save:false
+      };
+    });
 
     const normalizedSequence = (value) => String(value || '').trim().replace(/[^0-9A-Za-z_-]/g, '').toLowerCase();
     const groups = [];

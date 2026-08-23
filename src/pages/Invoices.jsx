@@ -551,9 +551,58 @@ export default function Invoices({ lang, profile, databaseMode }) {
     window.setTimeout(() => URL.revokeObjectURL(url), 1500);
   }
 
-  function showFullAttachment({ dataUrl, name, type }) {
+  function showFullAttachment({ dataUrl, name, type, revokeOnClose = false }) {
     if (!dataUrl) return;
-    setFullScreenAttachment({ dataUrl, name: name || 'invoice', type: type || '' });
+    setFullScreenAttachment({ dataUrl, name: name || 'invoice', type: type || '', revokeOnClose });
+  }
+
+  function closeFullAttachment() {
+    setFullScreenAttachment((current) => {
+      if (current?.revokeOnClose && String(current?.dataUrl || '').startsWith('blob:')) {
+        try { URL.revokeObjectURL(current.dataUrl); } catch {}
+      }
+      return null;
+    });
+  }
+
+  function invoicePageNumbers(item) {
+    const raw = item?.ocrPayload?.invoice_pages || item?.ocrPayload?.invoicePages || item?.invoicePages || item?.invoice_pages || [item?.ocrPayload?.invoice_page || item?.invoicePage].filter(Boolean);
+    return [...new Set((Array.isArray(raw) ? raw : [raw]).map(Number).filter((n) => Number.isInteger(n) && n > 0))].sort((a,b)=>a-b);
+  }
+
+  async function showInvoicePagesOnly({ sourceUrl, name, type, pages = [] }) {
+    const normalizedType = type || guessAttachmentType(name);
+    if (normalizedType !== 'application/pdf' && !String(name || '').toLowerCase().endsWith('.pdf')) {
+      showFullAttachment({ dataUrl: sourceUrl, name, type: normalizedType });
+      return;
+    }
+    const pageNumbers = [...new Set((pages || []).map(Number).filter((n) => Number.isInteger(n) && n > 0))].sort((a,b)=>a-b);
+    if (!pageNumbers.length) {
+      showFullAttachment({ dataUrl: sourceUrl, name, type: 'application/pdf' });
+      return;
+    }
+    try {
+      const { PDFDocument } = await import('pdf-lib');
+      const response = await fetch(sourceUrl);
+      if (!response.ok) throw new Error(`PDF_FETCH_${response.status}`);
+      const originalBytes = await response.arrayBuffer();
+      const original = await PDFDocument.load(originalBytes, { ignoreEncryption: true });
+      const validIndexes = pageNumbers.map((n) => n - 1).filter((index) => index >= 0 && index < original.getPageCount());
+      if (!validIndexes.length) throw new Error('INVOICE_PAGES_NOT_FOUND');
+      const output = await PDFDocument.create();
+      const copied = await output.copyPages(original, validIndexes);
+      copied.forEach((page) => output.addPage(page));
+      const bytes = await output.save();
+      const blobUrl = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+      const pageLabel = pageNumbers.join('-');
+      const baseName = String(name || 'invoice.pdf').replace(/\.pdf$/i, '');
+      showFullAttachment({ dataUrl: blobUrl, name: `${baseName}_invoice_pages_${pageLabel}.pdf`, type: 'application/pdf', revokeOnClose: true });
+    } catch (error) {
+      console.error('Invoice page extraction failed:', error);
+      showActionMessage(ar ? 'تعذر فصل صفحات الفاتورة وحدها؛ سيتم فتح الملف على صفحة الفاتورة.' : 'Could not isolate the invoice pages; opening the source at the invoice page.');
+      const firstPage = pageNumbers[0] || 1;
+      showFullAttachment({ dataUrl: `${sourceUrl}#page=${firstPage}`, name, type: 'application/pdf' });
+    }
   }
 
   function exportInvoicesExcel() {
@@ -844,11 +893,13 @@ export default function Invoices({ lang, profile, databaseMode }) {
 
   async function openSavedInvoice(item) {
     if (!item) return;
+    const pages = invoicePageNumbers(item);
     if (item.attachmentDataUrl) {
-      showFullAttachment({
-        dataUrl: item.attachmentDataUrl,
+      await showInvoicePagesOnly({
+        sourceUrl: item.attachmentDataUrl,
         name: item.attachmentName || item.id,
         type: item.attachmentType || guessAttachmentType(item.attachmentName),
+        pages,
       });
       return;
     }
@@ -860,7 +911,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
         if (error) throw error;
         if (!data?.signedUrl) throw new Error('SIGNED_URL_MISSING');
         const fileName = item.attachmentPath.split('/').pop() || item.id;
-        showFullAttachment({ dataUrl: data.signedUrl, name: fileName, type: guessAttachmentType(fileName) });
+        await showInvoicePagesOnly({ sourceUrl: data.signedUrl, name: fileName, type: guessAttachmentType(fileName), pages });
         return;
       } catch (error) {
         console.error('Invoice attachment open failed:', error);
@@ -895,7 +946,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
       status: 'review',
       pages: Number(ocr.invoice_page) || 1,
       invoicePage: Number(ocr.invoice_page) || 1,
+      invoicePages: Array.isArray(ocr.invoice_pages) && ocr.invoice_pages.length ? ocr.invoice_pages.map(Number).filter(Boolean) : [Number(ocr.invoice_page) || 1],
       receiptPages: linkedReceiptPages,
+      ocrPayload: ocr,
       trn: ocr.trn || '',
       attachmentDataUrl,
       attachmentName: selectedFile?.name || '',
@@ -917,7 +970,6 @@ export default function Invoices({ lang, profile, databaseMode }) {
           option.id === uploadAdvance || option.advances?.name_ar === uploadAdvance || option.advances?.code === uploadAdvance
         );
         next.advanceAllocationId = chosenAllocation?.id || null;
-        next.ocrPayload = ocr;
         const saved = await createInvoiceDb(next, selectedFile, receiptFile);
         next.dbId = saved.dbId;
         next.attachmentPath = saved.attachmentPath;
@@ -1482,8 +1534,8 @@ export default function Invoices({ lang, profile, databaseMode }) {
       )}
 
       {fullScreenAttachment && (
-        <div className="full-attachment-overlay" onClick={() => setFullScreenAttachment(null)}>
-          <button className="full-attachment-floating-close" type="button" aria-label={ar ? 'إغلاق الفاتورة' : 'Close invoice'} onClick={() => setFullScreenAttachment(null)}>× <span>{ar ? 'إغلاق' : 'Close'}</span></button>
+        <div className="full-attachment-overlay" onClick={closeFullAttachment}>
+          <button className="full-attachment-floating-close" type="button" aria-label={ar ? 'إغلاق الفاتورة' : 'Close invoice'} onClick={closeFullAttachment}>× <span>{ar ? 'إغلاق' : 'Close'}</span></button>
           <div className="full-attachment-modal" onClick={(event) => event.stopPropagation()}>
             <header>
               <div><small>{t.originalFullScreen}</small><strong>{fullScreenAttachment.name}</strong></div>
@@ -1500,7 +1552,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                     anchor.click();
                   }
                 }}>⇩ {t.downloadFile}</button>
-                <button className="full-attachment-close" type="button" onClick={() => setFullScreenAttachment(null)}>×</button>
+                <button className="full-attachment-close" type="button" onClick={closeFullAttachment}>×</button>
               </div>
             </header>
             <div className="full-attachment-content">
