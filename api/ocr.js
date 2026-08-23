@@ -104,6 +104,20 @@ function estimateBase64Bytes(base64) {
   return Math.max(0, Math.floor((cleaned.length * 3) / 4) - padding);
 }
 
+function estimatePdfPageCount(buffer) {
+  try {
+    const text = buffer.toString('latin1');
+    const matches = text.match(/\/Type\s*\/Page(?!s)\b/g);
+    return Math.max(0, matches ? matches.length : 0);
+  } catch {
+    return 0;
+  }
+}
+
+function uniqueSortedPages(values = []) {
+  return [...new Set((Array.isArray(values) ? values : []).map(Number).filter((n) => Number.isInteger(n) && n > 0))].sort((a,b)=>a-b);
+}
+
 function extractOutputText(response) {
   if (typeof response?.output_text === 'string') return response.output_text;
 
@@ -172,6 +186,7 @@ export default async function handler(req, res) {
   // Files API and then referenced by file_id. This is more reliable than
   // embedding a large PDF directly in input_file.file_data.
   let uploadedFileId = '';
+  let expectedPageCount = 0;
   let fileInput = isPdf
     ? null
     : {
@@ -185,6 +200,8 @@ export default async function handler(req, res) {
 A PDF can contain a deliberately arranged packet of MANY documents: supplier invoices, POS/card receipts, bank debit SMS/messages, screenshots/details from a banking app, online order summaries, and unrelated pages. Read the ENTIRE PDF and build a review table. NEVER treat the whole PDF as one invoice.
 
 STEP 1 — CLASSIFY EVERY PAGE independently:
+- The PDF page count supplied by the server is EXPECTED_PAGE_COUNT. page_classification MUST contain exactly one record for every physical PDF page from 1 through EXPECTED_PAGE_COUNT, in order, with no skipped page numbers and no duplicates.
+- If a page visually looks like any supplier invoice/receipt with invoice/tax invoice/bill fields, classify it as invoice even when it resembles another invoice from the same supplier. NEVER deduplicate invoice pages.
 - invoice: tax invoice, supplier invoice, handwritten/manual invoice, cash invoice.
 - card_receipt: POS/network/Visa/Mastercard/debit/credit terminal receipt.
 - bank_message: SMS/text/bank notification showing a debit/card purchase, merchant and amount.
@@ -211,7 +228,10 @@ Accepted payment proof for CARD invoices can be ANY ONE of:
 - Keep receipt_pages for backward compatibility, but put ALL accepted proof pages in payment_proof_pages and their types in payment_proof_types.
 
 STEP 4 — CREATE batch_invoices:
-Create ONE row per invoice page in original invoice-page order. Never merge two different invoice pages into one record. Extract invoice fields from the invoice page itself; use proof pages only to confirm card payment/proof presence.
+Create EXACTLY ONE row for EVERY page classified as invoice, in original invoice-page order. The number of batch_invoices MUST equal the number of page_classification rows whose document_type is invoice. Never omit an invoice because it has weak OCR, duplicate supplier, duplicate amount, similar date, or similar-looking layout. A weak/uncertain invoice must still get its own row with needs_review=true.
+NEVER merge two different invoice pages into one record. NEVER copy invoice_number, date, TRN, or monetary fields from another invoice page. All invoice identity and amount fields MUST come from the SAME invoice_page. Use proof pages only to confirm card payment/proof presence.
+Only treat a second page as continuation of the same invoice when it is clearly a continuation page AND it does not present a separate invoice number/total/tax invoice header. Otherwise it is a separate invoice.
+If two invoice pages have the same supplier and same amount, they STILL remain separate rows.
 For every invoice calculate:
 - needs_review: true if any mandatory field is missing/uncertain, image quality is weak, payment method is unknown, or card payment lacks accepted payment proof.
 - review_message: short Arabic message explaining exactly what needs attention. For a card invoice with no proof use exactly: "يرجى إرفاق إثبات الخصم للفاتورة متسلسل X" where X is sequence_mark; if sequence_mark is empty use the invoice number instead.
@@ -223,7 +243,8 @@ VISUAL REJECTION RULES APPLY PER PAGE, NOT TO THE WHOLE PDF:
 - Missing TRN/payment method means needs_review, not visual rejection.
 
 EXTRACTION:
-- invoice_number comes from invoice only, never from POS receipt/reference.
+- invoice_number comes from the SAME invoice page only, never from POS receipt/reference and never from a different invoice page.
+- amount_before_vat, vat_amount and total_amount must all come from the SAME invoice page as invoice_number. Do not mix fields across pages.
 - invoice_date DD/MM/YYYY when readable.
 - UAE TRN normally 15 digits.
 - Numeric amounts only.
@@ -239,6 +260,7 @@ Return only the requested structured result.`
   try {
     if (isPdf) {
       const pdfBytes = Buffer.from(base64Data, 'base64');
+      expectedPageCount = estimatePdfPageCount(pdfBytes);
       const uploadForm = new FormData();
       uploadForm.append('purpose', 'user_data');
       uploadForm.append(
@@ -285,7 +307,7 @@ Return only the requested structured result.`
           {
             role: 'user',
             content: [
-              { type: 'input_text', text: prompt },
+              { type: 'input_text', text: prompt.replace('EXPECTED_PAGE_COUNT', String(expectedPageCount || 'all physical PDF pages')) },
               fileInput,
             ],
           },
@@ -329,8 +351,37 @@ Return only the requested structured result.`
       );
     }
 
+    const rawClassification = Array.isArray(extracted.page_classification) ? extracted.page_classification : [];
+    const byPage = new Map();
+    for (const page of rawClassification) {
+      const n = Number(page?.page_number);
+      if (!Number.isInteger(n) || n < 1) continue;
+      if (!byPage.has(n)) byPage.set(n, page);
+    }
+    if (expectedPageCount > 0) {
+      for (let n = 1; n <= expectedPageCount; n += 1) {
+        if (!byPage.has(n)) {
+          byPage.set(n, { page_number:n, document_type:'other', linked_invoice_page:null, reason:'لم يتم تصنيف هذه الصفحة آليًا؛ تحتاج مراجعة يدوية.' });
+        }
+      }
+    }
+    extracted.page_classification = [...byPage.values()].sort((a,b)=>Number(a.page_number)-Number(b.page_number));
+
     const rawBatchInvoices = Array.isArray(extracted.batch_invoices) ? extracted.batch_invoices : [];
-    const batchInvoices = rawBatchInvoices.map((item) => {
+    const invoiceRowByPage = new Map();
+    for (const row of rawBatchInvoices) {
+      const n = Number(row?.invoice_page);
+      if (Number.isInteger(n) && n > 0 && !invoiceRowByPage.has(n)) invoiceRowByPage.set(n, row);
+    }
+    const classifiedInvoicePages = uniqueSortedPages(extracted.page_classification.filter((p)=>p.document_type === 'invoice').map((p)=>p.page_number));
+    const reconciledRows = classifiedInvoicePages.map((pageNo) => invoiceRowByPage.get(pageNo) || ({
+      invoice_page: pageNo, sequence_mark:'', receipt_pages:[], payment_proof_pages:[], payment_proof_types:[],
+      supplier_name:'', invoice_number:'', invoice_date:'', amount_before_vat:null, vat_amount:null, total_amount:null, trn:'',
+      payment_method:'unknown', card_receipt_detected:false, currency:'AED', document_quality:'needs_review',
+      rejection_reasons:[], confidence:0, needs_review:true,
+      review_message:`صفحة الفاتورة ${pageNo} تم اكتشافها لكن تعذر استخراج بياناتها بشكل موثوق. راجعيها يدويًا.`, can_save:false
+    }));
+    const batchInvoices = reconciledRows.map((item) => {
       const proofPages = Array.isArray(item.payment_proof_pages) && item.payment_proof_pages.length
         ? item.payment_proof_pages
         : (Array.isArray(item.receipt_pages) ? item.receipt_pages : []);
@@ -375,7 +426,32 @@ Return only the requested structured result.`
         can_save: !visualReject && !cardProofMissing && missing.length === 0,
       };
     });
+    // Never silently collapse distinct invoice pages. Flag suspicious identical identity+amount pairs for review instead.
+    const fingerprintMap = new Map();
+    for (const item of batchInvoices) {
+      const fp = [String(item.invoice_number||'').trim().toLowerCase(), Number(item.total_amount ?? -1), String(item.supplier_name||'').trim().toLowerCase()].join('|');
+      if (!item.invoice_number || item.total_amount == null) continue;
+      if (fingerprintMap.has(fp)) {
+        const prior = fingerprintMap.get(fp);
+        item.needs_review = true;
+        item.can_save = false;
+        item.review_message = item.review_message || `تحتاج مراجعة: بيانات هذه الفاتورة مطابقة بشكل غير معتاد للفاتورة في الصفحة ${prior.invoice_page}. تأكدي من رقم الفاتورة والمبلغ.`;
+        prior.needs_review = true;
+        prior.can_save = false;
+        prior.review_message = prior.review_message || `تحتاج مراجعة: بيانات هذه الفاتورة مطابقة بشكل غير معتاد للفاتورة في الصفحة ${item.invoice_page}. تأكدي من رقم الفاتورة والمبلغ.`;
+      } else {
+        fingerprintMap.set(fp, item);
+      }
+    }
     extracted.batch_invoices = batchInvoices;
+    extracted.batch_audit = {
+      expected_page_count: expectedPageCount || null,
+      classified_page_count: extracted.page_classification.length,
+      classified_invoice_count: classifiedInvoicePages.length,
+      returned_invoice_count: batchInvoices.length,
+      complete_page_classification: expectedPageCount ? extracted.page_classification.length === expectedPageCount : true,
+      complete_invoice_rows: batchInvoices.length === classifiedInvoicePages.length,
+    };
     if (batchInvoices.length) {
       const first = batchInvoices[0];
       extracted = {
