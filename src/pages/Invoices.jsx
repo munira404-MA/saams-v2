@@ -1078,6 +1078,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
       before: { status: invoice.status },
       after: { status: 'approved', approvedAt },
     });
+    window.dispatchEvent(new Event('saams:invoice-status-changed'));
     showActionMessage(t.approvedSuccess);
   }
 
@@ -1124,6 +1125,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
     });
     setReturnTarget(null);
     setReturnReason('');
+    window.dispatchEvent(new Event('saams:invoice-status-changed'));
     showActionMessage(t.returnedSuccess);
   }
 

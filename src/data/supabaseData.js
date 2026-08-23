@@ -304,22 +304,25 @@ export async function listAdvances() {
     from: row.date_from,
     to: row.date_to,
     status: row.status,
-    allocations: (row.advance_allocations || []).map((allocation) => ({
-      dbId: allocation.id,
-      nurseryId: allocation.nursery_id,
-      nurseryAr: allocation.nurseries?.name_ar || '',
-      nurseryEn: allocation.nurseries?.name_en || '',
-      allocated: Number(allocation.allocated || 0),
-      invoices: (allocation.invoices || [])
-        .filter((invoice) => invoice.status === 'approved')
-        .map((invoice) => ({
-          no: invoice.invoice_number,
-          supplierAr: invoice.supplier_name,
-          supplierEn: invoice.supplier_name,
-          date: invoice.invoice_date,
-          amount: Number(invoice.total_amount || 0),
-        })),
-    })),
+    allocations: (row.advance_allocations || []).map((allocation) => {
+      const allInvoices = (allocation.invoices || []).map((invoice) => ({
+        no: invoice.invoice_number,
+        supplierAr: invoice.supplier_name,
+        supplierEn: invoice.supplier_name,
+        date: invoice.invoice_date,
+        amount: Number(invoice.total_amount || 0),
+        status: invoice.status || 'review',
+      }));
+      return {
+        dbId: allocation.id,
+        nurseryId: allocation.nursery_id,
+        nurseryAr: allocation.nurseries?.name_ar || '',
+        nurseryEn: allocation.nurseries?.name_en || '',
+        allocated: Number(allocation.allocated || 0),
+        allInvoices,
+        invoices: allInvoices.filter((invoice) => invoice.status === 'approved'),
+      };
+    }),
   }));
 }
 

@@ -34,6 +34,7 @@ const COPY = {
     details: 'تفاصيل السلفة', invoices: 'الفواتير المرتبطة', invoiceNo: 'رقم الفاتورة', supplier: 'المورد', date: 'التاريخ', invoiceAmount: 'قيمة الفاتورة', noInvoices: 'لا توجد فواتير مرتبطة حتى الآن.',
     nurseryBalance: 'رصيد الحضانة', usage: 'نسبة الاستخدام', invoicesCount: 'عدد الفواتير', addInvoiceDemo: 'محاكاة إضافة فاتورة', invoiceDeductionNote: 'عند اعتماد أي فاتورة مرتبطة بهذه السلفة، يُخصم إجماليها تلقائيًا من رصيد الحضانة.',
     created: 'تم إدراج السلفة بنجاح', closedMsg: 'تم إغلاق السلفة', reopenedMsg: 'تمت إعادة فتح السلفة', invalid: 'اختاري حضانة واحدة على الأقل وحددي مبلغًا أكبر من صفر.',
+    pendingInvoices: 'بانتظار المراجعة', returnedInvoices: 'معادة للتعديل', approvedInvoices: 'معتمدة', closeBlockedInvoices: 'لا يمكن إغلاق السلفة الآن. توجد فواتير بانتظار المراجعة أو معادة للتعديل.', balanceRule: 'المصروف يحتسب الفواتير المعتمدة فقط.',
     search: 'بحث باسم السلفة أو الحضانة...', previewNursery: 'معاينة شاشة الحضانة', backAdmin: 'العودة لوضع الإدارة',
     deleteAdvance: 'حذف السلفة', deleteConfirm: 'هل أنتِ متأكدة من حذف هذه السلفة؟ لا يمكن التراجع عن الحذف.', deleteSuccess: 'تم حذف السلفة بنجاح', deleteBlocked: 'لا يمكن حذف السلفة لأنها مرتبطة بفواتير. أغلقي السلفة بدلًا من حذفها.', deleteFailed: 'تعذر حذف السلفة من قاعدة البيانات.', nurseriesLoading: 'جاري تحديث قائمة الحضانات...', noNurseries: 'لا توجد حضانات نشطة متاحة حاليًا.',
   },
@@ -51,6 +52,7 @@ const COPY = {
     details: 'Advance Details', invoices: 'Linked Invoices', invoiceNo: 'Invoice No.', supplier: 'Supplier', date: 'Date', invoiceAmount: 'Invoice Amount', noInvoices: 'No linked invoices yet.',
     nurseryBalance: 'Nursery Balance', usage: 'Usage', invoicesCount: 'Invoice Count', addInvoiceDemo: 'Simulate Invoice', invoiceDeductionNote: 'Once a linked invoice is approved, its total is automatically deducted from the nursery balance.',
     created: 'Advance created successfully', closedMsg: 'Advance closed', reopenedMsg: 'Advance reopened', invalid: 'Select at least one nursery and enter an amount greater than zero.',
+    pendingInvoices: 'Pending Review', returnedInvoices: 'Returned for Editing', approvedInvoices: 'Approved', closeBlockedInvoices: 'This advance cannot be closed yet. Some invoices are pending review or returned for editing.', balanceRule: 'Spent includes approved invoices only.',
     search: 'Search advance or nursery...', previewNursery: 'Preview Nursery View', backAdmin: 'Back to Admin View',
     deleteAdvance: 'Delete Advance', deleteConfirm: 'Are you sure you want to delete this advance? This cannot be undone.', deleteSuccess: 'Advance deleted successfully', deleteBlocked: 'This advance cannot be deleted because invoices are linked to it. Close it instead.', deleteFailed: 'Could not delete advance from the database.', nurseriesLoading: 'Refreshing nursery list...', noNurseries: 'No active nurseries are currently available.',
   }
@@ -83,6 +85,7 @@ const INITIAL_ADVANCES = [
 
 const money = value => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const spentOf = allocation => (allocation.invoices || []).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
+const statusCountsOf = allocation => (allocation?.allInvoices || allocation?.invoices || []).reduce((acc, invoice) => { const st=invoice.status||'approved'; if(st==='approved') acc.approved++; else if(st==='returned') acc.returned++; else acc.review++; return acc; }, {approved:0,review:0,returned:0});
 const totalsOf = advance => advance.allocations.reduce((acc, allocation) => {
   const spent = spentOf(allocation);
   acc.allocated += Number(allocation.allocated || 0);
@@ -128,7 +131,10 @@ export default function Advances({ lang, profile, databaseMode }) {
       }
     }
     loadDatabaseData();
-    return () => { active = false; };
+    const refresh = () => loadDatabaseData();
+    window.addEventListener('focus', refresh);
+    window.addEventListener('saams:invoice-status-changed', refresh);
+    return () => { active = false; window.removeEventListener('focus', refresh); window.removeEventListener('saams:invoice-status-changed', refresh); };
   }, [databaseMode]);
 
   function notify(message) { setToast(message); setTimeout(() => setToast(''), 2600); }
@@ -182,6 +188,10 @@ export default function Advances({ lang, profile, databaseMode }) {
   async function toggleStatus(id) {
     const item = advances.find(a => a.id === id);
     const nextStatus = item?.status === 'open' ? 'closed' : 'open';
+    if (item?.status === 'open') {
+      const blockers=(item.allocations||[]).reduce((a,x)=>{const c=statusCountsOf(x);a.review+=c.review;a.returned+=c.returned;return a;},{review:0,returned:0});
+      if(blockers.review||blockers.returned){ notify(`${t.closeBlockedInvoices} (${t.pendingInvoices}: ${blockers.review}، ${t.returnedInvoices}: ${blockers.returned})`); return; }
+    }
     if (databaseMode && item) {
       try {
         await toggleAdvanceStatus(item, nextStatus);
@@ -328,10 +338,12 @@ function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDelete,
     <div className="drawer-header"><div><small>{t.details}</small><h2>{ar ? advance.nameAr : advance.nameEn}</h2><p>{advance.id}</p></div><button onClick={onClose}>×</button></div>
     {!nurseryMode && <div className="advance-nursery-tabs">{advance.allocations.map(a => <button key={a.nurseryAr} className={selected.nurseryAr === a.nurseryAr ? 'active' : ''} onClick={() => setSelected(a)}>{ar ? a.nurseryAr : a.nurseryEn}</button>)}</div>}
     <div className="detail-balance-hero"><small>{t.nurseryBalance}</small><h3>{money(remaining)} AED</h3><div><span>{money(spent)} {t.spent}</span><span>{money(selected.allocated)} {t.allocated}</span></div><div className="advance-progress-track"><i style={{ width: `${Math.min(100, usage)}%` }} /></div></div>
-    <div className="detail-mini-stats"><div><small>{t.allocated}</small><strong>{money(selected.allocated)} AED</strong></div><div><small>{t.spent}</small><strong>{money(spent)} AED</strong></div><div><small>{t.remaining}</small><strong>{money(remaining)} AED</strong></div><div><small>{t.invoicesCount}</small><strong>{selected.invoices.length}</strong></div></div>
+    <div className="detail-mini-stats"><div><small>{t.allocated}</small><strong>{money(selected.allocated)} AED</strong></div><div><small>{t.spent}</small><strong>{money(spent)} AED</strong></div><div><small>{t.remaining}</small><strong>{money(remaining)} AED</strong></div><div><small>{t.invoicesCount}</small><strong>{(selected.allInvoices || selected.invoices).length}</strong></div></div>
+    <div className="advance-status-summary"><div><small>{t.approvedInvoices}</small><strong>{statusCountsOf(selected).approved}</strong></div><div><small>{t.pendingInvoices}</small><strong>{statusCountsOf(selected).review}</strong></div><div><small>{t.returnedInvoices}</small><strong>{statusCountsOf(selected).returned}</strong></div></div>
+    <div className="advance-deduction-note">✓ {t.balanceRule}</div>
     <div className="invoice-deduction-note">ⓘ {t.invoiceDeductionNote}</div>
     <div className="linked-invoices-heading"><h3>{t.invoices}</h3>{advance.status === 'open' && <button onClick={() => onDemo(selected)}>＋ {t.addInvoiceDemo}</button>}</div>
-    <div className="linked-invoices-list">{selected.invoices.length ? selected.invoices.map(invoice => <article key={invoice.no}><div><strong>{invoice.no}</strong><span>{ar ? invoice.supplierAr : invoice.supplierEn}</span></div><div><b>{money(invoice.amount)} AED</b><small>{invoice.date}</small></div></article>) : <div className="advance-empty">▤<span>{t.noInvoices}</span></div>}</div>
+    <div className="linked-invoices-list">{(selected.allInvoices || selected.invoices).length ? (selected.allInvoices || selected.invoices).map((invoice,index) => <article key={`${invoice.no}-${index}`}><div><strong>{invoice.no}</strong><span>{ar ? invoice.supplierAr : invoice.supplierEn}</span><em className={`linked-invoice-status ${invoice.status || 'approved'}`}>{invoice.status === 'returned' ? t.returnedInvoices : invoice.status === 'review' ? t.pendingInvoices : t.approvedInvoices}</em></div><div><b>{money(invoice.amount)} AED</b><small>{invoice.date}</small></div></article>) : <div className="advance-empty">▤<span>{t.noInvoices}</span></div>}</div>
     {!nurseryMode && <div className="advance-detail-actions"><button className={advance.status === 'open' ? 'close-advance wide-action' : 'reopen-advance wide-action'} onClick={onToggle}>{advance.status === 'open' ? t.close : t.reopen}</button><button className="delete-advance wide-action" onClick={onDelete}>⌫ {t.deleteAdvance}</button></div>}
   </aside></div>;
 }
