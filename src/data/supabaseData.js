@@ -197,11 +197,33 @@ export async function createInvoice(payload, invoiceFile, receiptFile) {
 
   if (!resolvedNurseryId) throw new Error('NURSERY_NOT_FOUND');
 
+  const normalizedInvoiceNumber = String(payload.id || '').trim();
+  const normalizedSupplier = String(payload.supplierAr || payload.supplierEn || '').trim();
+
+  // Prevent duplicate inserts before PostgreSQL's unique constraint fires.
+  // The database still remains the final guard, but the UI receives a clear controlled error.
+  if (normalizedInvoiceNumber && normalizedSupplier) {
+    const { data: existingInvoice, error: duplicateCheckError } = await supabase
+      .from('invoices')
+      .select('id,invoice_number,supplier_name')
+      .eq('nursery_id', resolvedNurseryId)
+      .eq('supplier_name', normalizedSupplier)
+      .eq('invoice_number', normalizedInvoiceNumber)
+      .maybeSingle();
+    if (duplicateCheckError) throw duplicateCheckError;
+    if (existingInvoice?.id) {
+      const err = new Error('DUPLICATE_INVOICE');
+      err.code = 'DUPLICATE_INVOICE';
+      err.existingInvoiceId = existingInvoice.id;
+      throw err;
+    }
+  }
+
   const insertPayload = {
-    invoice_number: payload.id,
+    invoice_number: normalizedInvoiceNumber,
     nursery_id: resolvedNurseryId,
     advance_allocation_id: resolvedAllocationId,
-    supplier_name: payload.supplierAr || payload.supplierEn,
+    supplier_name: normalizedSupplier,
     invoice_date: normalizeDate(payload.date),
     subtotal: Number(payload.subtotal || Math.max(0, Number(payload.total || 0) - Number(payload.vat || 0))),
     vat_amount: Number(payload.vat || 0),

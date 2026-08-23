@@ -696,30 +696,43 @@ export default function Invoices({ lang, profile, databaseMode }) {
   }
 
   function normalizeDetectedInvoice(item) {
-    const proofPages = Array.isArray(item?.payment_proof_pages) && item.payment_proof_pages.length
+    const rawTotal = Number(item?.total_amount);
+    const rawVat = Number(item?.vat_amount);
+    const rawSubtotal = Number(item?.amount_before_vat);
+    const hasTotal = Number.isFinite(rawTotal) && rawTotal >= 0;
+    const hasVat = Number.isFinite(rawVat) && rawVat >= 0;
+    const hasSubtotal = Number.isFinite(rawSubtotal) && rawSubtotal >= 0;
+    const calculatedSubtotal = hasTotal && hasVat ? Number((rawTotal - rawVat).toFixed(2)) : rawSubtotal;
+    const amountsMismatch = hasTotal && hasVat && hasSubtotal && Math.abs((rawSubtotal + rawVat) - rawTotal) > 0.05;
+    const amountFixedItem = {
+      ...item,
+      amount_before_vat: (!hasSubtotal || amountsMismatch) && Number.isFinite(calculatedSubtotal) ? calculatedSubtotal : item?.amount_before_vat,
+      review_message: amountsMismatch && /amounts? missing|invoice amounts/i.test(String(item?.review_message || '')) ? '' : item?.review_message,
+    };
+    const proofPages = Array.isArray(amountFixedItem?.payment_proof_pages) && amountFixedItem.payment_proof_pages.length
       ? item.payment_proof_pages
-      : (Array.isArray(item?.receipt_pages) ? item.receipt_pages : []);
-    const proofTypes = Array.isArray(item?.payment_proof_types) ? item.payment_proof_types : [];
+      : (Array.isArray(amountFixedItem?.receipt_pages) ? amountFixedItem.receipt_pages : []);
+    const proofTypes = Array.isArray(amountFixedItem?.payment_proof_types) ? amountFixedItem.payment_proof_types : [];
     const normalized = {
       ...emptyOcr,
-      ...item,
+      ...amountFixedItem,
       linked_receipt_pages: proofPages,
       payment_proof_pages: proofPages,
       payment_proof_types: proofTypes,
-      invoice_page: Number(item?.invoice_page) || 1,
-      invoice_pages: Array.isArray(item?.invoice_pages) && item.invoice_pages.length ? item.invoice_pages.map(Number).filter(Boolean) : [Number(item?.invoice_page) || 1],
-      sequence_mark: String(item?.sequence_mark || ''),
-      card_receipt_detected: Boolean(item?.card_receipt_detected || proofPages.length),
+      invoice_page: Number(amountFixedItem?.invoice_page) || 1,
+      invoice_pages: Array.isArray(amountFixedItem?.invoice_pages) && amountFixedItem.invoice_pages.length ? amountFixedItem.invoice_pages.map(Number).filter(Boolean) : [Number(amountFixedItem?.invoice_page) || 1],
+      sequence_mark: String(amountFixedItem?.sequence_mark || ''),
+      card_receipt_detected: Boolean(amountFixedItem?.card_receipt_detected || proofPages.length),
     };
     const validated = applyValidation(normalized, false, Boolean(proofPages.length));
     const ref = String(normalized.sequence_mark || normalized.invoice_number || normalized.invoice_page || '').trim();
     const missingProof = validated.payment_method === 'card' && !validated.card_receipt_detected;
     return {
       ...validated,
-      needs_review: Boolean(item?.needs_review || validated.document_quality === 'needs_review' || !validated.can_save),
+      needs_review: Boolean(amountFixedItem?.needs_review || validated.document_quality === 'needs_review' || !validated.can_save),
       review_message: missingProof
         ? `يرجى إرفاق إثبات الخصم للفاتورة متسلسل ${ref}`
-        : String(item?.review_message || ''),
+        : String(amountFixedItem?.review_message || ''),
     };
   }
 
@@ -1069,6 +1082,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
         } else if (code.includes('AUTH_SESSION_MISSING')) {
           messageAr = 'انتهت جلسة الدخول. سجلي خروجًا ثم دخولًا مرة أخرى قبل حفظ الفاتورة.';
           messageEn = 'Your session has expired. Sign out and back in before saving the invoice.';
+        } else if (code.includes('DUPLICATE_INVOICE') || code.includes('23505')) {
+          messageAr = `هذه الفاتورة محفوظة مسبقًا لنفس الحضانة والمورد ورقم الفاتورة (${ocr.invoice_number || ''}). لن يتم حفظ نسخة مكررة.`;
+          messageEn = `This invoice is already saved for the same nursery, supplier, and invoice number (${ocr.invoice_number || ''}). A duplicate copy was not saved.`;
         } else if (code.includes('row-level security') || code.includes('42501')) {
           messageAr = 'رفضت قاعدة البيانات الحفظ بسبب صلاحيات الحضانة. يرجى مراجعة سياسات RLS.';
           messageEn = 'The database rejected the save because of nursery access policies. Review RLS policies.';
