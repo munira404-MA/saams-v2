@@ -131,6 +131,11 @@ const emptyOcr = {
   missing_fields: [],
   rejection_reasons: [],
   confidence: 0,
+  sequence_mark: '',
+  payment_proof_pages: [],
+  payment_proof_types: [],
+  needs_review: false,
+  review_message: '',
 };
 
 function fileToDataUrl(file) {
@@ -193,12 +198,21 @@ const copy = {
     uploadTitle: 'رفع فواتير جديدة',
     batchHint: 'يمكنك اختيار عدة فواتير دفعة واحدة، ثم مراجعتها وحفظها بالترتيب.',
     selectedInvoices: 'الفواتير المختارة',
-    detectedInvoices: 'الفواتير المكتشفة داخل الملف',
+    detectedInvoices: 'جدول مراجعة الملف الكامل',
     detectedPages: 'صفحة الفاتورة',
-    linkedReceiptPages: 'صفحات الإيصال المرتبطة',
+    linkedReceiptPages: 'صفحات إثبات الخصم',
     pageTypeInvoice: 'فاتورة',
     pageTypeReceipt: 'إيصال بطاقة',
+    pageTypeBankMessage: 'رسالة خصم بنكية',
+    pageTypeBankApp: 'إثبات من تطبيق البنك',
+    pageTypeOrderSummary: 'ملخص طلب',
     pageTypeOther: 'صفحة أخرى',
+    sequence: 'المتسلسل',
+    proof: 'إثبات الخصم',
+    reviewStatus: 'حالة المراجعة',
+    ready: 'جاهزة',
+    select: 'مراجعة',
+    missingProof: 'غير مرفق',
     invoiceOf: 'فاتورة',
     nextInvoice: 'الانتقال للفاتورة التالية',
     chooseNursery: 'اختاري الحضانة',
@@ -302,12 +316,21 @@ const copy = {
     uploadTitle: 'Upload New Invoices',
     batchHint: 'Select multiple invoices at once, then review and save them in order.',
     selectedInvoices: 'Selected Invoices',
-    detectedInvoices: 'Invoices Detected Inside File',
+    detectedInvoices: 'Full File Review Table',
     detectedPages: 'Invoice Page',
-    linkedReceiptPages: 'Linked Receipt Pages',
+    linkedReceiptPages: 'Payment Proof Pages',
     pageTypeInvoice: 'Invoice',
     pageTypeReceipt: 'Card Receipt',
+    pageTypeBankMessage: 'Bank Debit Message',
+    pageTypeBankApp: 'Banking App Proof',
+    pageTypeOrderSummary: 'Order Summary',
     pageTypeOther: 'Other Page',
+    sequence: 'Sequence',
+    proof: 'Payment Proof',
+    reviewStatus: 'Review Status',
+    ready: 'Ready',
+    select: 'Review',
+    missingProof: 'Missing',
     invoiceOf: 'Invoice',
     nextInvoice: 'Move to Next Invoice',
     chooseNursery: 'Choose Nursery',
@@ -623,12 +646,29 @@ export default function Invoices({ lang, profile, databaseMode }) {
   }
 
   function normalizeDetectedInvoice(item) {
-    return {
+    const proofPages = Array.isArray(item?.payment_proof_pages) && item.payment_proof_pages.length
+      ? item.payment_proof_pages
+      : (Array.isArray(item?.receipt_pages) ? item.receipt_pages : []);
+    const proofTypes = Array.isArray(item?.payment_proof_types) ? item.payment_proof_types : [];
+    const normalized = {
       ...emptyOcr,
       ...item,
-      linked_receipt_pages: Array.isArray(item?.receipt_pages) ? item.receipt_pages : [],
+      linked_receipt_pages: proofPages,
+      payment_proof_pages: proofPages,
+      payment_proof_types: proofTypes,
       invoice_page: Number(item?.invoice_page) || 1,
-      card_receipt_detected: Boolean(item?.card_receipt_detected || item?.receipt_pages?.length),
+      sequence_mark: String(item?.sequence_mark || ''),
+      card_receipt_detected: Boolean(item?.card_receipt_detected || proofPages.length),
+    };
+    const validated = applyValidation(normalized, false, Boolean(proofPages.length));
+    const ref = String(normalized.sequence_mark || normalized.invoice_number || normalized.invoice_page || '').trim();
+    const missingProof = validated.payment_method === 'card' && !validated.card_receipt_detected;
+    return {
+      ...validated,
+      needs_review: Boolean(item?.needs_review || validated.document_quality === 'needs_review' || !validated.can_save),
+      review_message: missingProof
+        ? `يرجى إرفاق إثبات الخصم للفاتورة متسلسل ${ref}`
+        : String(item?.review_message || ''),
     };
   }
 
@@ -1297,22 +1337,48 @@ export default function Invoices({ lang, profile, databaseMode }) {
 
                 {ocr && (
                   <div className="ocr-results embedded-results">
-                    {detectedInvoices.length > 1 && (
-                      <div className="detected-invoice-queue">
-                        <div className="detected-queue-head"><strong>{t.detectedInvoices}</strong><span>{activeDetectedIndex + 1} / {detectedInvoices.length}</span></div>
-                        <div className="detected-queue-items">
-                          {detectedInvoices.map((item, index) => (
-                            <button type="button" key={`${item.invoice_page}-${item.invoice_number}-${index}`} className={index === activeDetectedIndex ? 'active' : ''} onClick={() => chooseDetectedInvoice(index)}>
-                              <b>{item.invoice_number || `${t.detectedPages} ${item.invoice_page}`}</b>
-                              <small>{t.detectedPages}: {item.invoice_page}{item.linked_receipt_pages?.length ? ` • ${t.linkedReceiptPages}: ${item.linked_receipt_pages.join(', ')}` : ''}</small>
-                            </button>
-                          ))}
+                    {detectedInvoices.length > 0 && (
+                      <div className="detected-invoice-queue batch-review-card">
+                        <div className="detected-queue-head"><strong>{t.detectedInvoices}</strong><span>{detectedInvoices.length} {ar ? 'فاتورة' : 'invoice(s)'}</span></div>
+                        <div className="batch-review-table-wrap">
+                          <table className="batch-review-table">
+                            <thead><tr>
+                              <th>{t.sequence}</th><th>{t.detectedPages}</th><th>{t.invoiceNo}</th><th>{t.supplier}</th><th>{t.totalAmount}</th><th>{t.payment}</th><th>{t.proof}</th><th>{t.reviewStatus}</th><th>{t.actions}</th>
+                            </tr></thead>
+                            <tbody>
+                              {detectedInvoices.map((item, index) => {
+                                const proofPages = item.payment_proof_pages || item.linked_receipt_pages || [];
+                                const proofTypes = item.payment_proof_types || [];
+                                const proofLabel = proofPages.length
+                                  ? `${proofPages.join(', ')}${proofTypes.length ? ` • ${proofTypes.map((kind) => kind === 'card_receipt' ? t.pageTypeReceipt : kind === 'bank_message' ? t.pageTypeBankMessage : t.pageTypeBankApp).join(' / ')}` : ''}`
+                                  : t.missingProof;
+                                const needsReview = item.needs_review || item.document_quality === 'needs_review' || !item.can_save;
+                                return <tr key={`${item.invoice_page}-${item.invoice_number}-${index}`} className={index === activeDetectedIndex ? 'active' : ''}>
+                                  <td><strong>{item.sequence_mark || '—'}</strong></td>
+                                  <td>ص{item.invoice_page}</td>
+                                  <td><strong>{item.invoice_number || '—'}</strong></td>
+                                  <td>{item.supplier_name || '—'}</td>
+                                  <td>{Number(item.total_amount || 0).toFixed(2)} AED</td>
+                                  <td>{item.payment_method === 'card' ? t.card : item.payment_method === 'cash' ? t.cash : t.unknown}</td>
+                                  <td><span className={`batch-proof ${proofPages.length ? 'ok' : 'missing'}`}>{proofLabel}</span></td>
+                                  <td><span className={`batch-review-status ${item.document_quality === 'rejected' ? 'rejected' : needsReview ? 'review' : 'ready'}`}>{item.document_quality === 'rejected' ? t.rejected : needsReview ? t.needs_review : t.ready}</span>{item.review_message && <small className="batch-review-message">{item.review_message}</small>}</td>
+                                  <td><button type="button" className="batch-review-select" onClick={() => chooseDetectedInvoice(index)}>{t.select}</button></td>
+                                </tr>;
+                              })}
+                            </tbody>
+                          </table>
                         </div>
+                        {detectedInvoices.some((item) => item.payment_method === 'card' && !(item.payment_proof_pages?.length || item.linked_receipt_pages?.length)) && (
+                          <div className="batch-missing-proof-summary">
+                            <strong>! {ar ? 'إثباتات خصم ناقصة' : 'Missing payment proof'}</strong>
+                            {detectedInvoices.filter((item) => item.payment_method === 'card' && !(item.payment_proof_pages?.length || item.linked_receipt_pages?.length)).map((item, index) => <span key={`${item.invoice_page}-${index}`}>{item.review_message || (ar ? `يرجى إرفاق إثبات الخصم للفاتورة متسلسل ${item.sequence_mark || item.invoice_number || item.invoice_page}` : `Please attach payment proof for invoice ${item.sequence_mark || item.invoice_number || item.invoice_page}`)}</span>)}
+                          </div>
+                        )}
                       </div>
                     )}
                     {!!pageClassification.length && (
                       <div className="page-classification-strip">
-                        {pageClassification.map((page) => <span key={page.page_number} className={page.document_type}>ص{page.page_number}: {page.document_type === 'invoice' ? t.pageTypeInvoice : page.document_type === 'card_receipt' ? t.pageTypeReceipt : t.pageTypeOther}</span>)}
+                        {pageClassification.map((page) => <span key={page.page_number} className={page.document_type}>ص{page.page_number}: {page.document_type === 'invoice' ? t.pageTypeInvoice : page.document_type === 'card_receipt' ? t.pageTypeReceipt : page.document_type === 'bank_message' ? t.pageTypeBankMessage : page.document_type === 'bank_app_proof' ? t.pageTypeBankApp : page.document_type === 'order_summary' ? t.pageTypeOrderSummary : t.pageTypeOther}</span>)}
                       </div>
                     )}
                     <div className="ocr-results-head">

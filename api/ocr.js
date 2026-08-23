@@ -17,7 +17,10 @@ const invoiceItemSchema = {
   additionalProperties: false,
   properties: {
     invoice_page: { type: 'integer', minimum: 1 },
+    sequence_mark: { type: 'string' },
     receipt_pages: { type: 'array', items: { type: 'integer', minimum: 1 } },
+    payment_proof_pages: { type: 'array', items: { type: 'integer', minimum: 1 } },
+    payment_proof_types: { type: 'array', items: { type: 'string', enum: ['card_receipt','bank_message','bank_app_proof'] } },
     supplier_name: { type: 'string' },
     invoice_number: { type: 'string' },
     invoice_date: { type: 'string' },
@@ -31,11 +34,14 @@ const invoiceItemSchema = {
     document_quality: { type: 'string', enum: ['clear', 'needs_review', 'rejected'] },
     rejection_reasons: { type: 'array', items: { type: 'string' } },
     confidence: { type: 'number', minimum: 0, maximum: 1 },
+    needs_review: { type: 'boolean' },
+    review_message: { type: 'string' },
+    can_save: { type: 'boolean' },
   },
   required: [
-    'invoice_page','receipt_pages','supplier_name','invoice_number','invoice_date',
+    'invoice_page','sequence_mark','receipt_pages','payment_proof_pages','payment_proof_types','supplier_name','invoice_number','invoice_date',
     'amount_before_vat','vat_amount','total_amount','trn','payment_method',
-    'card_receipt_detected','currency','document_quality','rejection_reasons','confidence'
+    'card_receipt_detected','currency','document_quality','rejection_reasons','confidence','needs_review','review_message','can_save'
   ],
 };
 
@@ -68,7 +74,7 @@ const schema = {
         additionalProperties: false,
         properties: {
           page_number: { type: 'integer', minimum: 1 },
-          document_type: { type: 'string', enum: ['invoice', 'card_receipt', 'other'] },
+          document_type: { type: 'string', enum: ['invoice', 'card_receipt', 'bank_message', 'bank_app_proof', 'order_summary', 'other'] },
           linked_invoice_page: { type: ['integer', 'null'], minimum: 1 },
           reason: { type: 'string' },
         },
@@ -174,43 +180,59 @@ export default async function handler(req, res) {
         detail: 'high',
       };
 
-  const prompt = `You are a UAE nursery invoice document-separation, validation, pairing, and extraction engine.
+  const prompt = `You are a UAE nursery multi-document invoice separation, validation, pairing, and extraction engine.
 
-IMPORTANT: A multipage PDF may contain MANY invoices and card/POS receipts mixed together. Treat every PDF page as a separate document first. Do not treat the whole PDF as one invoice.
+A PDF can contain a deliberately arranged packet of MANY documents: supplier invoices, POS/card receipts, bank debit SMS/messages, screenshots/details from a banking app, online order summaries, and unrelated pages. Read the ENTIRE PDF and build a review table. NEVER treat the whole PDF as one invoice.
 
-STEP 1 — CLASSIFY EVERY PAGE:
-- invoice: tax invoice, cash invoice, handwritten invoice, supplier invoice.
-- card_receipt: POS/network/NeoPay/Visa/Mastercard/debit/credit terminal receipt.
+STEP 1 — CLASSIFY EVERY PAGE independently:
+- invoice: tax invoice, supplier invoice, handwritten/manual invoice, cash invoice.
+- card_receipt: POS/network/Visa/Mastercard/debit/credit terminal receipt.
+- bank_message: SMS/text/bank notification showing a debit/card purchase, merchant and amount.
+- bank_app_proof: transaction details or debit transaction screenshot from a banking app.
+- order_summary: online order summary / purchase summary that is not itself a tax invoice.
 - other: cover sheet or unrelated page.
-Return page_classification for every visible page.
+Return page_classification for EVERY page.
 
-STEP 2 — PAIR RECEIPTS TO INVOICES:
-- A receipt is normally immediately before or after its invoice.
-- Pair using matching or near-matching date, amount, supplier/merchant, card evidence, and handwritten sequence marks.
-- Small amount differences caused by rounding are allowed.
-- A receipt page is a separate valid attachment. It must NOT cause rejection merely because it is in the same multipage PDF.
-- Never merge two different invoices into one record.
-- Cash invoices normally have no receipt.
+STEP 2 — READ THE HANDWRITTEN SEQUENCE MARK:
+- Many packets have a handwritten/circled sequence number such as 55, 56, 57, 58, 59, 60.
+- For each invoice, return sequence_mark exactly as visible. If none is visible, return an empty string.
+- Use the same sequence mark as a strong pairing signal when linking proofs to invoices.
 
-STEP 3 — CREATE batch_invoices:
-Create one item per invoice page, in original page order. Put linked receipt page numbers in receipt_pages. Extract fields from the invoice page, not from the receipt, except use the receipt only to confirm card payment and attachment presence.
+STEP 3 — PAIR PAYMENT PROOF TO INVOICES:
+Accepted payment proof for CARD invoices can be ANY ONE of:
+1) card_receipt,
+2) bank_message,
+3) bank_app_proof.
+- Pair using sequence_mark first when available, then page adjacency, amount, date, supplier/merchant and card details.
+- A proof page is normally immediately before or after its invoice, but sequence/amount/date can override adjacency.
+- Do not pair a bank message to the wrong invoice only because it is nearby.
+- order_summary is NOT payment proof by itself.
+- Cash invoices normally need no payment proof.
+- Keep receipt_pages for backward compatibility, but put ALL accepted proof pages in payment_proof_pages and their types in payment_proof_types.
+
+STEP 4 — CREATE batch_invoices:
+Create ONE row per invoice page in original invoice-page order. Never merge two different invoice pages into one record. Extract invoice fields from the invoice page itself; use proof pages only to confirm card payment/proof presence.
+For every invoice calculate:
+- needs_review: true if any mandatory field is missing/uncertain, image quality is weak, payment method is unknown, or card payment lacks accepted payment proof.
+- review_message: short Arabic message explaining exactly what needs attention. For a card invoice with no proof use exactly: "يرجى إرفاق إثبات الخصم للفاتورة متسلسل X" where X is sequence_mark; if sequence_mark is empty use the invoice number instead.
+- can_save: false for visually rejected invoices or card invoices missing payment proof or invoices missing required fields; otherwise true.
 
 VISUAL REJECTION RULES APPLY PER PAGE, NOT TO THE WHOLE PDF:
-- Reject an invoice page only if another paper/receipt physically overlaps or covers that same page, two unrelated documents are visible on one page, the invoice is cropped/blurred, or important fields are obscured.
-- A separate receipt on another PDF page is correct and must be linked, not rejected.
-- Missing TRN or payment method means needs_review, not rejected.
+- Reject only if another paper physically overlaps/covers the invoice page, multiple unrelated documents are visible on the SAME page, invoice is cropped/blurred, or important fields are obscured.
+- A separate proof on another PDF page is correct and must be linked, not rejected.
+- Missing TRN/payment method means needs_review, not visual rejection.
 
 EXTRACTION:
-- invoice_number must come from the invoice, never POS receipt/reference number.
+- invoice_number comes from invoice only, never from POS receipt/reference.
 - invoice_date DD/MM/YYYY when readable.
-- UAE TRN is normally 15 digits.
+- UAE TRN normally 15 digits.
 - Numeric amounts only.
-- payment_method=card when linked receipt or clear card evidence exists; cash only when printed; otherwise unknown.
-- card_receipt_detected=true when receipt_pages is not empty.
+- payment_method=card when invoice prints card/CC/Visa/Mastercard or a linked accepted proof confirms it; cash only when invoice clearly says cash; otherwise unknown.
+- card_receipt_detected=true when payment_proof_pages is not empty (legacy name; it means accepted payment proof detected).
 - confidence 0..1.
 
 TOP-LEVEL FIELDS:
-For backward compatibility, copy the FIRST invoice in batch_invoices into the top-level invoice fields. If there is no invoice, return empty/null fields and rejected.
+Copy the FIRST invoice in batch_invoices into top-level invoice fields for backward compatibility. If no invoice exists, return empty/null fields and rejected.
 
 Return only the requested structured result.`
 
@@ -307,7 +329,53 @@ Return only the requested structured result.`
       );
     }
 
-    const batchInvoices = Array.isArray(extracted.batch_invoices) ? extracted.batch_invoices : [];
+    const rawBatchInvoices = Array.isArray(extracted.batch_invoices) ? extracted.batch_invoices : [];
+    const batchInvoices = rawBatchInvoices.map((item) => {
+      const proofPages = Array.isArray(item.payment_proof_pages) && item.payment_proof_pages.length
+        ? item.payment_proof_pages
+        : (Array.isArray(item.receipt_pages) ? item.receipt_pages : []);
+      const proofTypes = Array.isArray(item.payment_proof_types) ? item.payment_proof_types : [];
+      const missing = [];
+      const checks = [
+        ['supplier_name', item.supplier_name],
+        ['invoice_number', item.invoice_number],
+        ['invoice_date', item.invoice_date],
+        ['amount_before_vat', item.amount_before_vat],
+        ['vat_amount', item.vat_amount],
+        ['total_amount', item.total_amount],
+        ['trn', item.trn],
+        ['payment_method', item.payment_method === 'unknown' ? '' : item.payment_method],
+      ];
+      for (const [field, value] of checks) {
+        if (value === '' || value === null || value === undefined) missing.push(field);
+      }
+      const proofDetected = proofPages.length > 0;
+      const cardProofMissing = item.payment_method === 'card' && !proofDetected;
+      const visualReject = item.document_quality === 'rejected';
+      const needsReview = Boolean(visualReject || missing.length || cardProofMissing || Number(item.confidence || 0) < 0.9 || item.document_quality === 'needs_review');
+      let reviewMessage = String(item.review_message || '').trim();
+      if (cardProofMissing) {
+        const ref = String(item.sequence_mark || item.invoice_number || item.invoice_page || '').trim();
+        reviewMessage = `يرجى إرفاق إثبات الخصم للفاتورة متسلسل ${ref}`;
+      } else if (!reviewMessage && missing.length) {
+        reviewMessage = `تحتاج مراجعة: بيانات غير مكتملة (${missing.join(', ')})`;
+      } else if (!reviewMessage && visualReject) {
+        reviewMessage = 'المستند يحتاج إعادة رفع بصورة أوضح وكاملة.';
+      } else if (!reviewMessage && needsReview) {
+        reviewMessage = 'تحتاج مراجعة قبل الحفظ.';
+      }
+      return {
+        ...item,
+        receipt_pages: proofPages.filter((_, i) => proofTypes[i] === 'card_receipt' || !proofTypes.length),
+        payment_proof_pages: proofPages,
+        payment_proof_types: proofTypes,
+        card_receipt_detected: proofDetected,
+        needs_review: needsReview,
+        review_message: reviewMessage,
+        can_save: !visualReject && !cardProofMissing && missing.length === 0,
+      };
+    });
+    extracted.batch_invoices = batchInvoices;
     if (batchInvoices.length) {
       const first = batchInvoices[0];
       extracted = {
