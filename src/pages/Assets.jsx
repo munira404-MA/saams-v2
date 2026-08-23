@@ -2,16 +2,11 @@ import { recordAudit, loadAuditLog } from '../utils/audit';
 import AssetOfficialDocument from '../components/AssetOfficialDocument';
 import { useMemo, useRef, useState } from 'react';
 
-const ASSETS = [
-  { barcode:'SEA-000156', nameAr:'جهاز حاسب آلي مكتبي', nameEn:'Desktop Computer', nurseryAr:'الرحمانية الجديدة', nurseryEn:'New Al Rahmaniya', categoryAr:'أجهزة تقنية', categoryEn:'IT Equipment', status:'active' },
-  { barcode:'SEA-000284', nameAr:'طاولة أطفال مستديرة', nameEn:'Round Children Table', nurseryAr:'اللؤلؤية', nurseryEn:'Al Luluyah', categoryAr:'أثاث', categoryEn:'Furniture', status:'active' },
-  { barcode:'SEA-000427', nameAr:'خزانة تخزين خشبية', nameEn:'Wooden Storage Cabinet', nurseryAr:'واسط 2', nurseryEn:'Wasit 2', categoryAr:'أثاث', categoryEn:'Furniture', status:'active' },
-  { barcode:'SEA-000603', nameAr:'شاشة عرض تفاعلية', nameEn:'Interactive Display', nurseryAr:'السيوح', nurseryEn:'Al Suyoh', categoryAr:'أجهزة تعليمية', categoryEn:'Educational Equipment', status:'active' },
-  { barcode:'SEA-000715', nameAr:'ثلاجة صغيرة', nameEn:'Small Refrigerator', nurseryAr:'القليعة', nurseryEn:'Al Qulaya', categoryAr:'أجهزة كهربائية', categoryEn:'Electrical Equipment', status:'active' },
-];
+const ASSETS = [];
 
-const NURSERIES_AR=['الرحمانية الجديدة','اللؤلؤية','واسط 2','السيوح','القليعة','البديع','الرحمانية','البستان'];
-const NURSERIES_EN=['New Al Rahmaniya','Al Luluyah','Wasit 2','Al Suyoh','Al Qulaya','Al Badie','Al Rahmaniya','Al Bustan'];
+const NURSERIES_AR=['الرحمانية الجديدة','مركز اللؤلؤية للطفولة المبكرة','مركز السيوح للطفولة المبكرة','واسط 2','مركز الرحمانية للطفولة المبكرة','البديع','اللية','القليعة','مركز البستان للطفولة المبكرة','مركز كلباء للطفولة المبكرة','الغيل','الطيبة','الحرس الأميري','الحمرية','المدينة الباسمة','الشرطي الصغير','الثميد','سهيلة','سهيلة الجديدة','البرير','مليحة','القادسية','دبا الحصن','السياقة','الشارقة النموذجية','مغيدر','الشيماء','المستقبل','غرفتي الصغيرة','جميلة','الباحثة','النحوة','جامعة خورفكان','جامعة كلباء','وادي الحلو','شيص'];
+const NURSERIES_EN=NURSERIES_AR;
+
 
 const COPY={
  ar:{title:'إدارة الأصول',sub:'سجل الأصول وطلبات النقل والفائض والإسقاط في شاشة موحدة.',admin:'الإدارة',nursery:'الحضانة',add:'إضافة أصل',register:'سجل الأصول',requests:'طلبات الأصول',transfer:'طلب نقل',surplus:'طلب فائض',disposal:'طلب إسقاط',barcode:'رقم الباركود',asset:'اسم الأصل',from:'من',to:'إلى',reason:'السبب',scan:'تصوير الباركود',upload:'رفع صورة الباركود',manual:'أو أدخلي الرقم يدويًا',lookup:'البحث عن الأصل',found:'تم التعرف على الأصل',notFound:'لم يتم العثور على أصل بهذا الباركود',submit:'إرسال الطلب',cancel:'إلغاء',status:'الحالة',date:'التاريخ',type:'نوع الطلب',pending:'قيد الاعتماد',approved:'معتمد',returned:'معاد',rejected:'مرفوض',approve:'اعتماد',reject:'رفض',actions:'الإجراءات',rejectionReason:'سبب الرفض',confirmReject:'تأكيد الرفض',previewNursery:'معاينة طلبات الحضانة',exitPreview:'العودة لوضع الإدارة',viewRequest:'عرض الطلب',all:'الكل',category:'التصنيف',location:'الموقع الحالي',save:'حفظ الأصل',assetName:'اسم الأصل',choose:'اختاري',notes:'ملاحظات',cameraHint:'وجهي الكاميرا على الباركود حتى تتم قراءته تلقائيًا.',cameraUnsupported:'المتصفح لا يدعم قراءة الباركود مباشرة. استخدمي رفع الصورة أو اكتبي الرقم.',closeCamera:'إغلاق الكاميرا',requestSent:'تم إرسال الطلب بنجاح',assetSaved:'تمت إضافة الأصل بنجاح',adminOnly:'إضافة الأصول متاحة للإدارة فقط',destinationNotNeeded:'الفائض لا يحتاج تحديد جهة مستلمة.',disposalHint:'أرفقي سبب الإسقاط بشكل واضح ليتم عرضه على الإدارة.',surplusHint:'حددي سبب اعتبار الأصل فائضًا، ولن يظهر حقل «إلى».',transferHint:'حددي الحضانة المنقول منها وإليها مع سبب النقل.'},
@@ -35,10 +30,7 @@ export default function Assets({lang,profile}){
  const [previewNursery,setPreviewNursery]=useState(false);
  const [toast,setToast]=useState('');
  const [assets,setAssets]=useState(ASSETS);
- const [requests,setRequests]=useState([
-  {id:'AST-REQ-026',type:'transfer',barcode:'SEA-000427',assetAr:'خزانة تخزين خشبية',assetEn:'Wooden Storage Cabinet',fromAr:'واسط 2',fromEn:'Wasit 2',toAr:'البستان',toEn:'Al Bustan',reasonAr:'الحاجة إلى الخزانة في غرفة المصادر',reasonEn:'Needed in the resource room',status:'pending',date:'04/08/2026'},
-  {id:'AST-REQ-025',type:'surplus',barcode:'SEA-000284',assetAr:'طاولة أطفال مستديرة',assetEn:'Round Children Table',fromAr:'اللؤلؤية',fromEn:'Al Luluyah',reasonAr:'فائض بعد إعادة توزيع الفصول',reasonEn:'Surplus after classroom redistribution',status:'approved',date:'03/08/2026'},
- ]);
+ const [requests,setRequests]=useState([]);
  const [search,setSearch]=useState('');
  const scopedAssets=useMemo(()=>isAdmin||previewNursery?assets:assets.filter(a=>a.nurseryAr===accountNursery||a.nurseryEn===accountNursery),[assets,isAdmin,previewNursery,accountNursery]);
  const scopedRequests=useMemo(()=>isAdmin||previewNursery?requests:requests.filter(r=>r.fromAr===accountNursery||r.fromEn===accountNursery),[requests,isAdmin,previewNursery,accountNursery]);
@@ -144,10 +136,7 @@ function RejectModal({request,ar,t,onClose,onConfirm}){
 
 function AssetHistory({asset,ar,onClose}){
  const logs=loadAuditLog().filter(x=>x.entityId===asset.barcode || x.details?.includes(asset.barcode)).filter(x=>['transfer','surplus','disposal','approve','reject','return'].includes(x.actionType));
- const fallback=[
-  {id:'h1',action:ar?'تم نقل الأصل':'Asset Transferred',date:'12/03/2026',time:'10:30 ص',user:'الإدارة',details:ar?'من المخزن الرئيسي إلى '+asset.nurseryAr:'Transferred to '+asset.nurseryEn,actionType:'transfer'},
-  {id:'h2',action:ar?'تم اعتباره فائضًا':'Marked as Surplus',date:'21/06/2026',time:'09:15 ص',user:ar?'الحضانة':'Nursery',details:ar?'طلب فائض بانتظار الإجراء':'Surplus request submitted',actionType:'surplus'},
- ].filter((_,i)=>i===0 || asset.barcode==='SEA-000284');
+ const fallback=[];
  const rows=logs.length?logs.slice().reverse():fallback;
  return <div className="invoice-overlay" onClick={onClose}><aside className="asset-history-modal" onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>{ar?'سجل الأصل':'Asset History'}</small><h2>{asset.barcode}</h2></div><button onClick={onClose}>×</button></div>

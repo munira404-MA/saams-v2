@@ -3,16 +3,48 @@ import * as XLSX from 'xlsx';
 import { actionTone, loadAuditLog, recordAudit, saveAuditLog } from '../utils/audit';
 import { DEFAULT_USERS, loadUsers, USERS_STORAGE_KEY } from './Users';
 
-const NURSERIES_KEY = 'saams-settings-nurseries-v1';
+const NURSERIES_KEY = 'saams-settings-nurseries-v2-official-36';
 const SETTINGS_KEY = 'saams-system-settings-v1';
-const PRODUCTION_KEY = 'saams-production-readiness-v1';
+const PRODUCTION_KEY = 'saams-production-readiness-v2-official-36';
 
 const DEFAULT_NURSERIES = [
-  'الرحمانية الجديدة','اللؤلؤية','السيوح','واسط 2','الرحمانية','البديع','اللية','القليعة','البستان','كلباء',
-  'الساف','الطيبة','الحرس الأميري','الحمرية','المدينة الباسمة','الشرطي الصغير','الثميد','سهيلة','سهيلة الجديدة',
-  'البرير','مليحة','القادسية','دبا الحصن','السياقة','الشارقة النموذجية','مغيدر','واسط','الشيماء','المستقبل',
-  'غرفتي الصغيرة','جمانة','أم الفضل','جميلة','الباحثة','النحوة','جامعة خورفكان','جامعة كلباء','وادي الحلو','شيص'
-].map((name, index) => ({ id: `NUR-${String(index + 1).padStart(3, '0')}`, name, manager: '', active: true }));
+  'الرحمانية الجديدة',
+  'مركز اللؤلؤية للطفولة المبكرة',
+  'مركز السيوح للطفولة المبكرة',
+  'واسط 2',
+  'مركز الرحمانية للطفولة المبكرة',
+  'البديع',
+  'اللية',
+  'القليعة',
+  'مركز البستان للطفولة المبكرة',
+  'مركز كلباء للطفولة المبكرة',
+  'الغيل',
+  'الطيبة',
+  'الحرس الأميري',
+  'الحمرية',
+  'المدينة الباسمة',
+  'الشرطي الصغير',
+  'الثميد',
+  'سهيلة',
+  'سهيلة الجديدة',
+  'البرير',
+  'مليحة',
+  'القادسية',
+  'دبا الحصن',
+  'السياقة',
+  'الشارقة النموذجية',
+  'مغيدر',
+  'الشيماء',
+  'المستقبل',
+  'غرفتي الصغيرة',
+  'جميلة',
+  'الباحثة',
+  'النحوة',
+  'جامعة خورفكان',
+  'جامعة كلباء',
+  'وادي الحلو',
+  'شيص'
+]map((name, index) => ({ id: `NUR-${String(index + 1).padStart(3, '0')}`, name, manager: '', active: true }));
 
 const DEFAULT_SETTINGS = {
   invoice: {

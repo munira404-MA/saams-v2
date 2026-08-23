@@ -10,13 +10,13 @@ import {
 
 const NURSERIES = [
   { ar: 'الرحمانية الجديدة', en: 'New Al Rahmaniya' },
-  { ar: 'اللؤلؤية', en: 'Al Luluyah' },
+  { ar: 'مركز اللؤلؤية للطفولة المبكرة', en: 'Al Luluyah Early Childhood Center' },
   { ar: 'واسط 2', en: 'Wasit 2' },
-  { ar: 'السيوح', en: 'Al Suyoh' },
+  { ar: 'مركز السيوح للطفولة المبكرة', en: 'Al Suyoh Early Childhood Center' },
   { ar: 'القليعة', en: 'Al Qulaya' },
   { ar: 'البديع', en: 'Al Badie' },
-  { ar: 'الرحمانية', en: 'Al Rahmaniya' },
-  { ar: 'البستان', en: 'Al Bustan' },
+  { ar: 'مركز الرحمانية للطفولة المبكرة', en: 'Al Rahmaniya Early Childhood Center' },
+  { ar: 'مركز البستان للطفولة المبكرة', en: 'Al Bustan Early Childhood Center' },
 ];
 
 const COPY = {
@@ -63,7 +63,7 @@ const INITIAL_ADVANCES = [
     id: 'ADV-2026-008', nameAr: 'سلفة أغسطس وسبتمبر 2026', nameEn: 'August & September 2026 Advance', type: 'monthly', from: '2026-08-01', to: '2026-09-30', status: 'open',
     allocations: [
       { nurseryAr: 'الرحمانية الجديدة', nurseryEn: 'New Al Rahmaniya', allocated: 2500, invoices: [{ no: 'INV-2026-134', supplierAr: 'مكتبة دبي للتوزيع', supplierEn: 'Dubai Distribution Library', date: '03/08/2026', amount: 315 }, { no: 'INV-2026-141', supplierAr: 'جمعية الشارقة', supplierEn: 'Sharjah Coop', date: '04/08/2026', amount: 428.5 }] },
-      { nurseryAr: 'اللؤلؤية', nurseryEn: 'Al Luluyah', allocated: 2200, invoices: [{ no: 'INV-2026-133', supplierAr: 'مركز الإمارات للقرطاسية', supplierEn: 'Emirates Stationery Centre', date: '02/08/2026', amount: 504 }] },
+      { nurseryAr: 'مركز اللؤلؤية للطفولة المبكرة', nurseryEn: 'Al Luluyah Early Childhood Center', allocated: 2200, invoices: [{ no: 'INV-2026-133', supplierAr: 'مركز الإمارات للقرطاسية', supplierEn: 'Emirates Stationery Centre', date: '02/08/2026', amount: 504 }] },
       { nurseryAr: 'واسط 2', nurseryEn: 'Wasit 2', allocated: 2400, invoices: [{ no: 'INV-2026-140', supplierAr: 'سوبرماركت المدينة', supplierEn: 'Al Madina Supermarket', date: '03/08/2026', amount: 126.5 }] },
     ]
   },
@@ -77,8 +77,8 @@ const INITIAL_ADVANCES = [
   {
     id: 'ADV-2026-006', nameAr: 'سلفة يوليو 2026', nameEn: 'July 2026 Advance', type: 'monthly', from: '2026-07-01', to: '2026-07-31', status: 'closed',
     allocations: [
-      { nurseryAr: 'السيوح', nurseryEn: 'Al Suyoh', allocated: 1800, invoices: [{ no: 'INV-2026-129', supplierAr: 'مطابع الاتحاد', supplierEn: 'Al Ittihad Printing', date: '22/07/2026', amount: 410.75 }] },
-      { nurseryAr: 'البستان', nurseryEn: 'Al Bustan', allocated: 1800, invoices: [{ no: 'INV-2026-122', supplierAr: 'الخليج للتنظيف', supplierEn: 'Gulf Cleaning', date: '18/07/2026', amount: 620 }] },
+      { nurseryAr: 'مركز السيوح للطفولة المبكرة', nurseryEn: 'Al Suyoh Early Childhood Center', allocated: 1800, invoices: [{ no: 'INV-2026-129', supplierAr: 'مطابع الاتحاد', supplierEn: 'Al Ittihad Printing', date: '22/07/2026', amount: 410.75 }] },
+      { nurseryAr: 'مركز البستان للطفولة المبكرة', nurseryEn: 'Al Bustan Early Childhood Center', allocated: 1800, invoices: [{ no: 'INV-2026-122', supplierAr: 'الخليج للتنظيف', supplierEn: 'Gulf Cleaning', date: '18/07/2026', amount: 620 }] },
     ]
   }
 ];

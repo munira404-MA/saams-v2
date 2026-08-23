@@ -2805,3 +2805,9 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 .report-proof{display:inline-flex;align-items:center;padding:5px 8px;border-radius:999px;font-size:9px;font-weight:900}.report-proof.yes{background:#e7f8ed;color:#168b50}.report-proof.no{background:#fff0f1;color:#c44755}
 .report-status.approved,.report-status.closed{background:#e7f8ed!important;color:#168b50!important}.report-status.review,.report-status.open{background:#fff4df!important;color:#b46b16!important}.report-status.returned{background:#eef3ff!important;color:#3c62ce!important}.report-status.rejected{background:#fff0f1!important;color:#c44755!important}.report-status.draft{background:#eef2f5!important;color:#6f8294!important}
 .comprehensive-hero p{margin:5px 0 0;color:#70869a;font-size:10px;font-weight:700}
+
+/* Production-clean empty states: never show demo/fallback operational data. */
+.dashboard-empty-state{min-height:160px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;color:#8091a8;padding:24px}
+.dashboard-empty-state strong{font-size:34px;color:#3aa79f}.dashboard-empty-state span{font-weight:700}
+.dashboard-empty-state.activity-empty{min-height:95px;grid-column:1/-1}
+.dashboard-live-note{margin:0 0 14px;padding:10px 14px;border-radius:12px;background:#eef8f6;color:#297a73;font-weight:700}.dashboard-live-note.error{background:#fff1f1;color:#b24a4a}
