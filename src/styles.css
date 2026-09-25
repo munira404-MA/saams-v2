@@ -2811,3 +2811,24 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 .dashboard-empty-state strong{font-size:34px;color:#3aa79f}.dashboard-empty-state span{font-weight:700}
 .dashboard-empty-state.activity-empty{min-height:95px;grid-column:1/-1}
 .dashboard-live-note{margin:0 0 14px;padding:10px 14px;border-radius:12px;background:#eef8f6;color:#297a73;font-weight:700}.dashboard-live-note.error{background:#fff1f1;color:#b24a4a}
+
+/* Developer contact QR — discreet ownership/contact marker */
+.dashboard-footer-rights{display:flex;align-items:center;gap:10px;min-width:0}
+.dashboard-footer-rights p{margin:0}
+.developer-qr-trigger{display:inline-flex;align-items:center;gap:7px;border:1px solid #d7e6ec;background:rgba(255,255,255,.72);padding:4px 7px;border-radius:10px;color:#6f8798;cursor:pointer;font-family:inherit;transition:.18s ease;box-shadow:0 3px 10px rgba(37,69,93,.05)}
+.developer-qr-trigger:hover{transform:translateY(-1px);border-color:#9fd7d2;background:#fff;color:#257f7a}
+.developer-qr-trigger img{width:28px;height:28px;border-radius:4px;image-rendering:pixelated;background:#fff}
+.developer-qr-trigger strong{font-size:10px;font-weight:800;white-space:nowrap}
+.developer-modal-backdrop{position:fixed;inset:0;z-index:9999;background:rgba(20,39,55,.38);backdrop-filter:blur(6px);display:grid;place-items:center;padding:20px}
+.developer-modal{position:relative;width:min(380px,94vw);background:#fff;border:1px solid #dcebef;border-radius:24px;padding:30px 28px 26px;text-align:center;box-shadow:0 28px 80px rgba(18,50,72,.25);animation:developerModalIn .18s ease-out}
+@keyframes developerModalIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.developer-modal-close{position:absolute;top:12px;inset-inline-end:14px;width:34px;height:34px;border:0;border-radius:11px;background:#f1f6f8;color:#668092;font-size:23px;line-height:1;cursor:pointer}
+.developer-modal-qr{width:150px;height:150px;display:block;margin:2px auto 14px;border:8px solid #fff;border-radius:14px;box-shadow:0 6px 20px rgba(26,80,102,.10);image-rendering:pixelated}
+.developer-modal small{display:block;color:#2f9b91;font-size:11px;font-weight:900;margin-bottom:5px}
+.developer-modal h3{margin:0;color:#163047;font-size:21px}
+.developer-modal p{margin:8px 0 17px;color:#526d80;font-weight:800;letter-spacing:.4px}
+.developer-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.developer-modal-actions a{display:flex;align-items:center;justify-content:center;min-height:42px;border-radius:12px;text-decoration:none;font-size:12px;font-weight:900;color:#fff;background:linear-gradient(135deg,#38aaa6,#5065ef)}
+.developer-modal-actions a:first-child{background:#eef8f7;color:#207f79;border:1px solid #cce8e5}
+.developer-modal em{display:block;margin-top:14px;font-size:10px;line-height:1.7;color:#8a9aa6;font-style:normal}
+@media(max-width:760px){.dashboard-footer-rights{flex-direction:column;gap:7px}.developer-qr-trigger{margin-inline:auto}.developer-modal-actions{grid-template-columns:1fr}}

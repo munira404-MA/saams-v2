@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 
+
+const DEVELOPER_NAME_AR = 'منيرة الأحمد';
+const DEVELOPER_NAME_EN = 'Munira Alahmed';
+const DEVELOPER_PHONE_DISPLAY = '0506404227';
+const DEVELOPER_PHONE_TEL = '+971506404227';
+const DEVELOPER_VCARD = `BEGIN:VCARD
+VERSION:3.0
+FN:${DEVELOPER_NAME_AR}
+TEL;TYPE=CELL:${DEVELOPER_PHONE_TEL}
+NOTE:مطورة منظومة الأصول والسلف الذكية
+END:VCARD`;
+const DEVELOPER_VCARD_URI = `data:text/vcard;charset=utf-8,${encodeURIComponent(DEVELOPER_VCARD)}`;
+
 const translations = {
   ar: {
     greeting: 'مرحباً', intro: 'مرحباً بكِ في منظومة الأصول والسلف الذكية', filter: 'تصفية حسب',
@@ -50,6 +63,7 @@ export default function Dashboard({ lang, setActive, profile }) {
   const nurseryName=profile?.nursery || (ar?'الحضانة':'Nursery');
   const [stats,setStats]=useState({assets:0,openAdvances:0,review:0,late:0,approved:0,returned:0,totalInvoices:0});
   const [loading,setLoading]=useState(true), [error,setError]=useState('');
+  const [developerOpen,setDeveloperOpen]=useState(false);
 
   useEffect(()=>{ let alive=true; (async()=>{
     try{
@@ -91,6 +105,31 @@ export default function Dashboard({ lang, setActive, profile }) {
       <article className="glass-panel quick-panel"><div className="panel-heading"><h2>ϟ {t.quickActions}</h2></div><div className="quick-grid">{(isNursery?[[ '▤',t.addInvoice,'green','invoices'],['⇄',t.transferAsset,'orange','assets'],['▣',t.openAdvances,'blue','advances'],['▥',t.report,'violet','reports']]:[['◇',t.addAsset,'teal','assets'],['▤',t.addInvoice,'green','invoices'],['▣',t.addAdvance,'blue','advances'],['⇄',t.transferAsset,'orange','assets'],['♙',t.addUser,'sky','users'],['▥',t.report,'violet','reports']]).map(([icon,label,tone,target])=><button className={`quick-action ${tone}`} type="button" key={label} onClick={()=>setActive(target)}><span>{icon}</span><strong>{label}</strong></button>)}</div></article>
       <article className="glass-panel activity-panel"><div className="panel-heading"><h2>◷ {t.todayActivity}</h2><button type="button">{t.viewAll}</button></div><div className="activity-table"><div className="activity-row activity-head"><span>{t.activity}</span><span>{t.details}</span><span>{t.user}</span><span>{t.time}</span></div><div className="dashboard-empty-state activity-empty"><span>{t.noActivity}</span></div></div></article>
     </section>
-    <footer className="dashboard-footer"><span>SAAMS Official 3.2</span><p>{ar?'© 2026 أكاديمية الشارقة للتعليم — جميع الحقوق محفوظة':'© 2026 Sharjah Education Academy — All rights reserved'}</p></footer>
+    <footer className="dashboard-footer">
+      <span>SAAMS Official 3.2</span>
+      <div className="dashboard-footer-rights">
+        <p>{ar?'© 2026 أكاديمية الشارقة للتعليم — جميع الحقوق محفوظة':'© 2026 Sharjah Education Academy — All rights reserved'}</p>
+        <button type="button" className="developer-qr-trigger" onClick={()=>setDeveloperOpen(true)} aria-label={ar?'معلومات المطور':'Developer information'}>
+          <img src="/developer-contact-qr.png" alt="" />
+          <strong>{ar?'معلومات المطور':'Developer Info'}</strong>
+        </button>
+      </div>
+    </footer>
+    {developerOpen&&(
+      <div className="developer-modal-backdrop" role="presentation" onMouseDown={(e)=>{if(e.target===e.currentTarget)setDeveloperOpen(false)}}>
+        <section className="developer-modal" role="dialog" aria-modal="true" aria-label={ar?'معلومات المطور':'Developer information'}>
+          <button type="button" className="developer-modal-close" onClick={()=>setDeveloperOpen(false)} aria-label={ar?'إغلاق':'Close'}>×</button>
+          <img className="developer-modal-qr" src="/developer-contact-qr.png" alt={ar?'رمز QR لمعلومات المطور':'Developer contact QR code'} />
+          <small>{ar?'معلومات المطور':'Developer Information'}</small>
+          <h3>{ar?DEVELOPER_NAME_AR:DEVELOPER_NAME_EN}</h3>
+          <p dir="ltr">{DEVELOPER_PHONE_DISPLAY}</p>
+          <div className="developer-modal-actions">
+            <a href={`tel:${DEVELOPER_PHONE_TEL}`}>{ar?'اتصال':'Call'}</a>
+            <a href={DEVELOPER_VCARD_URI} download="Munira_Alahmed.vcf">{ar?'حفظ جهة الاتصال':'Save Contact'}</a>
+          </div>
+          <em>{ar?'يمكن أيضاً مسح رمز QR بالكاميرا لحفظ بيانات التواصل.':'You can also scan the QR code with a phone camera to save the contact.'}</em>
+        </section>
+      </div>
+    )}
   </div>;
 }
