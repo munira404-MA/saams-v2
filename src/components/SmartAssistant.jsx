@@ -3,7 +3,7 @@ import { loadAuditLog } from '../utils/audit';
 import { loadAttachments } from '../utils/attachments';
 import { answerSystemQuestion } from '../utils/intelligence';
 
-export default function SmartAssistant({ lang, profile, onNavigate }) {
+export default function SmartAssistant({ lang, profile, onNavigate, active }) {
   const ar=lang==='ar';
   const [open,setOpen]=useState(false);
   const [query,setQuery]=useState('');
@@ -19,8 +19,8 @@ export default function SmartAssistant({ lang, profile, onNavigate }) {
   }
 
   return <>
-    <button className="smart-assistant-fab" onClick={()=>setOpen(v=>!v)} aria-label={ar?'المساعد الذكي':'Smart Assistant'}>✦</button>
-    {open&&<aside className="smart-assistant-panel">
+    <button className={`smart-assistant-fab ${active==='dashboard'?'smart-assistant-fab-dashboard':''}`} onClick={()=>setOpen(v=>!v)} aria-label={ar?'المساعد الذكي':'Smart Assistant'}>✦</button>
+    {open&&<aside className={`smart-assistant-panel ${active==='dashboard'?'smart-assistant-panel-dashboard':''}`}>
       <div className="smart-assistant-head"><div><span>✦</span><div><strong>{ar?'المساعد الذكي':'Smart Assistant'}</strong><small>SAAMS AI</small></div></div><button onClick={()=>setOpen(false)}>×</button></div>
       <div className="smart-assistant-messages">{messages.map((m,i)=><div key={i} className={`assistant-message ${m.role}`}>{m.text}</div>)}</div>
       <div className="assistant-shortcuts"><button onClick={()=>onNavigate('invoices')}>{ar?'الفواتير':'Invoices'}</button><button onClick={()=>onNavigate('assets')}>{ar?'الأصول':'Assets'}</button><button onClick={()=>onNavigate('attachments')}>{ar?'المرفقات':'Attachments'}</button></div>

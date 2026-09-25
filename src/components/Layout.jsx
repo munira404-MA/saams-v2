@@ -447,6 +447,7 @@ export default function Layout({
       <SmartAssistant
         lang={lang}
         profile={profile}
+        active={active}
         onNavigate={(page) => {
           setActive(page);
           setMobileMenuOpen(false);
