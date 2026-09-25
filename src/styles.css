@@ -2833,7 +2833,7 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 .developer-modal em{display:block;margin-top:14px;font-size:10px;line-height:1.7;color:#8a9aa6;font-style:normal}
 @media(max-width:760px){.dashboard-footer-rights{flex-direction:column;gap:7px}.developer-qr-trigger{margin-inline:auto}.developer-modal-actions{grid-template-columns:1fr}}
 
-/* Dashboard: Smart Assistant aligned directly under Developer QR */
-.smart-assistant-fab-dashboard{bottom:2px !important;inset-inline-end:145px !important}
-.smart-assistant-panel-dashboard{bottom:70px !important;inset-inline-end:95px !important}
-@media(max-width:760px){.smart-assistant-fab-dashboard{bottom:4px !important;inset-inline-end:18px !important}.smart-assistant-panel-dashboard{bottom:72px !important;inset-inline-end:14px !important}}
+
+/* Footer developer QR sits beside rights text, away from Smart Assistant */
+.dashboard-footer-rights{direction:rtl}
+html[dir="ltr"] .dashboard-footer-rights{direction:ltr}

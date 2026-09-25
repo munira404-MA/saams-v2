@@ -108,11 +108,11 @@ export default function Dashboard({ lang, setActive, profile }) {
     <footer className="dashboard-footer">
       <span>SAAMS Official 3.2</span>
       <div className="dashboard-footer-rights">
-        <p>{ar?'© 2026 أكاديمية الشارقة للتعليم — جميع الحقوق محفوظة':'© 2026 Sharjah Education Academy — All rights reserved'}</p>
         <button type="button" className="developer-qr-trigger" onClick={()=>setDeveloperOpen(true)} aria-label={ar?'معلومات المطور':'Developer information'}>
           <img src="/developer-contact-qr.png" alt="" />
           <strong>{ar?'معلومات المطور':'Developer Info'}</strong>
         </button>
+        <p>{ar?'© 2026 أكاديمية الشارقة للتعليم — جميع الحقوق محفوظة':'© 2026 Sharjah Education Academy — All rights reserved'}</p>
       </div>
     </footer>
     {developerOpen&&(
