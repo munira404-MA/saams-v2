@@ -2856,3 +2856,5 @@ html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
 .asset-empty-row{text-align:center!important;padding:30px!important;color:#8a9baa!important}
 .readonly-input{background:#eef3f6!important;color:#71869a!important;cursor:not-allowed}
 @media(max-width:720px){.asset-list-table{min-width:760px}.asset-row-actions button{padding:7px 8px}}
+
+.duplicate-asset-warning{margin-top:8px;padding:10px 12px;border:1px solid #f2b7bd;border-radius:12px;background:#fff2f3;color:#b83243;display:grid;gap:3px;font-size:10px}.duplicate-asset-warning b{font-size:11px}.duplicate-asset-warning span{color:#7a4050}.duplicate-asset-warning small{color:#9a5b67;font-weight:700}
