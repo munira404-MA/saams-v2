@@ -2837,3 +2837,22 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
 /* Footer developer QR sits beside rights text, away from Smart Assistant */
 .dashboard-footer-rights{direction:rtl}
 html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
+
+/* Assets register — production list view with admin edit/delete */
+.asset-list-card{background:rgba(255,255,255,.88);border:1px solid #d7e6ef;border-radius:19px;box-shadow:0 13px 30px rgba(43,82,118,.06);overflow:hidden}
+.asset-list-wrap{overflow:auto}
+.asset-list-table{width:100%;border-collapse:collapse;min-width:900px}
+.asset-list-table th{padding:13px 15px;background:#f4f8fb;color:#71869a;font-size:10px;font-weight:900;text-align:start;border-bottom:1px solid #dfe9ef;white-space:nowrap}
+.asset-list-table td{padding:13px 15px;border-bottom:1px solid #edf2f5;color:#425b71;font-size:11px;vertical-align:middle}
+.asset-list-table tbody tr:last-child td{border-bottom:0}
+.asset-list-table tbody tr:hover{background:#f9fcfd}
+.asset-barcode-cell{font-weight:900;color:#356bd7;white-space:nowrap}
+.asset-name-cell{font-size:12px!important}
+.asset-row-actions{display:flex;gap:7px;align-items:center;white-space:nowrap}
+.asset-row-actions button{border:1px solid #d4e2eb;background:#fff;border-radius:9px;padding:7px 10px;font-size:10px;font-weight:900;cursor:pointer}
+.asset-edit-btn{color:#247d73!important;background:#eefaf7!important;border-color:#ccebe4!important}
+.asset-delete-btn{color:#c44958!important;background:#fff4f5!important;border-color:#f0d2d6!important}
+.asset-edit-btn:hover{background:#dff5ef!important}.asset-delete-btn:hover{background:#ffe9ec!important}
+.asset-empty-row{text-align:center!important;padding:30px!important;color:#8a9baa!important}
+.readonly-input{background:#eef3f6!important;color:#71869a!important;cursor:not-allowed}
+@media(max-width:720px){.asset-list-table{min-width:760px}.asset-row-actions button{padding:7px 8px}}
