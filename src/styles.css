@@ -2870,3 +2870,13 @@ html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
 
 /* Bulk asset Excel import */
 .asset-excel-template-btn,.asset-excel-upload-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:42px;padding:0 16px;border-radius:12px;border:1px solid #b9d9d6;background:#fff;color:#287e7a;font:inherit;font-weight:800;text-decoration:none;cursor:pointer;white-space:nowrap}.asset-excel-upload-btn{background:#eef9f8}.asset-excel-template-btn:hover,.asset-excel-upload-btn:hover{border-color:#45aaa4;box-shadow:0 7px 18px rgba(44,139,134,.10)}.asset-excel-upload-btn:disabled{opacity:.58;cursor:wait}.asset-excel-hidden-input{display:none!important}@media(max-width:900px){.asset-actions{flex-wrap:wrap}.asset-excel-template-btn,.asset-excel-upload-btn{flex:1 1 150px}}
+
+/* Asset register pagination — production bulk import */
+.asset-pagination{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 15px;border-top:1px solid #e3edf2;background:#fbfdfe;flex-wrap:wrap}
+.asset-pagination-summary{font-size:11px;color:#71869a;font-weight:800}
+.asset-pagination-controls{display:flex;align-items:center;gap:7px}
+.asset-pagination-controls button{border:1px solid #d6e4ec;background:#fff;color:#38566d;border-radius:9px;padding:7px 10px;font-size:11px;font-weight:900;cursor:pointer}
+.asset-pagination-controls button:hover:not(:disabled){background:#eef8f7;border-color:#a9d7d2;color:#23746f}
+.asset-pagination-controls button:disabled{opacity:.4;cursor:not-allowed}
+.asset-pagination-controls span{min-width:105px;text-align:center;font-size:11px;font-weight:900;color:#4c6578}
+@media(max-width:720px){.asset-pagination{justify-content:center}.asset-pagination-summary{width:100%;text-align:center}}

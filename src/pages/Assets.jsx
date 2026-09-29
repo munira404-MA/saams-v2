@@ -19,6 +19,20 @@ function assetLabel(a,ar){return ar?a.nameAr:a.nameEn}
 function nurseryLabel(a,ar){return ar?a.nurseryAr:a.nurseryEn}
 function normalizeBarcode(value){return String(value||'').trim().replace(/\s+/g,'').toLowerCase()}
 
+const NURSERY_IMPORT_ALIASES={
+ 'اللؤلؤية':'مركز اللؤلؤية للطفولة المبكرة',
+ 'السيوح':'مركز السيوح للطفولة المبكرة',
+ 'الرحمانية':'مركز الرحمانية للطفولة المبكرة',
+ 'البستان':'مركز البستان للطفولة المبكرة',
+ 'كلباء':'مركز كلباء للطفولة المبكرة',
+ 'الساف':'الغيل'
+};
+function normalizeNurseryForImport(value){
+ let name=String(value||'').replace(/[ًٌٍَُِّْـ]/g,'').replace(/\s+/g,' ').trim();
+ name=name.replace(/^حضانة\s+/,'').trim();
+ return NURSERY_IMPORT_ALIASES[name]||name;
+}
+
 function rebuildAssetsFromAudit(){
  const logs=loadAuditLog().filter(x=>x.entityType==='asset').slice().reverse();
  const byBarcode=new Map();
@@ -57,6 +71,8 @@ export default function Assets({lang,profile}){
  const [requests,setRequests]=useState([]);
  const [search,setSearch]=useState('');
  const [excelImporting,setExcelImporting]=useState(false);
+ const [assetPage,setAssetPage]=useState(1);
+ const ASSET_PAGE_SIZE=50;
  const excelInputRef=useRef(null);
 
  useEffect(()=>{let alive=true;(async()=>{
@@ -98,7 +114,12 @@ export default function Assets({lang,profile}){
 
  const scopedAssets=useMemo(()=>isAdmin||previewNursery?assets:assets.filter(a=>a.nurseryAr===accountNursery||a.nurseryEn===accountNursery),[assets,isAdmin,previewNursery,accountNursery]);
  const scopedRequests=useMemo(()=>isAdmin||previewNursery?requests:requests.filter(r=>r.fromAr===accountNursery||r.fromEn===accountNursery),[requests,isAdmin,previewNursery,accountNursery]);
- const filtered=useMemo(()=>scopedAssets.filter(a=>[a.barcode,a.nameAr,a.nameEn,a.nurseryAr,a.nurseryEn].some(v=>v.toLowerCase().includes(search.toLowerCase()))),[scopedAssets,search]);
+ const filtered=useMemo(()=>scopedAssets.filter(a=>[a.barcode,a.nameAr,a.nameEn,a.nurseryAr,a.nurseryEn].some(v=>String(v||'').toLowerCase().includes(search.toLowerCase()))),[scopedAssets,search]);
+ const assetPageCount=Math.max(1,Math.ceil(filtered.length/ASSET_PAGE_SIZE));
+ const safeAssetPage=Math.min(assetPage,assetPageCount);
+ const pagedAssets=useMemo(()=>filtered.slice((safeAssetPage-1)*ASSET_PAGE_SIZE,safeAssetPage*ASSET_PAGE_SIZE),[filtered,safeAssetPage]);
+ useEffect(()=>{setAssetPage(1)},[search,previewNursery,accountNursery,tab]);
+ useEffect(()=>{if(assetPage>assetPageCount)setAssetPage(assetPageCount)},[assetPage,assetPageCount]);
  function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2600)}
  async function addAsset(form){
   const duplicate=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode));
@@ -252,8 +273,8 @@ export default function Assets({lang,profile}){
    if(existingErr) throw new Error(`DB_ASSETS:${existingErr.message||existingErr.code||'error'}`);
    const nurseryMap=new Map();
    for(const n of nurseryRows||[]){
-    if(n.name_ar)nurseryMap.set(String(n.name_ar).trim(),n.id);
-    if(n.name_en)nurseryMap.set(String(n.name_en).trim(),n.id);
+    if(n.name_ar){const raw=String(n.name_ar).trim();nurseryMap.set(raw,n.id);nurseryMap.set(normalizeNurseryForImport(raw),n.id)}
+    if(n.name_en){const raw=String(n.name_en).trim();nurseryMap.set(raw,n.id);nurseryMap.set(normalizeNurseryForImport(raw),n.id)}
    }
    const existing=new Set((existingRows||[]).map(r=>normalizeBarcode(r.barcode)));
    const seen=new Set();
@@ -263,8 +284,9 @@ export default function Assets({lang,profile}){
     if(!r.barcode||!r.name||!r.category||!r.nursery){issues.push({row:r.excelRow,reason:ar?'بيانات إلزامية ناقصة':'Missing required data'});continue}
     if(existing.has(key)){issues.push({row:r.excelRow,reason:`${ar?'الباركود مسجل مسبقًا':'Barcode already registered'}: ${r.barcode}`});continue}
     if(seen.has(key)){issues.push({row:r.excelRow,reason:`${ar?'باركود مكرر داخل الملف':'Duplicate barcode in file'}: ${r.barcode}`});continue}
-    const nurseryId=nurseryMap.get(r.nursery);
-    if(!nurseryId){issues.push({row:r.excelRow,reason:`${ar?'اسم الحضانة غير مطابق للقائمة الرسمية':'Nursery name not recognized'}: ${r.nursery}`});continue}
+    const normalizedNursery=normalizeNurseryForImport(r.nursery);
+    const nurseryId=nurseryMap.get(normalizedNursery)||nurseryMap.get(r.nursery);
+    if(!nurseryId){issues.push({row:r.excelRow,reason:`${ar?'الحضانة غير فعالة/غير موجودة بالقائمة الرسمية وتحتاج مراجعة':'Nursery is not active/in the official list and needs review'}: ${r.nursery}`});continue}
     seen.add(key);
     valid.push({barcode:r.barcode,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null});
    }
@@ -327,7 +349,7 @@ export default function Assets({lang,profile}){
      {isAdmin&&!previewNursery&&<><button type="button" className="asset-excel-template-btn" onClick={downloadAssetExcelTemplate}>⇩ {t.excelTemplate}</button><button type="button" className="asset-excel-upload-btn" disabled={excelImporting} onClick={()=>excelInputRef.current?.click()}>{excelImporting?'… '+t.excelReading:'⇧ '+t.excelUpload}</button><input ref={excelInputRef} className="asset-excel-hidden-input" type="file" accept=".xlsx,.xls" onChange={e=>e.target.files?.[0]&&importAssetsExcel(e.target.files[0])}/><button className="primary-action" onClick={()=>setModal('add')}>＋ {t.add}</button></>}
     </div>
    </div>
-   <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?filtered.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button></td><td>{nurseryLabel(a,ar)}</td><td>{ar?a.categoryAr:a.categoryEn}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="5" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div></div>
+   <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button></td><td>{nurseryLabel(a,ar)}</td><td>{ar?a.categoryAr:a.categoryEn}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="5" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>
   </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:r.assetEn}</td><td>{r.barcode}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{t[r.status]}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
   {officialDocument&&<AssetOfficialDocument request={officialDocument} ar={ar} onClose={()=>setOfficialDocument(null)} />}
   {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} onClose={()=>setHistoryAsset(null)} />}
