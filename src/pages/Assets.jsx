@@ -2,6 +2,7 @@ import { recordAudit, loadAuditLog } from '../utils/audit';
 import AssetOfficialDocument from '../components/AssetOfficialDocument';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../supabase';
+import * as XLSX from 'xlsx';
 
 const ASSETS = [];
 
@@ -10,8 +11,8 @@ const NURSERIES_EN=NURSERIES_AR;
 
 
 const COPY={
- ar:{title:'إدارة الأصول',sub:'سجل الأصول وطلبات النقل والفائض والإسقاط في شاشة موحدة.',admin:'الإدارة',nursery:'الحضانة',add:'إضافة أصل',register:'سجل الأصول',requests:'طلبات الأصول',transfer:'طلب نقل',surplus:'طلب فائض',disposal:'طلب إسقاط',barcode:'رقم الباركود',asset:'اسم الأصل',from:'من',to:'إلى',reason:'السبب',scan:'تصوير الباركود',upload:'رفع صورة الباركود',manual:'أو أدخلي الرقم يدويًا',lookup:'البحث عن الأصل',found:'تم التعرف على الأصل',notFound:'لم يتم العثور على أصل بهذا الباركود',submit:'إرسال الطلب',cancel:'إلغاء',status:'الحالة',date:'التاريخ',type:'نوع الطلب',pending:'قيد الاعتماد',approved:'معتمد',returned:'معاد',rejected:'مرفوض',approve:'اعتماد',reject:'رفض',actions:'الإجراءات',rejectionReason:'سبب الرفض',confirmReject:'تأكيد الرفض',previewNursery:'معاينة طلبات الحضانة',exitPreview:'العودة لوضع الإدارة',viewRequest:'عرض الطلب',all:'الكل',category:'التصنيف',location:'الموقع الحالي',save:'حفظ الأصل',assetName:'اسم الأصل',choose:'اختاري',notes:'ملاحظات',cameraHint:'وجهي الكاميرا على الباركود حتى تتم قراءته تلقائيًا.',cameraUnsupported:'المتصفح لا يدعم قراءة الباركود مباشرة. استخدمي رفع الصورة أو اكتبي الرقم.',closeCamera:'إغلاق الكاميرا',requestSent:'تم إرسال الطلب بنجاح',assetSaved:'تمت إضافة الأصل بنجاح',adminOnly:'إضافة الأصول متاحة للإدارة فقط',destinationNotNeeded:'الفائض لا يحتاج تحديد جهة مستلمة.',disposalHint:'أرفقي سبب الإسقاط بشكل واضح ليتم عرضه على الإدارة.',surplusHint:'حددي سبب اعتبار الأصل فائضًا، ولن يظهر حقل «إلى».',transferHint:'حددي الحضانة المنقول منها وإليها مع سبب النقل.',edit:'تعديل',delete:'حذف',editAsset:'تعديل الأصل',deleteConfirm:'هل أنتِ متأكدة من حذف هذا الأصل؟ لا يمكن التراجع عن الحذف.',assetUpdated:'تم تحديث الأصل بنجاح',assetDeleted:'تم حذف الأصل بنجاح',duplicateBarcode:'هذا الأصل مسجل مسبقًا في النظام',duplicateBarcodeDetail:'الموقع الحالي',duplicateBarcodeBlocked:'لا يمكن حفظ أصل جديد بنفس الباركود'},
- en:{title:'Asset Management',sub:'A unified register for asset transfers, surplus, and disposal requests.',admin:'Administration',nursery:'Nursery',add:'Add Asset',register:'Asset Register',requests:'Asset Requests',transfer:'Transfer Request',surplus:'Surplus Request',disposal:'Disposal Request',barcode:'Barcode Number',asset:'Asset Name',from:'From',to:'To',reason:'Reason',scan:'Scan Barcode',upload:'Upload Barcode Image',manual:'or enter the number manually',lookup:'Find Asset',found:'Asset identified',notFound:'No asset found for this barcode',submit:'Submit Request',cancel:'Cancel',status:'Status',date:'Date',type:'Request Type',pending:'Pending Approval',approved:'Approved',returned:'Returned',rejected:'Rejected',approve:'Approve',reject:'Reject',actions:'Actions',rejectionReason:'Rejection Reason',confirmReject:'Confirm Rejection',previewNursery:'Preview Nursery Requests',exitPreview:'Back to Admin Mode',viewRequest:'View Request',all:'All',category:'Category',location:'Current Location',save:'Save Asset',assetName:'Asset Name',choose:'Choose',notes:'Notes',cameraHint:'Point the camera at the barcode to scan it automatically.',cameraUnsupported:'Barcode scanning is not supported by this browser. Upload an image or enter the number manually.',closeCamera:'Close Camera',requestSent:'Request submitted successfully',assetSaved:'Asset added successfully',adminOnly:'Only administration can add assets',destinationNotNeeded:'Surplus requests do not require a destination.',disposalHint:'Provide a clear disposal reason for administration review.',surplusHint:'Explain why the asset is surplus. The “To” field is not required.',transferHint:'Select the source and destination nurseries and state the transfer reason.',edit:'Edit',delete:'Delete',editAsset:'Edit Asset',deleteConfirm:'Are you sure you want to delete this asset? This action cannot be undone.',assetUpdated:'Asset updated successfully',assetDeleted:'Asset deleted successfully',duplicateBarcode:'This asset is already registered in the system',duplicateBarcodeDetail:'Current location',duplicateBarcodeBlocked:'A new asset cannot be saved with the same barcode'}
+ ar:{title:'إدارة الأصول',sub:'سجل الأصول وطلبات النقل والفائض والإسقاط في شاشة موحدة.',admin:'الإدارة',nursery:'الحضانة',add:'إضافة أصل',register:'سجل الأصول',requests:'طلبات الأصول',transfer:'طلب نقل',surplus:'طلب فائض',disposal:'طلب إسقاط',barcode:'رقم الباركود',asset:'اسم الأصل',from:'من',to:'إلى',reason:'السبب',scan:'تصوير الباركود',upload:'رفع صورة الباركود',manual:'أو أدخلي الرقم يدويًا',lookup:'البحث عن الأصل',found:'تم التعرف على الأصل',notFound:'لم يتم العثور على أصل بهذا الباركود',submit:'إرسال الطلب',cancel:'إلغاء',status:'الحالة',date:'التاريخ',type:'نوع الطلب',pending:'قيد الاعتماد',approved:'معتمد',returned:'معاد',rejected:'مرفوض',approve:'اعتماد',reject:'رفض',actions:'الإجراءات',rejectionReason:'سبب الرفض',confirmReject:'تأكيد الرفض',previewNursery:'معاينة طلبات الحضانة',exitPreview:'العودة لوضع الإدارة',viewRequest:'عرض الطلب',all:'الكل',category:'التصنيف',location:'الموقع الحالي',save:'حفظ الأصل',assetName:'اسم الأصل',choose:'اختاري',notes:'ملاحظات',cameraHint:'وجهي الكاميرا على الباركود حتى تتم قراءته تلقائيًا.',cameraUnsupported:'المتصفح لا يدعم قراءة الباركود مباشرة. استخدمي رفع الصورة أو اكتبي الرقم.',closeCamera:'إغلاق الكاميرا',requestSent:'تم إرسال الطلب بنجاح',assetSaved:'تمت إضافة الأصل بنجاح',adminOnly:'إضافة الأصول متاحة للإدارة فقط',destinationNotNeeded:'الفائض لا يحتاج تحديد جهة مستلمة.',disposalHint:'أرفقي سبب الإسقاط بشكل واضح ليتم عرضه على الإدارة.',surplusHint:'حددي سبب اعتبار الأصل فائضًا، ولن يظهر حقل «إلى».',transferHint:'حددي الحضانة المنقول منها وإليها مع سبب النقل.',edit:'تعديل',delete:'حذف',editAsset:'تعديل الأصل',deleteConfirm:'هل أنتِ متأكدة من حذف هذا الأصل؟ لا يمكن التراجع عن الحذف.',assetUpdated:'تم تحديث الأصل بنجاح',assetDeleted:'تم حذف الأصل بنجاح',duplicateBarcode:'هذا الأصل مسجل مسبقًا في النظام',duplicateBarcodeDetail:'الموقع الحالي',duplicateBarcodeBlocked:'لا يمكن حفظ أصل جديد بنفس الباركود',excelTemplate:'تحميل قالب Excel',excelUpload:'رفع Excel',excelReading:'جاري قراءة الملف...',excelBadFile:'تعذر قراءة ملف Excel. تأكدي من استخدام القالب المعتمد.',excelMissingHeaders:'أعمدة ملف Excel غير مطابقة للقالب المعتمد.',excelNoRows:'لا توجد أصول مكتملة في الملف.',excelConfirm:'سيتم فحص الملف وحفظ الأصول الصحيحة فقط. هل تريدين المتابعة؟',excelDone:'اكتمل رفع الأصول من Excel'},
+ en:{title:'Asset Management',sub:'A unified register for asset transfers, surplus, and disposal requests.',admin:'Administration',nursery:'Nursery',add:'Add Asset',register:'Asset Register',requests:'Asset Requests',transfer:'Transfer Request',surplus:'Surplus Request',disposal:'Disposal Request',barcode:'Barcode Number',asset:'Asset Name',from:'From',to:'To',reason:'Reason',scan:'Scan Barcode',upload:'Upload Barcode Image',manual:'or enter the number manually',lookup:'Find Asset',found:'Asset identified',notFound:'No asset found for this barcode',submit:'Submit Request',cancel:'Cancel',status:'Status',date:'Date',type:'Request Type',pending:'Pending Approval',approved:'Approved',returned:'Returned',rejected:'Rejected',approve:'Approve',reject:'Reject',actions:'Actions',rejectionReason:'Rejection Reason',confirmReject:'Confirm Rejection',previewNursery:'Preview Nursery Requests',exitPreview:'Back to Admin Mode',viewRequest:'View Request',all:'All',category:'Category',location:'Current Location',save:'Save Asset',assetName:'Asset Name',choose:'Choose',notes:'Notes',cameraHint:'Point the camera at the barcode to scan it automatically.',cameraUnsupported:'Barcode scanning is not supported by this browser. Upload an image or enter the number manually.',closeCamera:'Close Camera',requestSent:'Request submitted successfully',assetSaved:'Asset added successfully',adminOnly:'Only administration can add assets',destinationNotNeeded:'Surplus requests do not require a destination.',disposalHint:'Provide a clear disposal reason for administration review.',surplusHint:'Explain why the asset is surplus. The “To” field is not required.',transferHint:'Select the source and destination nurseries and state the transfer reason.',edit:'Edit',delete:'Delete',editAsset:'Edit Asset',deleteConfirm:'Are you sure you want to delete this asset? This action cannot be undone.',assetUpdated:'Asset updated successfully',assetDeleted:'Asset deleted successfully',duplicateBarcode:'This asset is already registered in the system',duplicateBarcodeDetail:'Current location',duplicateBarcodeBlocked:'A new asset cannot be saved with the same barcode',excelTemplate:'Download Excel Template',excelUpload:'Upload Excel',excelReading:'Reading file...',excelBadFile:'Could not read the Excel file. Please use the approved template.',excelMissingHeaders:'Excel columns do not match the approved template.',excelNoRows:'No complete asset rows were found.',excelConfirm:'The file will be validated and only valid assets will be saved. Continue?',excelDone:'Excel asset import completed'}
 };
 
 function assetLabel(a,ar){return ar?a.nameAr:a.nameEn}
@@ -55,6 +56,8 @@ export default function Assets({lang,profile}){
  const [assetsDbReady,setAssetsDbReady]=useState(false);
  const [requests,setRequests]=useState([]);
  const [search,setSearch]=useState('');
+ const [excelImporting,setExcelImporting]=useState(false);
+ const excelInputRef=useRef(null);
 
  useEffect(()=>{let alive=true;(async()=>{
   const auditFallback=rebuildAssetsFromAudit();
@@ -126,6 +129,87 @@ export default function Assets({lang,profile}){
   if(assetsDbReady){let q=supabase.from('assets').delete();q=asset.id?q.eq('id',asset.id):q.eq('barcode',asset.barcode);const {error}=await q;if(error){notify(ar?'تعذر حذف الأصل':'Could not delete the asset');return}}
   setAssets(x=>x.filter(a=>(asset.id?a.id!==asset.id:a.barcode!==asset.barcode)));if(historyAsset?.barcode===asset.barcode)setHistoryAsset(null);notify(t.assetDeleted);recordAudit({profile,screen:'الأصول',action:'حذف أصل',actionType:'delete',entityType:'asset',entityId:asset.barcode,nursery:asset.nurseryAr,details:asset.nameAr,before:asset});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
  }
+ async function importAssetsExcel(file){
+  if(!file||!isAdmin||previewNursery)return;
+  setExcelImporting(true);
+  try{
+   const buffer=await file.arrayBuffer();
+   const wb=XLSX.read(buffer,{type:'array'});
+   const ws=wb.Sheets['الأصول']||wb.Sheets[wb.SheetNames[0]];
+   if(!ws) throw new Error('NO_SHEET');
+   const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
+   const headerIndex=raw.findIndex(row=>row.some(v=>String(v).trim().includes('رقم الباركود')));
+   if(headerIndex<0) throw new Error('HEADERS');
+   const headers=raw[headerIndex].map(v=>String(v).trim().replace(/\s*\*\s*$/,''));
+   const col=(names)=>headers.findIndex(h=>names.some(n=>h===n||h.includes(n)));
+   const iBarcode=col(['رقم الباركود','Barcode Number','Barcode']);
+   const iName=col(['اسم الأصل','Asset Name']);
+   const iCategory=col(['التصنيف','Category']);
+   const iNursery=col(['الحضانة / الموقع الحالي','الحضانة','الموقع الحالي','Nursery','Current Location']);
+   const iNotes=col(['ملاحظات','Notes']);
+   if([iBarcode,iName,iCategory,iNursery].some(i=>i<0)) throw new Error('HEADERS');
+
+   const sourceRows=raw.slice(headerIndex+1).map((r,idx)=>({
+    excelRow:headerIndex+2+idx,
+    barcode:String(r[iBarcode]||'').trim(),
+    name:String(r[iName]||'').trim(),
+    category:String(r[iCategory]||'').trim(),
+    nursery:String(r[iNursery]||'').trim(),
+    notes:iNotes>=0?String(r[iNotes]||'').trim():''
+   })).filter(r=>r.barcode||r.name||r.category||r.nursery||r.notes);
+   if(!sourceRows.length){notify(t.excelNoRows);return}
+   if(!window.confirm(`${t.excelConfirm}\n\n${ar?'عدد الصفوف في الملف':'Rows in file'}: ${sourceRows.length}`))return;
+
+   const [{data:nurseryRows,error:nurseryErr},{data:existingRows,error:existingErr}]=await Promise.all([
+    supabase.from('nurseries').select('id,name_ar,name_en').eq('active',true),
+    supabase.from('assets').select('barcode')
+   ]);
+   if(nurseryErr) throw nurseryErr;
+   if(existingErr) throw existingErr;
+   const nurseryMap=new Map();
+   for(const n of nurseryRows||[]){
+    if(n.name_ar)nurseryMap.set(String(n.name_ar).trim(),n.id);
+    if(n.name_en)nurseryMap.set(String(n.name_en).trim(),n.id);
+   }
+   const existing=new Set((existingRows||[]).map(r=>normalizeBarcode(r.barcode)));
+   const seen=new Set();
+   const valid=[]; const issues=[];
+   for(const r of sourceRows){
+    const key=normalizeBarcode(r.barcode);
+    if(!r.barcode||!r.name||!r.category||!r.nursery){issues.push({row:r.excelRow,reason:ar?'بيانات إلزامية ناقصة':'Missing required data'});continue}
+    if(existing.has(key)){issues.push({row:r.excelRow,reason:`${ar?'الباركود مسجل مسبقًا':'Barcode already registered'}: ${r.barcode}`});continue}
+    if(seen.has(key)){issues.push({row:r.excelRow,reason:`${ar?'باركود مكرر داخل الملف':'Duplicate barcode in file'}: ${r.barcode}`});continue}
+    const nurseryId=nurseryMap.get(r.nursery);
+    if(!nurseryId){issues.push({row:r.excelRow,reason:`${ar?'اسم الحضانة غير مطابق للقائمة الرسمية':'Nursery name not recognized'}: ${r.nursery}`});continue}
+    seen.add(key);
+    valid.push({barcode:r.barcode,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null});
+   }
+   let imported=0;
+   for(let i=0;i<valid.length;i+=200){
+    const batch=valid.slice(i,i+200);
+    const {data,error}=await supabase.from('assets').insert(batch).select('id');
+    if(error){
+     if(error.code==='23505'){
+      issues.push({row:'—',reason:ar?'توجد باركودات تكررت أثناء الحفظ. أعيدي رفع الملف بعد تحديث السجل.':'Duplicate barcodes were detected during save. Refresh and try again.'});
+     }else throw error;
+    }else imported+=(data||[]).length;
+   }
+   const refreshed=await supabase.from('assets').select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').order('created_at',{ascending:false});
+   if(!refreshed.error)setAssets((refreshed.data||[]).map(dbAssetToUi));
+   window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
+   const issueLines=issues.slice(0,12).map(x=>`${ar?'صف':'Row'} ${x.row}: ${x.reason}`).join('\n');
+   const more=issues.length>12?`\n${ar?'... وملاحظات إضافية':'... and more issues'}: ${issues.length-12}`:'';
+   window.alert(`${t.excelDone}\n\n${ar?'تم الحفظ':'Imported'}: ${imported}\n${ar?'لم يتم الحفظ':'Skipped'}: ${issues.length}${issueLines?`\n\n${issueLines}${more}`:''}`);
+   if(imported) recordAudit({profile,screen:'الأصول',action:'رفع أصول من Excel',actionType:'create',entityType:'asset_bulk_import',entityId:`BULK-${Date.now()}`,details:`${imported} assets imported`});
+  }catch(e){
+   console.error('Excel asset import failed',e);
+   notify(e?.message==='HEADERS'?t.excelMissingHeaders:t.excelBadFile);
+  }finally{
+   setExcelImporting(false);
+   if(excelInputRef.current)excelInputRef.current.value='';
+  }
+ }
+
  function addRequest(form){const a=assets.find(x=>x.barcode===form.barcode);setRequests(x=>[{id:`AST-REQ-${String(x.length+27).padStart(3,'0')}`,type:modal,barcode:form.barcode,assetAr:a?.nameAr||form.asset,assetEn:a?.nameEn||form.asset,fromAr:form.from,fromEn:form.from,toAr:form.to,toEn:form.to,reasonAr:form.reason,reasonEn:form.reason,status:'pending',date:new Date().toLocaleDateString('en-GB')},...x]);setModal(null);notify(t.requestSent)}
  function approveRequest(id){
   const req=requests.find(r=>r.id===id);
@@ -150,7 +234,7 @@ export default function Assets({lang,profile}){
    <div className="asset-toolbar"><div className="invoice-search"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?'بحث باسم الأصل أو الباركود أو الموقع...':'Search asset, barcode, or location...'}/></div>
     <div className="asset-actions">
      {(!isAdmin||previewNursery)&&<><button onClick={()=>setModal('transfer')}>⇄ {t.transfer}</button><button onClick={()=>setModal('surplus')}>▱ {t.surplus}</button><button onClick={()=>setModal('disposal')}>⌫ {t.disposal}</button></>}
-     {isAdmin&&!previewNursery&&<button className="primary-action" onClick={()=>setModal('add')}>＋ {t.add}</button>}
+     {isAdmin&&!previewNursery&&<><a className="asset-excel-template-btn" href="/SAAMS_Asset_Bulk_Import_Template.xlsx" download>⇩ {t.excelTemplate}</a><button type="button" className="asset-excel-upload-btn" disabled={excelImporting} onClick={()=>excelInputRef.current?.click()}>{excelImporting?'… '+t.excelReading:'⇧ '+t.excelUpload}</button><input ref={excelInputRef} className="asset-excel-hidden-input" type="file" accept=".xlsx,.xls" onChange={e=>e.target.files?.[0]&&importAssetsExcel(e.target.files[0])}/><button className="primary-action" onClick={()=>setModal('add')}>＋ {t.add}</button></>}
     </div>
    </div>
    <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?filtered.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button></td><td>{nurseryLabel(a,ar)}</td><td>{ar?a.categoryAr:a.categoryEn}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="5" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div></div>
