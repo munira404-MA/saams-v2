@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
+import { loadAuditLog } from '../utils/audit';
 
 
 const DEVELOPER_NAME_AR = 'منيرة الأحمد';
@@ -54,7 +55,11 @@ function StatusDonut({ t, counts }) {
   </div>;
 }
 
-function EmptyAssetChart({ t }) { return <div className="dashboard-empty-state"><strong>0</strong><span>{t.noAssetData}</span></div>; }
+function AssetDistribution({ t, rows }) {
+  if(!rows?.length) return <div className="dashboard-empty-state"><strong>0</strong><span>{t.noAssetData}</span></div>;
+  const max=Math.max(...rows.map(x=>x.count),1);
+  return <div className="asset-distribution-live">{rows.slice(0,6).map(x=><div className="asset-distribution-item" key={x.name}><div className="asset-distribution-bar-wrap"><b style={{height:`${Math.max(12,(x.count/max)*100)}%`}}></b></div><strong>{x.count}</strong><span>{x.name}</span></div>)}</div>;
+}
 
 export default function Dashboard({ lang, setActive, profile }) {
   const ar=lang==='ar', t=translations[lang]||translations.ar;
@@ -62,25 +67,68 @@ export default function Dashboard({ lang, setActive, profile }) {
   const displayName=profile?.full_name || (ar?'المستخدم':'User');
   const nurseryName=profile?.nursery || (ar?'الحضانة':'Nursery');
   const [stats,setStats]=useState({assets:0,openAdvances:0,review:0,late:0,approved:0,returned:0,totalInvoices:0});
+  const [assetDistribution,setAssetDistribution]=useState([]);
+  const [alerts,setAlerts]=useState([]);
+  const [activities,setActivities]=useState([]);
   const [loading,setLoading]=useState(true), [error,setError]=useState('');
   const [developerOpen,setDeveloperOpen]=useState(false);
 
-  useEffect(()=>{ let alive=true; (async()=>{
-    try{
-      let invoiceQ=supabase.from('invoices').select('status',{count:'exact'});
-      if(isNursery&&profile?.nursery_id) invoiceQ=invoiceQ.eq('nursery_id',profile.nursery_id);
-      const {data:invoiceRows,error:invErr}=await invoiceQ; if(invErr) throw invErr;
-      let allocationQ=supabase.from('advance_allocations').select('id,nursery_id,advances!inner(status)').eq('advances.status','open');
-      if(isNursery&&profile?.nursery_id) allocationQ=allocationQ.eq('nursery_id',profile.nursery_id);
-      const {data:allocRows,error:advErr}=await allocationQ; if(advErr) throw advErr;
-      const rows=invoiceRows||[];
-      const review=rows.filter(x=>x.status==='review').length;
-      const approved=rows.filter(x=>x.status==='approved').length;
-      const returned=rows.filter(x=>x.status==='returned'||x.status==='rejected').length;
-      if(alive) setStats({assets:0,openAdvances:(allocRows||[]).length,review,late:0,approved,returned,totalInvoices:rows.length});
-    }catch(e){ if(alive){setError(t.loadError); setStats({assets:0,openAdvances:0,review:0,late:0,approved:0,returned:0,totalInvoices:0});} }
-    finally{if(alive)setLoading(false)}
-  })(); return()=>{alive=false}; },[isNursery,profile?.nursery_id,lang]);
+  useEffect(()=>{ let alive=true;
+    const loadDashboard=async()=>{
+      try{
+        setError('');
+        let invoiceQ=supabase.from('invoices').select('status,created_at,invoice_number,supplier_name,total_amount,nursery_id');
+        if(isNursery&&profile?.nursery_id) invoiceQ=invoiceQ.eq('nursery_id',profile.nursery_id);
+        const {data:invoiceRows,error:invErr}=await invoiceQ; if(invErr) throw invErr;
+
+        let allocationQ=supabase.from('advance_allocations').select('id,nursery_id,advances!inner(status)').eq('advances.status','open');
+        if(isNursery&&profile?.nursery_id) allocationQ=allocationQ.eq('nursery_id',profile.nursery_id);
+        const {data:allocRows,error:advErr}=await allocationQ; if(advErr) throw advErr;
+
+        let assetRows=[]; let assetError=null;
+        let assetQ=supabase.from('assets').select('id,barcode,nursery_id,nurseries(name_ar,name_en)');
+        if(isNursery&&profile?.nursery_id) assetQ=assetQ.eq('nursery_id',profile.nursery_id);
+        const assetRes=await assetQ; assetRows=assetRes.data||[]; assetError=assetRes.error;
+        if(assetError){
+          const auditAssets=new Map();
+          for(const row of loadAuditLog().filter(x=>x.entityType==='asset').slice().reverse()){
+            const key=String(row.entityId||row.after?.barcode||row.before?.barcode||'').trim().toLowerCase(); if(!key) continue;
+            if(row.actionType==='delete'){auditAssets.delete(key);continue}
+            const a=row.after||row.before; if(a?.barcode) auditAssets.set(key,a);
+          }
+          assetRows=[...auditAssets.values()].filter(a=>!isNursery||a.nurseryId===profile?.nursery_id||a.nurseryAr===profile?.nursery||a.nurseryEn===profile?.nursery).map(a=>({id:a.id||a.barcode,barcode:a.barcode,nursery_id:a.nurseryId,nurseries:{name_ar:a.nurseryAr,name_en:a.nurseryEn}}));
+        }
+
+        const rows=invoiceRows||[];
+        const review=rows.filter(x=>x.status==='review').length;
+        const approved=rows.filter(x=>x.status==='approved').length;
+        const returned=rows.filter(x=>x.status==='returned'||x.status==='rejected').length;
+        const lateCutoff=Date.now()-7*24*60*60*1000;
+        const late=rows.filter(x=>x.status==='review'&&x.created_at&&new Date(x.created_at).getTime()<lateCutoff).length;
+
+        const distMap=new Map();
+        for(const a of assetRows){const n=Array.isArray(a.nurseries)?a.nurseries[0]:a.nurseries;const name=(ar?n?.name_ar:n?.name_en)||n?.name_ar||n?.name_en||(ar?'غير محدد':'Unassigned');distMap.set(name,(distMap.get(name)||0)+1)}
+        const distribution=[...distMap.entries()].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
+
+        const nextAlerts=[];
+        if(late>0) nextAlerts.push({tone:'red',title:ar?`${late} فاتورة متأخرة لأكثر من أسبوع`:`${late} invoice(s) overdue for more than a week`,sub:ar?'بانتظار الاعتماد':'Awaiting approval'});
+        if(returned>0) nextAlerts.push({tone:'orange',title:ar?`${returned} فاتورة معادة/مرفوضة`:`${returned} returned/rejected invoice(s)`,sub:ar?'تحتاج متابعة':'Needs follow-up'});
+        if((allocRows||[]).length>0) nextAlerts.push({tone:'blue',title:ar?`${(allocRows||[]).length} سلفة مفتوحة حالياً`:`${(allocRows||[]).length} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
+
+        const auditRows=loadAuditLog().filter(x=>!isNursery||!profile?.nursery||x.nursery===profile.nursery).slice(0,8);
+        if(alive){
+          setStats({assets:assetRows.length,openAdvances:(allocRows||[]).length,review,late,approved,returned,totalInvoices:rows.length});
+          setAssetDistribution(distribution); setAlerts(nextAlerts); setActivities(auditRows);
+        }
+      }catch(e){console.error(e);if(alive)setError(t.loadError)}finally{if(alive)setLoading(false)}
+    };
+    loadDashboard();
+    const onUpdate=()=>loadDashboard();
+    const onVisible=()=>{if(document.visibilityState==='visible')loadDashboard()};
+    window.addEventListener('saams:data-updated',onUpdate); window.addEventListener('focus',onUpdate); document.addEventListener('visibilitychange',onVisible);
+    const timer=setInterval(loadDashboard,15000);
+    return()=>{alive=false;clearInterval(timer);window.removeEventListener('saams:data-updated',onUpdate);window.removeEventListener('focus',onUpdate);document.removeEventListener('visibilitychange',onVisible)};
+  },[isNursery,profile?.nursery_id,profile?.nursery,lang]);
 
   const greeting=ar?`${t.greeting} ${displayName}`:`${t.greeting}, ${displayName}`;
   const intro=isNursery?(ar?`ملخص بيانات ${nurseryName} فقط`:`Summary for ${nurseryName} only`):t.intro;
@@ -97,13 +145,13 @@ export default function Dashboard({ lang, setActive, profile }) {
     {loading&&<div className="dashboard-live-note">{t.loading}</div>}{error&&<div className="dashboard-live-note error">{error}</div>}
     <section className="stat-grid">{cards.map((c,i)=><article className={`stat-card ${c.tone}`} key={c.label} style={{animationDelay:`${i*70}ms`}}><div className="stat-icon">{c.icon}</div><span>{c.label}</span><strong><AnimatedNumber value={c.value}/></strong><em>{c.suffix}</em><footer>{c.note}</footer></article>)}</section>
     <section className="dashboard-grid dashboard-grid-top">
-      <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2><button type="button">{t.viewAll}</button></div><div className="alerts-list"><div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div></div></article>
-      <article className="glass-panel chart-panel"><div className="panel-heading"><h2>{isNursery?(ar?`أصول ${nurseryName}`:`${nurseryName} Assets`):t.assetByNursery}</h2><button type="button">{t.thisMonth}⌄</button></div><EmptyAssetChart t={t}/></article>
+      <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2><button type="button">{t.viewAll}</button></div><div className="alerts-list">{alerts.length?alerts.map((a,i)=><div className={`live-alert ${a.tone}`} key={`${a.title}-${i}`}><b>!</b><div><strong>{a.title}</strong><small>{a.sub}</small></div></div>):<div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div>}</div></article>
+      <article className="glass-panel chart-panel"><div className="panel-heading"><h2>{isNursery?(ar?`أصول ${nurseryName}`:`${nurseryName} Assets`):t.assetByNursery}</h2><button type="button">{t.thisMonth}⌄</button></div><AssetDistribution t={t} rows={assetDistribution}/></article>
       <article className="glass-panel status-panel"><div className="panel-heading"><h2>{t.invoiceStatus}</h2><button type="button">{t.thisMonth}⌄</button></div><StatusDonut t={t} counts={{approved:stats.approved,review:stats.review,returned:stats.returned,late:stats.late}}/><p className="panel-total">{t.totalInvoices}: {stats.totalInvoices}</p></article>
     </section>
     <section className="dashboard-grid dashboard-grid-bottom">
       <article className="glass-panel quick-panel"><div className="panel-heading"><h2>ϟ {t.quickActions}</h2></div><div className="quick-grid">{(isNursery?[[ '▤',t.addInvoice,'green','invoices'],['⇄',t.transferAsset,'orange','assets'],['▣',t.openAdvances,'blue','advances'],['▥',t.report,'violet','reports']]:[['◇',t.addAsset,'teal','assets'],['▤',t.addInvoice,'green','invoices'],['▣',t.addAdvance,'blue','advances'],['⇄',t.transferAsset,'orange','assets'],['♙',t.addUser,'sky','users'],['▥',t.report,'violet','reports']]).map(([icon,label,tone,target])=><button className={`quick-action ${tone}`} type="button" key={label} onClick={()=>setActive(target)}><span>{icon}</span><strong>{label}</strong></button>)}</div></article>
-      <article className="glass-panel activity-panel"><div className="panel-heading"><h2>◷ {t.todayActivity}</h2><button type="button">{t.viewAll}</button></div><div className="activity-table"><div className="activity-row activity-head"><span>{t.activity}</span><span>{t.details}</span><span>{t.user}</span><span>{t.time}</span></div><div className="dashboard-empty-state activity-empty"><span>{t.noActivity}</span></div></div></article>
+      <article className="glass-panel activity-panel"><div className="panel-heading"><h2>◷ {t.todayActivity}</h2><button type="button">{t.viewAll}</button></div><div className="activity-table"><div className="activity-row activity-head"><span>{t.activity}</span><span>{t.details}</span><span>{t.user}</span><span>{t.time}</span></div>{activities.length?activities.map(x=><div className="activity-row" key={x.id}><span>{x.action}</span><span>{x.details||x.screen||'—'}</span><span>{x.user||'—'}</span><span>{x.time||'—'}</span></div>):<div className="dashboard-empty-state activity-empty"><span>{t.noActivity}</span></div>}</div></article>
     </section>
     <footer className="dashboard-footer">
       <span>SAAMS Official 3.2</span>

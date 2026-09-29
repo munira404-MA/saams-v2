@@ -2858,3 +2858,12 @@ html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
 @media(max-width:720px){.asset-list-table{min-width:760px}.asset-row-actions button{padding:7px 8px}}
 
 .duplicate-asset-warning{margin-top:8px;padding:10px 12px;border:1px solid #f2b7bd;border-radius:12px;background:#fff2f3;color:#b83243;display:grid;gap:3px;font-size:10px}.duplicate-asset-warning b{font-size:11px}.duplicate-asset-warning span{color:#7a4050}.duplicate-asset-warning small{color:#9a5b67;font-weight:700}
+
+/* === Production live dashboard data === */
+.asset-distribution-live{height:210px;display:flex;align-items:flex-end;justify-content:center;gap:18px;padding:18px 18px 8px;overflow:hidden}
+.asset-distribution-item{min-width:52px;display:grid;grid-template-rows:1fr auto auto;justify-items:center;gap:6px;height:100%}
+.asset-distribution-bar-wrap{height:140px;width:42px;display:flex;align-items:flex-end;justify-content:center;border-radius:13px;background:linear-gradient(180deg,#f3f8fb,#edf4f7);overflow:hidden}
+.asset-distribution-bar-wrap b{display:block;width:100%;border-radius:12px 12px 0 0;background:linear-gradient(180deg,#57c7bd,#2f9f99);min-height:12px;transition:height .35s ease}
+.asset-distribution-item>strong{font-size:11px;color:#31566b}.asset-distribution-item>span{font-size:8px;color:#71899a;text-align:center;max-width:72px;line-height:1.35;white-space:normal}
+.live-alert{display:flex;align-items:center;gap:10px;padding:12px 13px;border:1px solid #e5edf2;border-radius:14px;background:#fff;margin-bottom:9px}.live-alert>b{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;font-size:13px}.live-alert>div{display:grid;gap:3px}.live-alert strong{font-size:10px;color:#2d4657}.live-alert small{font-size:8px;color:#8296a4}.live-alert.red>b{background:#fff0f2;color:#d94b5d}.live-alert.orange>b{background:#fff5e8;color:#d98018}.live-alert.blue>b{background:#eef4ff;color:#4774db}
+@media(max-width:900px){.asset-distribution-live{gap:10px;overflow-x:auto;justify-content:flex-start}.asset-distribution-item{min-width:58px}.asset-distribution-bar-wrap{height:115px}}

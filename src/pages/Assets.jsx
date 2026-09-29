@@ -1,6 +1,7 @@
 import { recordAudit, loadAuditLog } from '../utils/audit';
 import AssetOfficialDocument from '../components/AssetOfficialDocument';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { supabase } from '../supabase';
 
 const ASSETS = [];
 
@@ -17,6 +18,24 @@ function assetLabel(a,ar){return ar?a.nameAr:a.nameEn}
 function nurseryLabel(a,ar){return ar?a.nurseryAr:a.nurseryEn}
 function normalizeBarcode(value){return String(value||'').trim().replace(/\s+/g,'').toLowerCase()}
 
+function rebuildAssetsFromAudit(){
+ const logs=loadAuditLog().filter(x=>x.entityType==='asset').slice().reverse();
+ const byBarcode=new Map();
+ for(const row of logs){
+  const key=normalizeBarcode(row.entityId||row.after?.barcode||row.before?.barcode);
+  if(!key) continue;
+  if(row.actionType==='delete'){byBarcode.delete(key);continue}
+  const src=row.after||row.before;
+  if(src?.barcode) byBarcode.set(key,{...src});
+ }
+ return [...byBarcode.values()];
+}
+
+function dbAssetToUi(row){
+ const n=Array.isArray(row.nurseries)?row.nurseries[0]:row.nurseries;
+ return {id:row.id,barcode:row.barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||n?.name_en||'',nurseryEn:n?.name_en||n?.name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||''};
+}
+
 export default function Assets({lang,profile}){
  const ar=lang==='ar',t=COPY[lang]||COPY.ar;
  const isAdmin=profile?.role!=='nursery';
@@ -32,33 +51,80 @@ export default function Assets({lang,profile}){
  const [previewNursery,setPreviewNursery]=useState(false);
  const [toast,setToast]=useState('');
  const [assets,setAssets]=useState(ASSETS);
+ const [assetsLoading,setAssetsLoading]=useState(true);
+ const [assetsDbReady,setAssetsDbReady]=useState(false);
  const [requests,setRequests]=useState([]);
  const [search,setSearch]=useState('');
+
+ useEffect(()=>{let alive=true;(async()=>{
+  const auditFallback=rebuildAssetsFromAudit();
+  try{
+   const {data,error}=await supabase.from('assets').select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').order('created_at',{ascending:false});
+   if(error) throw error;
+   let rows=data||[];
+
+   // Recover assets that were added in older builds where they only lived in the browser audit log.
+   // We only insert barcodes that are missing from Supabase, so existing production rows are never overwritten.
+   if(auditFallback.length){
+    const existing=new Set(rows.map(r=>normalizeBarcode(r.barcode)));
+    const missing=auditFallback.filter(a=>a?.barcode&&!existing.has(normalizeBarcode(a.barcode)));
+    if(missing.length){
+      const {data:nurseryRows,error:nErr}=await supabase.from('nurseries').select('id,name_ar,name_en'); if(nErr) throw nErr;
+      const nurseryMap=new Map();
+      for(const n of nurseryRows||[]){if(n.name_ar)nurseryMap.set(n.name_ar,n.id);if(n.name_en)nurseryMap.set(n.name_en,n.id)}
+      const payload=missing.map(a=>({
+        barcode:String(a.barcode||'').trim(),name_ar:a.nameAr||a.nameEn||'',name_en:a.nameEn||a.nameAr||'',
+        category_ar:a.categoryAr||a.categoryEn||'',category_en:a.categoryEn||a.categoryAr||'',
+        nursery_id:nurseryMap.get(a.nurseryAr)||nurseryMap.get(a.nurseryEn)||a.nurseryId||null,
+        status:a.status||'active',notes:a.notes||'',created_by:profile?.id||null
+      })).filter(x=>x.barcode);
+      if(payload.length){
+        const {error:insertErr}=await supabase.from('assets').insert(payload);
+        if(insertErr && insertErr.code!=='23505') throw insertErr;
+        const refreshed=await supabase.from('assets').select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').order('created_at',{ascending:false});
+        if(refreshed.error) throw refreshed.error; rows=refreshed.data||rows;
+      }
+    }
+   }
+   if(alive){setAssets(rows.map(dbAssetToUi));setAssetsDbReady(true)}
+  }catch(e){
+    console.warn('Assets database unavailable',e);
+    if(alive){setAssets(auditFallback);setAssetsDbReady(false);notify(ar?'تعذر الاتصال بجدول الأصول. لن يتم اعتبار أي إضافة محفوظة حتى يتم إصلاح الاتصال.':'Assets database is unavailable. New assets will not be treated as saved until the connection is fixed.')}
+  }finally{if(alive)setAssetsLoading(false)}
+ })();return()=>{alive=false}},[profile?.id]);
+
  const scopedAssets=useMemo(()=>isAdmin||previewNursery?assets:assets.filter(a=>a.nurseryAr===accountNursery||a.nurseryEn===accountNursery),[assets,isAdmin,previewNursery,accountNursery]);
  const scopedRequests=useMemo(()=>isAdmin||previewNursery?requests:requests.filter(r=>r.fromAr===accountNursery||r.fromEn===accountNursery),[requests,isAdmin,previewNursery,accountNursery]);
  const filtered=useMemo(()=>scopedAssets.filter(a=>[a.barcode,a.nameAr,a.nameEn,a.nurseryAr,a.nurseryEn].some(v=>v.toLowerCase().includes(search.toLowerCase()))),[scopedAssets,search]);
  function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2600)}
- function addAsset(form){
+ async function addAsset(form){
   const duplicate=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode));
   if(duplicate){notify(`${t.duplicateBarcode}: ${duplicate.barcode} — ${nurseryLabel(duplicate,ar)}`);return false}
-  const next={barcode:String(form.barcode||'').trim(),nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category,status:'active'};
-  setAssets(x=>[next,...x]);setModal(null);notify(t.assetSaved);
-  recordAudit({profile,screen:'الأصول',action:'إضافة أصل',actionType:'create',entityType:'asset',entityId:next.barcode,nursery:next.nurseryAr,details:next.nameAr,after:next});
+  const barcode=String(form.barcode||'').trim();
+  const next={barcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category,status:'active',notes:form.notes||''};
+  if(!assetsDbReady){notify(ar?'تعذر حفظ الأصل: قاعدة بيانات الأصول غير جاهزة. شغلي ملف 10_ASSETS_LIVE_DASHBOARD.sql أولاً.':'Could not save the asset: the assets database is not ready. Run 10_ASSETS_LIVE_DASHBOARD.sql first.');return false}
+  const {data:nurseryRows,error:nurseryErr}=await supabase.from('nurseries').select('id,name_ar,name_en').or(`name_ar.eq.${form.from},name_en.eq.${form.from}`).limit(1);
+  if(nurseryErr){notify(ar?'تعذر التحقق من الحضانة':'Could not verify the nursery');return false}
+  const nurseryId=nurseryRows?.[0]?.id||null;
+  if(!nurseryId){notify(ar?'تعذر حفظ الأصل: لم يتم العثور على الحضانة المحددة في قاعدة البيانات':'Could not save the asset: selected nursery was not found');return false}
+  const {data,error}=await supabase.from('assets').insert({barcode,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,status:'active',notes:form.notes||'',created_by:profile?.id||null}).select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,nurseries(name_ar,name_en)').single();
+  if(error){if(error.code==='23505'){notify(`${t.duplicateBarcode}: ${barcode}`);return false}console.error('Asset insert failed',error);notify(ar?`تعذر حفظ الأصل في قاعدة البيانات: ${error.message||'خطأ غير معروف'}`:`Could not save the asset: ${error.message||'Unknown error'}`);return false}
+  const saved=dbAssetToUi(data);setAssets(x=>[saved,...x]);next.id=saved.id;next.nurseryId=saved.nurseryId;
+  setModal(null);notify(t.assetSaved);recordAudit({profile,screen:'الأصول',action:'إضافة أصل',actionType:'create',entityType:'asset',entityId:next.barcode,nursery:next.nurseryAr,details:next.nameAr,after:next});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));return true;
  }
- function updateAsset(form){
-  if(!editingAsset)return;
-  const before=editingAsset;
-  const updated={...editingAsset,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category};
-  setAssets(x=>x.map(a=>a.barcode===editingAsset.barcode?updated:a));
-  setEditingAsset(null);notify(t.assetUpdated);
-  recordAudit({profile,screen:'الأصول',action:'تعديل أصل',actionType:'update',entityType:'asset',entityId:updated.barcode,nursery:updated.nurseryAr,details:updated.nameAr,before,after:updated});
+ async function updateAsset(form){
+  if(!editingAsset)return; const before=editingAsset; let updated={...editingAsset,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category};
+  if(assetsDbReady){
+   const {data:nurseryRows}=await supabase.from('nurseries').select('id,name_ar,name_en').or(`name_ar.eq.${form.from},name_en.eq.${form.from}`).limit(1); const nurseryId=nurseryRows?.[0]?.id||null;
+   let q=supabase.from('assets').update({name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,updated_at:new Date().toISOString()}); q=editingAsset.id?q.eq('id',editingAsset.id):q.eq('barcode',editingAsset.barcode);
+   const {data,error}=await q.select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,nurseries(name_ar,name_en)').single(); if(error){notify(ar?'تعذر تحديث الأصل':'Could not update the asset');return} updated=dbAssetToUi(data);
+  }
+  setAssets(x=>x.map(a=>(editingAsset.id&&a.id===editingAsset.id)||(!editingAsset.id&&a.barcode===editingAsset.barcode)?updated:a));setEditingAsset(null);notify(t.assetUpdated);recordAudit({profile,screen:'الأصول',action:'تعديل أصل',actionType:'update',entityType:'asset',entityId:updated.barcode,nursery:updated.nurseryAr,details:updated.nameAr,before,after:updated});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
  }
- function deleteAsset(asset){
+ async function deleteAsset(asset){
   if(!window.confirm(t.deleteConfirm))return;
-  setAssets(x=>x.filter(a=>a.barcode!==asset.barcode));
-  if(historyAsset?.barcode===asset.barcode)setHistoryAsset(null);
-  notify(t.assetDeleted);
-  recordAudit({profile,screen:'الأصول',action:'حذف أصل',actionType:'delete',entityType:'asset',entityId:asset.barcode,nursery:asset.nurseryAr,details:asset.nameAr,before:asset});
+  if(assetsDbReady){let q=supabase.from('assets').delete();q=asset.id?q.eq('id',asset.id):q.eq('barcode',asset.barcode);const {error}=await q;if(error){notify(ar?'تعذر حذف الأصل':'Could not delete the asset');return}}
+  setAssets(x=>x.filter(a=>(asset.id?a.id!==asset.id:a.barcode!==asset.barcode)));if(historyAsset?.barcode===asset.barcode)setHistoryAsset(null);notify(t.assetDeleted);recordAudit({profile,screen:'الأصول',action:'حذف أصل',actionType:'delete',entityType:'asset',entityId:asset.barcode,nursery:asset.nurseryAr,details:asset.nameAr,before:asset});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
  }
  function addRequest(form){const a=assets.find(x=>x.barcode===form.barcode);setRequests(x=>[{id:`AST-REQ-${String(x.length+27).padStart(3,'0')}`,type:modal,barcode:form.barcode,assetAr:a?.nameAr||form.asset,assetEn:a?.nameEn||form.asset,fromAr:form.from,fromEn:form.from,toAr:form.to,toEn:form.to,reasonAr:form.reason,reasonEn:form.reason,status:'pending',date:new Date().toLocaleDateString('en-GB')},...x]);setModal(null);notify(t.requestSent)}
  function approveRequest(id){
