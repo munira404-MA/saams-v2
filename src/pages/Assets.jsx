@@ -138,15 +138,57 @@ export default function Assets({lang,profile}){
    const ws=wb.Sheets['الأصول']||wb.Sheets[wb.SheetNames[0]];
    if(!ws) throw new Error('NO_SHEET');
    const raw=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false});
-   const headerIndex=raw.findIndex(row=>row.some(v=>String(v).trim().includes('رقم الباركود')));
-   if(headerIndex<0) throw new Error('HEADERS');
-   const headers=raw[headerIndex].map(v=>String(v).trim().replace(/\s*\*\s*$/,''));
-   const col=(names)=>headers.findIndex(h=>names.some(n=>h===n||h.includes(n)));
-   const iBarcode=col(['رقم الباركود','Barcode Number','Barcode']);
-   const iName=col(['اسم الأصل','Asset Name']);
-   const iCategory=col(['التصنيف','Category']);
-   const iNursery=col(['الحضانة / الموقع الحالي','الحضانة','الموقع الحالي','Nursery','Current Location']);
-   const iNotes=col(['ملاحظات','Notes']);
+   const normalizeHeader=(value)=>String(value||'')
+    .replace(/[\u200B-\u200D\uFEFF]/g,'')
+    .replace(/[ًٌٍَُِّْـ]/g,'')
+    .replace(/\*/g,'')
+    .replace(/[\/\\|:_–—-]/g,' ')
+    .replace(/\s+/g,' ')
+    .trim()
+    .toLowerCase();
+   const aliases={
+    barcode:['رقم الباركود','الباركود','barcode number','barcode','asset barcode','asset code','كود الأصل','رقم الأصل'],
+    name:['اسم الأصل','اسم الاصل','الأصل','الاصل','asset name','asset'],
+    category:['التصنيف','الفئة','نوع الأصل','نوع الاصل','category','asset category'],
+    nursery:['الحضانة الموقع الحالي','الحضانة','الموقع الحالي','الموقع','nursery current location','nursery','current location','location'],
+    notes:['ملاحظات','ملاحظة','notes','note']
+   };
+   const normAliases=Object.fromEntries(Object.entries(aliases).map(([k,arr])=>[k,arr.map(normalizeHeader)]));
+   const findCol=(headers,names)=>headers.findIndex(h=>names.some(n=>h===n||h.includes(n)||n.includes(h)));
+   let headerIndex=-1, indices=null;
+   const scanLimit=Math.min(raw.length,25);
+   for(let ri=0;ri<scanLimit;ri++){
+    const headers=(raw[ri]||[]).map(normalizeHeader);
+    const cand={
+     barcode:findCol(headers,normAliases.barcode),
+     name:findCol(headers,normAliases.name),
+     category:findCol(headers,normAliases.category),
+     nursery:findCol(headers,normAliases.nursery),
+     notes:findCol(headers,normAliases.notes)
+    };
+    const score=['barcode','name','category','nursery'].filter(k=>cand[k]>=0).length;
+    if(score===4){headerIndex=ri;indices=cand;break}
+   }
+   // Official template fallback: columns A:E in this exact order.
+   if(headerIndex<0 && raw.length>=3){
+    const third=(raw[2]||[]).map(normalizeHeader);
+    if(third.length>=4 && third.some(Boolean)){
+     headerIndex=2; indices={barcode:0,name:1,category:2,nursery:3,notes:4};
+    }
+   }
+   // Simple template fallback: headers in the first row, A:E.
+   if(headerIndex<0 && raw.length){
+    const first=(raw[0]||[]).map(normalizeHeader);
+    if(first.length>=4 && first.some(Boolean)){
+     headerIndex=0; indices={barcode:0,name:1,category:2,nursery:3,notes:4};
+    }
+   }
+   if(headerIndex<0||!indices) throw new Error('HEADERS');
+   const iBarcode=indices.barcode;
+   const iName=indices.name;
+   const iCategory=indices.category;
+   const iNursery=indices.nursery;
+   const iNotes=indices.notes;
    if([iBarcode,iName,iCategory,iNursery].some(i=>i<0)) throw new Error('HEADERS');
 
    const sourceRows=raw.slice(headerIndex+1).map((r,idx)=>({
