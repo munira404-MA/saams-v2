@@ -51,6 +51,24 @@ function dbAssetToUi(row){
  return {id:row.id,barcode:row.barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||n?.name_en||'',nurseryEn:n?.name_en||n?.name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||''};
 }
 
+async function fetchAllAssetRows(){
+ const pageSize=1000;
+ let from=0;
+ let all=[];
+ while(true){
+  const {data,error}=await supabase.from('assets')
+   .select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)')
+   .order('created_at',{ascending:false})
+   .range(from,from+pageSize-1);
+  if(error)return {data:null,error};
+  const rows=data||[];
+  all=all.concat(rows);
+  if(rows.length<pageSize)break;
+  from+=pageSize;
+ }
+ return {data:all,error:null};
+}
+
 export default function Assets({lang,profile}){
  const ar=lang==='ar',t=COPY[lang]||COPY.ar;
  const isAdmin=profile?.role!=='nursery';
@@ -80,7 +98,7 @@ export default function Assets({lang,profile}){
  useEffect(()=>{let alive=true;(async()=>{
   const auditFallback=rebuildAssetsFromAudit();
   try{
-   const {data,error}=await supabase.from('assets').select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').order('created_at',{ascending:false});
+   const {data,error}=await fetchAllAssetRows();
    if(error) throw error;
    let rows=data||[];
 
@@ -102,7 +120,7 @@ export default function Assets({lang,profile}){
       if(payload.length){
         const {error:insertErr}=await supabase.from('assets').insert(payload);
         if(insertErr && insertErr.code!=='23505') throw insertErr;
-        const refreshed=await supabase.from('assets').select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').order('created_at',{ascending:false});
+        const refreshed=await fetchAllAssetRows();
         if(refreshed.error) throw refreshed.error; rows=refreshed.data||rows;
       }
     }
@@ -279,24 +297,18 @@ export default function Assets({lang,profile}){
    if(!sourceRows.length){notify(t.excelNoRows);return}
    if(!window.confirm(`${t.excelConfirm}\n\n${ar?'عدد الصفوف في الملف':'Rows in file'}: ${sourceRows.length}`))return;
 
-   const [{data:nurseryRows,error:nurseryErr},{data:existingRows,error:existingErr}]=await Promise.all([
-    supabase.from('nurseries').select('id,name_ar,name_en').eq('active',true),
-    supabase.from('assets').select('barcode')
-   ]);
+   const {data:nurseryRows,error:nurseryErr}=await supabase.from('nurseries').select('id,name_ar,name_en').eq('active',true);
    if(nurseryErr) throw new Error(`DB_NURSERIES:${nurseryErr.message||nurseryErr.code||'error'}`);
-   if(existingErr) throw new Error(`DB_ASSETS:${existingErr.message||existingErr.code||'error'}`);
    const nurseryMap=new Map();
    for(const n of nurseryRows||[]){
     if(n.name_ar){const raw=String(n.name_ar).trim();nurseryMap.set(raw,n.id);nurseryMap.set(normalizeNurseryForImport(raw),n.id)}
     if(n.name_en){const raw=String(n.name_en).trim();nurseryMap.set(raw,n.id);nurseryMap.set(normalizeNurseryForImport(raw),n.id)}
    }
-   const existing=new Set((existingRows||[]).map(r=>normalizeBarcode(r.barcode)));
    const seen=new Set();
    const valid=[]; const issues=[];
    for(const r of sourceRows){
     const key=normalizeBarcode(r.barcode);
     if(!r.barcode||!r.name||!r.category||!r.nursery){issues.push({row:r.excelRow,reason:ar?'بيانات إلزامية ناقصة':'Missing required data'});continue}
-    if(existing.has(key)){issues.push({row:r.excelRow,reason:`${ar?'الباركود مسجل مسبقًا':'Barcode already registered'}: ${r.barcode}`});continue}
     if(seen.has(key)){issues.push({row:r.excelRow,reason:`${ar?'باركود مكرر داخل الملف':'Duplicate barcode in file'}: ${r.barcode}`});continue}
     const normalizedNursery=normalizeNurseryForImport(r.nursery);
     const nurseryId=nurseryMap.get(normalizedNursery)||nurseryMap.get(r.nursery);
@@ -305,30 +317,39 @@ export default function Assets({lang,profile}){
     valid.push({excelRow:r.excelRow,barcode:r.barcode,payload:{barcode:r.barcode,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null}});
    }
    let imported=0;
-   // Save in batches, but never lose a whole batch because of one duplicate/bad row.
-   // If a batch fails, split it recursively until the exact failing row is isolated.
+   // Excel import rule: add every asset that is not already registered.
+   // Existing barcodes are skipped without overwriting or duplicating the existing asset.
    async function insertEntries(entries){
     if(!entries.length)return;
     const payload=entries.map(x=>x.payload);
-    const {data,error}=await supabase.from('assets').insert(payload).select('id,barcode');
-    if(!error){imported+=(data||[]).length;return}
-    if(entries.length>1){
-     const mid=Math.ceil(entries.length/2);
-     await insertEntries(entries.slice(0,mid));
-     await insertEntries(entries.slice(mid));
-     return;
+    const {data,error}=await supabase
+      .from('assets')
+      .upsert(payload,{onConflict:'barcode',ignoreDuplicates:true})
+      .select('id,barcode');
+    if(error){
+      // Isolate non-duplicate row errors so one bad row never blocks the rest of the file.
+      if(entries.length>1){
+        const mid=Math.ceil(entries.length/2);
+        await insertEntries(entries.slice(0,mid));
+        await insertEntries(entries.slice(mid));
+        return;
+      }
+      const item=entries[0];
+      issues.push({row:item.excelRow,reason:`${ar?'تعذر حفظ هذا الأصل':'Could not save this asset'}: ${error.message||error.code||'Database error'}`});
+      return;
     }
-    const item=entries[0];
-    if(error.code==='23505'){
-     issues.push({row:item.excelRow,reason:`${ar?'الباركود مسجل مسبقًا في النظام':'Barcode already registered in the system'}: ${item.barcode}`});
-    }else{
-     issues.push({row:item.excelRow,reason:`${ar?'تعذر حفظ هذا الأصل':'Could not save this asset'}: ${error.message||error.code||'Database error'}`});
+    const insertedKeys=new Set((data||[]).map(r=>normalizeBarcode(r.barcode)));
+    imported+=insertedKeys.size;
+    for(const item of entries){
+      if(!insertedKeys.has(normalizeBarcode(item.barcode))){
+        issues.push({row:item.excelRow,reason:`${ar?'الباركود موجود مسبقًا — تم تخطيه بدون تكرار':'Barcode already exists — skipped without duplication'}: ${item.barcode}`});
+      }
     }
    }
    for(let i=0;i<valid.length;i+=200){
     await insertEntries(valid.slice(i,i+200));
    }
-   const refreshed=await supabase.from('assets').select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').order('created_at',{ascending:false});
+   const refreshed=await fetchAllAssetRows();
    if(!refreshed.error)setAssets((refreshed.data||[]).map(dbAssetToUi));
    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
    const issueLines=issues.slice(0,12).map(x=>`${ar?'صف':'Row'} ${x.row}: ${x.reason}`).join('\n');
