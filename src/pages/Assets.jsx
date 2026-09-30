@@ -302,17 +302,31 @@ export default function Assets({lang,profile}){
     const nurseryId=nurseryMap.get(normalizedNursery)||nurseryMap.get(r.nursery);
     if(!nurseryId){issues.push({row:r.excelRow,reason:`${ar?'الحضانة غير فعالة/غير موجودة بالقائمة الرسمية وتحتاج مراجعة':'Nursery is not active/in the official list and needs review'}: ${r.nursery}`});continue}
     seen.add(key);
-    valid.push({barcode:r.barcode,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null});
+    valid.push({excelRow:r.excelRow,barcode:r.barcode,payload:{barcode:r.barcode,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null}});
    }
    let imported=0;
+   // Save in batches, but never lose a whole batch because of one duplicate/bad row.
+   // If a batch fails, split it recursively until the exact failing row is isolated.
+   async function insertEntries(entries){
+    if(!entries.length)return;
+    const payload=entries.map(x=>x.payload);
+    const {data,error}=await supabase.from('assets').insert(payload).select('id,barcode');
+    if(!error){imported+=(data||[]).length;return}
+    if(entries.length>1){
+     const mid=Math.ceil(entries.length/2);
+     await insertEntries(entries.slice(0,mid));
+     await insertEntries(entries.slice(mid));
+     return;
+    }
+    const item=entries[0];
+    if(error.code==='23505'){
+     issues.push({row:item.excelRow,reason:`${ar?'الباركود مسجل مسبقًا في النظام':'Barcode already registered in the system'}: ${item.barcode}`});
+    }else{
+     issues.push({row:item.excelRow,reason:`${ar?'تعذر حفظ هذا الأصل':'Could not save this asset'}: ${error.message||error.code||'Database error'}`});
+    }
+   }
    for(let i=0;i<valid.length;i+=200){
-    const batch=valid.slice(i,i+200);
-    const {data,error}=await supabase.from('assets').insert(batch).select('id');
-    if(error){
-     if(error.code==='23505'){
-      issues.push({row:'—',reason:ar?'توجد باركودات تكررت أثناء الحفظ. أعيدي رفع الملف بعد تحديث السجل.':'Duplicate barcodes were detected during save. Refresh and try again.'});
-     }else throw error;
-    }else imported+=(data||[]).length;
+    await insertEntries(valid.slice(i,i+200));
    }
    const refreshed=await supabase.from('assets').select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').order('created_at',{ascending:false});
    if(!refreshed.error)setAssets((refreshed.data||[]).map(dbAssetToUi));
