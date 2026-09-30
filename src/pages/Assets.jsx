@@ -70,6 +70,8 @@ export default function Assets({lang,profile}){
  const [assetsDbReady,setAssetsDbReady]=useState(false);
  const [requests,setRequests]=useState([]);
  const [search,setSearch]=useState('');
+ const [nurseryFilter,setNurseryFilter]=useState('');
+ const [categoryFilter,setCategoryFilter]=useState('');
  const [excelImporting,setExcelImporting]=useState(false);
  const [assetPage,setAssetPage]=useState(1);
  const ASSET_PAGE_SIZE=50;
@@ -114,11 +116,23 @@ export default function Assets({lang,profile}){
 
  const scopedAssets=useMemo(()=>isAdmin||previewNursery?assets:assets.filter(a=>a.nurseryAr===accountNursery||a.nurseryEn===accountNursery),[assets,isAdmin,previewNursery,accountNursery]);
  const scopedRequests=useMemo(()=>isAdmin||previewNursery?requests:requests.filter(r=>r.fromAr===accountNursery||r.fromEn===accountNursery),[requests,isAdmin,previewNursery,accountNursery]);
- const filtered=useMemo(()=>scopedAssets.filter(a=>[a.barcode,a.nameAr,a.nameEn,a.nurseryAr,a.nurseryEn].some(v=>String(v||'').toLowerCase().includes(search.toLowerCase()))),[scopedAssets,search]);
+ const nurseryFilterOptions=useMemo(()=>[...new Set(scopedAssets.map(a=>nurseryLabel(a,ar)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,ar?'ar':'en')),[scopedAssets,ar]);
+ const categoryFilterOptions=useMemo(()=>[...new Set(scopedAssets.map(a=>ar?a.categoryAr:a.categoryEn).filter(Boolean))].sort((a,b)=>a.localeCompare(b,ar?'ar':'en')),[scopedAssets,ar]);
+ const filtered=useMemo(()=>{
+  const q=search.trim().toLowerCase();
+  return scopedAssets.filter(a=>{
+   const nursery=nurseryLabel(a,ar)||'';
+   const category=(ar?a.categoryAr:a.categoryEn)||'';
+   const matchesSearch=!q||[a.barcode,a.nameAr,a.nameEn,a.nurseryAr,a.nurseryEn,a.categoryAr,a.categoryEn].some(v=>String(v||'').toLowerCase().includes(q));
+   const matchesNursery=!nurseryFilter||nursery===nurseryFilter;
+   const matchesCategory=!categoryFilter||category===categoryFilter;
+   return matchesSearch&&matchesNursery&&matchesCategory;
+  });
+ },[scopedAssets,search,nurseryFilter,categoryFilter,ar]);
  const assetPageCount=Math.max(1,Math.ceil(filtered.length/ASSET_PAGE_SIZE));
  const safeAssetPage=Math.min(assetPage,assetPageCount);
  const pagedAssets=useMemo(()=>filtered.slice((safeAssetPage-1)*ASSET_PAGE_SIZE,safeAssetPage*ASSET_PAGE_SIZE),[filtered,safeAssetPage]);
- useEffect(()=>{setAssetPage(1)},[search,previewNursery,accountNursery,tab]);
+ useEffect(()=>{setAssetPage(1)},[search,nurseryFilter,categoryFilter,previewNursery,accountNursery,tab]);
  useEffect(()=>{if(assetPage>assetPageCount)setAssetPage(assetPageCount)},[assetPage,assetPageCount]);
  function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2600)}
  async function addAsset(form){
@@ -343,7 +357,14 @@ export default function Assets({lang,profile}){
    <button className={tab==='requests'?'active':''} onClick={()=>setTab('requests')}>{t.requests}</button>
   </div>
   {tab==='register'?<>
-   <div className="asset-toolbar"><div className="invoice-search"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?'بحث باسم الأصل أو الباركود أو الموقع...':'Search asset, barcode, or location...'}/></div>
+   <div className="asset-toolbar asset-toolbar-stacked">
+    <div className="asset-filter-row">
+     <div className="invoice-search asset-search-main"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?'ابحثي باسم الأصل أو الباركود أو الحضانة أو التصنيف...':'Search asset, barcode, nursery, or category...'}/></div>
+     <select className="asset-filter-select" value={nurseryFilter} onChange={e=>setNurseryFilter(e.target.value)}><option value="">{ar?'كل الحضانات':'All nurseries'}</option>{nurseryFilterOptions.map(n=><option key={n} value={n}>{n}</option>)}</select>
+     <select className="asset-filter-select" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">{ar?'كل التصنيفات':'All categories'}</option>{categoryFilterOptions.map(c=><option key={c} value={c}>{c}</option>)}</select>
+     <button type="button" className="asset-clear-filters" disabled={!search&&!nurseryFilter&&!categoryFilter} onClick={()=>{setSearch('');setNurseryFilter('');setCategoryFilter('')}}>{ar?'مسح الفلاتر':'Clear filters'}</button>
+    </div>
+    <div className="asset-filter-summary">{ar?`تم العثور على ${filtered.length.toLocaleString('en-US')} أصل من أصل ${scopedAssets.length.toLocaleString('en-US')}`:`Found ${filtered.length.toLocaleString('en-US')} of ${scopedAssets.length.toLocaleString('en-US')} assets`}</div>
     <div className="asset-actions">
      {(!isAdmin||previewNursery)&&<><button onClick={()=>setModal('transfer')}>⇄ {t.transfer}</button><button onClick={()=>setModal('surplus')}>▱ {t.surplus}</button><button onClick={()=>setModal('disposal')}>⌫ {t.disposal}</button></>}
      {isAdmin&&!previewNursery&&<><button type="button" className="asset-excel-template-btn" onClick={downloadAssetExcelTemplate}>⇩ {t.excelTemplate}</button><button type="button" className="asset-excel-upload-btn" disabled={excelImporting} onClick={()=>excelInputRef.current?.click()}>{excelImporting?'… '+t.excelReading:'⇧ '+t.excelUpload}</button><input ref={excelInputRef} className="asset-excel-hidden-input" type="file" accept=".xlsx,.xls" onChange={e=>e.target.files?.[0]&&importAssetsExcel(e.target.files[0])}/><button className="primary-action" onClick={()=>setModal('add')}>＋ {t.add}</button></>}
