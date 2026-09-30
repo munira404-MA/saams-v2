@@ -77,57 +77,91 @@ export default function Dashboard({ lang, setActive, profile }) {
     const loadDashboard=async()=>{
       try{
         setError('');
-        let invoiceQ=supabase.from('invoices').select('status,created_at,invoice_number,supplier_name,total_amount,nursery_id');
-        if(isNursery&&profile?.nursery_id) invoiceQ=invoiceQ.eq('nursery_id',profile.nursery_id);
-        const {data:invoiceRows,error:invErr}=await invoiceQ; if(invErr) throw invErr;
 
-        let allocationQ=supabase.from('advance_allocations').select('id,nursery_id,advances!inner(status)').eq('advances.status','open');
-        if(isNursery&&profile?.nursery_id) allocationQ=allocationQ.eq('nursery_id',profile.nursery_id);
-        const {data:allocRows,error:advErr}=await allocationQ; if(advErr) throw advErr;
+        const scopeNursery=(q)=>isNursery&&profile?.nursery_id?q.eq('nursery_id',profile.nursery_id):q;
+        const exactCount=async(table,configure)=>{
+          let q=supabase.from(table).select('id',{count:'exact',head:true});
+          if(configure) q=configure(q);
+          const {count,error}=await q;
+          if(error) throw error;
+          return count||0;
+        };
 
-        let assetRows=[]; let assetError=null;
-        let assetQ=supabase.from('assets').select('id,barcode,nursery_id,nurseries(name_ar,name_en)');
-        if(isNursery&&profile?.nursery_id) assetQ=assetQ.eq('nursery_id',profile.nursery_id);
-        const assetRes=await assetQ; assetRows=assetRes.data||[]; assetError=assetRes.error;
-        if(assetError){
-          const auditAssets=new Map();
-          for(const row of loadAuditLog().filter(x=>x.entityType==='asset').slice().reverse()){
-            const key=String(row.entityId||row.after?.barcode||row.before?.barcode||'').trim().toLowerCase(); if(!key) continue;
-            if(row.actionType==='delete'){auditAssets.delete(key);continue}
-            const a=row.after||row.before; if(a?.barcode) auditAssets.set(key,a);
-          }
-          assetRows=[...auditAssets.values()].filter(a=>!isNursery||a.nurseryId===profile?.nursery_id||a.nurseryAr===profile?.nursery||a.nurseryEn===profile?.nursery).map(a=>({id:a.id||a.barcode,barcode:a.barcode,nursery_id:a.nurseryId,nurseries:{name_ar:a.nurseryAr,name_en:a.nurseryEn}}));
+        // Assets: use an exact count so the dashboard is never capped at Supabase's 1,000-row response limit.
+        const assetCount=await exactCount('assets',q=>scopeNursery(q));
+
+        // Distribution still needs row-level nursery data, so fetch it in safe pages.
+        let assetRows=[];
+        const ASSET_BATCH=1000;
+        for(let from=0;;from+=ASSET_BATCH){
+          let q=supabase.from('assets').select('nursery_id,nurseries(name_ar,name_en)').range(from,from+ASSET_BATCH-1);
+          q=scopeNursery(q);
+          const {data,error}=await q;
+          if(error) throw error;
+          const batch=data||[];
+          assetRows.push(...batch);
+          if(batch.length<ASSET_BATCH) break;
         }
 
-        const rows=invoiceRows||[];
-        const review=rows.filter(x=>x.status==='review').length;
-        const approved=rows.filter(x=>x.status==='approved').length;
-        const returned=rows.filter(x=>x.status==='returned'||x.status==='rejected').length;
-        const lateCutoff=Date.now()-7*24*60*60*1000;
-        const late=rows.filter(x=>x.status==='review'&&x.created_at&&new Date(x.created_at).getTime()<lateCutoff).length;
+        const lateCutoffIso=new Date(Date.now()-7*24*60*60*1000).toISOString();
+        const totalInvoices=await exactCount('invoices',q=>scopeNursery(q));
+        const review=await exactCount('invoices',q=>scopeNursery(q).eq('status','review'));
+        const approved=await exactCount('invoices',q=>scopeNursery(q).eq('status','approved'));
+        const returned=await exactCount('invoices',q=>scopeNursery(q).in('status',['returned','rejected']));
+        const late=await exactCount('invoices',q=>scopeNursery(q).eq('status','review').lt('created_at',lateCutoffIso));
+
+        let openAdvances=0;
+        if(isNursery&&profile?.nursery_id){
+          let q=supabase.from('advance_allocations').select('id,advances!inner(status)',{count:'exact',head:true})
+            .eq('nursery_id',profile.nursery_id).eq('advances.status','open');
+          const {count,error}=await q;
+          if(error) throw error;
+          openAdvances=count||0;
+        }else{
+          openAdvances=await exactCount('advances',q=>q.eq('status','open'));
+        }
 
         const distMap=new Map();
-        for(const a of assetRows){const n=Array.isArray(a.nurseries)?a.nurseries[0]:a.nurseries;const name=(ar?n?.name_ar:n?.name_en)||n?.name_ar||n?.name_en||(ar?'غير محدد':'Unassigned');distMap.set(name,(distMap.get(name)||0)+1)}
+        for(const a of assetRows){
+          const n=Array.isArray(a.nurseries)?a.nurseries[0]:a.nurseries;
+          const name=(ar?n?.name_ar:n?.name_en)||n?.name_ar||n?.name_en||(ar?'غير محدد':'Unassigned');
+          distMap.set(name,(distMap.get(name)||0)+1);
+        }
         const distribution=[...distMap.entries()].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
 
         const nextAlerts=[];
         if(late>0) nextAlerts.push({tone:'red',title:ar?`${late} فاتورة متأخرة لأكثر من أسبوع`:`${late} invoice(s) overdue for more than a week`,sub:ar?'بانتظار الاعتماد':'Awaiting approval'});
         if(returned>0) nextAlerts.push({tone:'orange',title:ar?`${returned} فاتورة معادة/مرفوضة`:`${returned} returned/rejected invoice(s)`,sub:ar?'تحتاج متابعة':'Needs follow-up'});
-        if((allocRows||[]).length>0) nextAlerts.push({tone:'blue',title:ar?`${(allocRows||[]).length} سلفة مفتوحة حالياً`:`${(allocRows||[]).length} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
+        if(openAdvances>0) nextAlerts.push({tone:'blue',title:ar?`${openAdvances} سلفة مفتوحة حالياً`:`${openAdvances} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
 
         const auditRows=loadAuditLog().filter(x=>!isNursery||!profile?.nursery||x.nursery===profile.nursery).slice(0,8);
         if(alive){
-          setStats({assets:assetRows.length,openAdvances:(allocRows||[]).length,review,late,approved,returned,totalInvoices:rows.length});
-          setAssetDistribution(distribution); setAlerts(nextAlerts); setActivities(auditRows);
+          setStats({assets:assetCount,openAdvances,review,late,approved,returned,totalInvoices});
+          setAssetDistribution(distribution);
+          setAlerts(nextAlerts);
+          setActivities(auditRows);
         }
-      }catch(e){console.error(e);if(alive)setError(t.loadError)}finally{if(alive)setLoading(false)}
+      }catch(e){
+        console.error(e);
+        if(alive)setError(t.loadError);
+      }finally{
+        if(alive)setLoading(false);
+      }
     };
     loadDashboard();
     const onUpdate=()=>loadDashboard();
     const onVisible=()=>{if(document.visibilityState==='visible')loadDashboard()};
-    window.addEventListener('saams:data-updated',onUpdate); window.addEventListener('focus',onUpdate); document.addEventListener('visibilitychange',onVisible);
-    const timer=setInterval(loadDashboard,15000);
-    return()=>{alive=false;clearInterval(timer);window.removeEventListener('saams:data-updated',onUpdate);window.removeEventListener('focus',onUpdate);document.removeEventListener('visibilitychange',onVisible)};
+    window.addEventListener('saams:data-updated',onUpdate);
+    window.addEventListener('focus',onUpdate);
+    document.addEventListener('visibilitychange',onVisible);
+    const timer=setInterval(loadDashboard,30000);
+    return()=>{
+      alive=false;
+      clearInterval(timer);
+      window.removeEventListener('saams:data-updated',onUpdate);
+      window.removeEventListener('focus',onUpdate);
+      document.removeEventListener('visibilitychange',onVisible);
+    };
   },[isNursery,profile?.nursery_id,profile?.nursery,lang]);
 
   const greeting=ar?`${t.greeting} ${displayName}`:`${t.greeting}, ${displayName}`;
