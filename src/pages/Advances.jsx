@@ -336,7 +336,14 @@ function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDelete,
   const spent = spentOf(selected), remaining = selected.allocated - spent, usage = selected.allocated ? (spent / selected.allocated) * 100 : 0;
   return <div className="invoice-overlay" onClick={onClose}><aside className="advance-details-drawer" onClick={e => e.stopPropagation()}>
     <div className="drawer-header"><div><small>{t.details}</small><h2>{ar ? advance.nameAr : advance.nameEn}</h2><p>{advance.id}</p></div><button onClick={onClose}>×</button></div>
-    {!nurseryMode && <div className="advance-nursery-tabs">{advance.allocations.map(a => <button key={a.nurseryAr} className={selected.nurseryAr === a.nurseryAr ? 'active' : ''} onClick={() => setSelected(a)}>{ar ? a.nurseryAr : a.nurseryEn}</button>)}</div>}
+    {!nurseryMode && <div className="advance-nursery-section">
+      <div className="advance-nursery-section-head">
+        <strong>{ar ? 'الحضانات المشمولة' : 'Included nurseries'}</strong>
+        <span>{advance.allocations.length} {t.nurseries}</span>
+      </div>
+      <div className="advance-nursery-tabs">{advance.allocations.map(a => <button title={ar ? a.nurseryAr : a.nurseryEn} key={a.nurseryAr} className={selected.nurseryAr === a.nurseryAr ? 'active' : ''} onClick={() => setSelected(a)}>{ar ? a.nurseryAr : a.nurseryEn}</button>)}</div>
+      <div className="selected-nursery-line"><small>{ar ? 'الحضانة المحددة' : 'Selected nursery'}</small><strong>{ar ? selected.nurseryAr : selected.nurseryEn}</strong></div>
+    </div>}
     <div className="detail-balance-hero"><small>{t.nurseryBalance}</small><h3>{money(remaining)} AED</h3><div><span>{money(spent)} {t.spent}</span><span>{money(selected.allocated)} {t.allocated}</span></div><div className="advance-progress-track"><i style={{ width: `${Math.min(100, usage)}%` }} /></div></div>
     <div className="detail-mini-stats"><div><small>{t.allocated}</small><strong>{money(selected.allocated)} AED</strong></div><div><small>{t.spent}</small><strong>{money(spent)} AED</strong></div><div><small>{t.remaining}</small><strong>{money(remaining)} AED</strong></div><div><small>{t.invoicesCount}</small><strong>{(selected.allInvoices || selected.invoices).length}</strong></div></div>
     <div className="advance-status-summary"><div><small>{t.approvedInvoices}</small><strong>{statusCountsOf(selected).approved}</strong></div><div><small>{t.pendingInvoices}</small><strong>{statusCountsOf(selected).review}</strong></div><div><small>{t.returnedInvoices}</small><strong>{statusCountsOf(selected).returned}</strong></div></div>
