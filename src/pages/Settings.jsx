@@ -58,9 +58,9 @@ const DEFAULT_SETTINGS = {
     allowManualReview: true,
   },
   advanceTypes: [
-    { id: 'ADV-T-1', nameAr: 'سلفة شهرية', nameEn: 'Monthly Advance', active: true },
-    { id: 'ADV-T-2', nameAr: 'سلفة فعاليات', nameEn: 'Event Advance', active: true },
-    { id: 'ADV-T-3', nameAr: 'سلفة طارئة', nameEn: 'Emergency Advance', active: false },
+    { id: 'ADV-T-1', value: 'monthly', nameAr: 'سلفة شهرية', nameEn: 'Monthly Advance', active: true },
+    { id: 'ADV-T-2', value: 'event', nameAr: 'سلفة فعاليات', nameEn: 'Event Advance', active: true },
+    { id: 'ADV-T-3', value: 'emergency', nameAr: 'سلفة طارئة', nameEn: 'Emergency Advance', active: false },
   ],
   notifications: {
     invoiceUploaded: true,
@@ -254,6 +254,7 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
       onProfileUpdate?.(nextProfile);
     }
     writeJson(SETTINGS_KEY, settings);
+    window.dispatchEvent(new CustomEvent('saams:settings-updated', { detail: { section: 'all' } }));
     writeJson(PRODUCTION_KEY, production);
     writeJson(NURSERIES_KEY, nurseries);
     writeJson(USERS_STORAGE_KEY, nextUsers);
@@ -333,16 +334,31 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
 
   function addAdvanceType() {
     if (!typeName.trim()) return;
-    setSettings((current) => ({
-      ...current,
-      advanceTypes: [...current.advanceTypes, {
-        id: `ADV-T-${Date.now()}`,
-        nameAr: typeName.trim(),
-        nameEn: typeName.trim(),
-        active: true,
-      }],
-    }));
+    const newType = {
+      id: `ADV-T-${Date.now()}`,
+      value: `custom_${Date.now()}`,
+      nameAr: typeName.trim(),
+      nameEn: typeName.trim(),
+      active: true,
+    };
+    setSettings((current) => {
+      const next = { ...current, advanceTypes: [...current.advanceTypes, newType] };
+      writeJson(SETTINGS_KEY, next);
+      window.dispatchEvent(new CustomEvent('saams:settings-updated', { detail: { section: 'advanceTypes' } }));
+      return next;
+    });
     setTypeName('');
+    setMessage(ar ? 'تمت إضافة نوع السلفة وربطه بشاشة السلف.' : 'Advance type added and linked to the Advances screen.');
+    window.setTimeout(() => setMessage(''), 2600);
+  }
+
+  function toggleAdvanceType(typeId, active) {
+    setSettings((current) => {
+      const next = { ...current, advanceTypes: current.advanceTypes.map((type) => type.id === typeId ? { ...type, active } : type) };
+      writeJson(SETTINGS_KEY, next);
+      window.dispatchEvent(new CustomEvent('saams:settings-updated', { detail: { section: 'advanceTypes' } }));
+      return next;
+    });
   }
 
   const filteredLogs = useMemo(() => {
@@ -568,7 +584,7 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
             <article className="settings-card">
               <div className="settings-section-title"><span className="settings-section-icon">▣</span><div><h2>{t.advances}</h2><p>{ar ? 'إدارة أنواع السلف المتاحة.' : 'Manage available advance types.'}</p></div></div>
               <div className="advance-type-add"><input value={typeName} onChange={(e)=>setTypeName(e.target.value)} placeholder={ar?'اسم نوع السلفة الجديد':'New advance type'} /><button className="primary-action" onClick={addAdvanceType}>＋ {ar?'إضافة':'Add'}</button></div>
-              <div className="advance-types-list">{settings.advanceTypes.map((type)=><div key={type.id}><strong>{ar?type.nameAr:type.nameEn}</strong><Switch checked={type.active} onChange={(v)=>setSettings({...settings,advanceTypes:settings.advanceTypes.map(x=>x.id===type.id?{...x,active:v}:x)})} label={type.active?(ar?'مفعلة':'Enabled'):(ar?'موقوفة':'Disabled')} /></div>)}</div>
+              <div className="advance-types-list">{settings.advanceTypes.map((type)=><div key={type.id}><strong>{ar?type.nameAr:type.nameEn}</strong><Switch checked={type.active} onChange={(v)=>toggleAdvanceType(type.id, v)} label={type.active?(ar?'مفعلة':'Enabled'):(ar?'موقوفة':'Disabled')} /></div>)}</div>
             </article>
           )}
 

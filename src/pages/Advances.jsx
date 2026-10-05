@@ -8,6 +8,34 @@ import {
   deleteAdvance as deleteAdvanceDb,
 } from '../data/supabaseData';
 
+const SETTINGS_KEY = 'saams-system-settings-v1';
+
+const DEFAULT_ADVANCE_TYPES = [
+  { id: 'ADV-T-1', value: 'monthly', nameAr: 'سلفة شهرية', nameEn: 'Monthly Advance', active: true },
+  { id: 'ADV-T-2', value: 'event', nameAr: 'سلفة فعاليات', nameEn: 'Event Advance', active: true },
+];
+
+function advanceTypeValue(type) {
+  if (!type) return '';
+  if (type.value) return String(type.value);
+  if (type.id === 'ADV-T-1' || type.nameAr === 'سلفة شهرية') return 'monthly';
+  if (type.id === 'ADV-T-2' || type.nameAr === 'سلفة فعاليات' || type.nameAr === 'سلفة فعالية') return 'event';
+  if (type.id === 'ADV-T-3' || type.nameAr === 'سلفة طارئة') return 'emergency';
+  return `custom_${String(type.id || type.nameAr || 'advance').replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+}
+
+function loadAdvanceTypes() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    const rows = Array.isArray(parsed?.advanceTypes) ? parsed.advanceTypes : DEFAULT_ADVANCE_TYPES;
+    return rows
+      .filter((type) => type?.active !== false)
+      .map((type) => ({ ...type, value: advanceTypeValue(type) }));
+  } catch {
+    return DEFAULT_ADVANCE_TYPES;
+  }
+}
+
 const NURSERIES = [
   { ar: 'الرحمانية الجديدة', en: 'New Al Rahmaniya' },
   { ar: 'مركز اللؤلؤية للطفولة المبكرة', en: 'Al Luluyah Early Childhood Center' },
@@ -109,6 +137,16 @@ export default function Advances({ lang, profile, databaseMode }) {
   const [toast, setToast] = useState('');
   const [dbNurseries, setDbNurseries] = useState([]);
   const [dbLoading, setDbLoading] = useState(databaseMode);
+  const [advanceTypes, setAdvanceTypes] = useState(() => loadAdvanceTypes());
+
+  const typeLabel = (value) => {
+    const configured = advanceTypes.find((type) => type.value === value);
+    if (configured) return ar ? configured.nameAr : (configured.nameEn || configured.nameAr);
+    if (value === 'monthly') return t.monthly;
+    if (value === 'event') return t.event;
+    if (value === 'emergency') return ar ? 'سلفة طارئة' : 'Emergency Advance';
+    return value || (ar ? 'سلفة' : 'Advance');
+  };
 
   useEffect(() => {
     let active = true;
@@ -136,6 +174,19 @@ export default function Advances({ lang, profile, databaseMode }) {
     window.addEventListener('saams:invoice-status-changed', refresh);
     return () => { active = false; window.removeEventListener('focus', refresh); window.removeEventListener('saams:invoice-status-changed', refresh); };
   }, [databaseMode]);
+
+  useEffect(() => {
+    const refreshAdvanceTypes = () => setAdvanceTypes(loadAdvanceTypes());
+    refreshAdvanceTypes();
+    window.addEventListener('focus', refreshAdvanceTypes);
+    window.addEventListener('storage', refreshAdvanceTypes);
+    window.addEventListener('saams:settings-updated', refreshAdvanceTypes);
+    return () => {
+      window.removeEventListener('focus', refreshAdvanceTypes);
+      window.removeEventListener('storage', refreshAdvanceTypes);
+      window.removeEventListener('saams:settings-updated', refreshAdvanceTypes);
+    };
+  }, []);
 
   function notify(message) { setToast(message); setTimeout(() => setToast(''), 2600); }
   function currentNurseryAllocation(advance) {
@@ -274,7 +325,7 @@ export default function Advances({ lang, profile, databaseMode }) {
     <div className="advance-toolbar">
       <div className="invoice-search"><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search} /></div>
       <div className="advance-filters">
-        {['all','monthly','event','open','closed'].map(value => <button key={value} className={filter === value ? 'active' : ''} onClick={() => setFilter(value)}>{t[value]}</button>)}
+        {[{value:'all',label:t.all}, ...advanceTypes.map(type => ({ value:type.value, label: ar ? type.nameAr : (type.nameEn || type.nameAr) })), {value:'open',label:t.open}, {value:'closed',label:t.closed}].map(item => <button key={item.value} className={filter === item.value ? 'active' : ''} onClick={() => setFilter(item.value)}>{item.label}</button>)}
       </div>
     </div>
 
@@ -288,8 +339,8 @@ export default function Advances({ lang, profile, databaseMode }) {
         const usage = allocated ? Math.min(100, (spent / allocated) * 100) : 0;
         return <article className="advance-card" key={advance.id}>
           <div className="advance-card-top">
-            <div className={`advance-type-icon ${advance.type}`}>{advance.type === 'monthly' ? '▥' : '☆'}</div>
-            <div className="advance-title"><div><span className={`advance-type-badge ${advance.type}`}>{t[advance.type]}</span><span className={`advance-status ${advance.status}`}>{t[advance.status]}</span></div><h3>{ar ? advance.nameAr : advance.nameEn}</h3><p>{advance.id} · {advance.from} — {advance.to}</p></div>
+            <div className={`advance-type-icon ${advance.type}`}>{advance.type === 'monthly' ? '▥' : advance.type === 'event' ? '☆' : '▣'}</div>
+            <div className="advance-title"><div><span className={`advance-type-badge ${advance.type}`}>{typeLabel(advance.type)}</span><span className={`advance-status ${advance.status}`}>{t[advance.status]}</span></div><h3>{ar ? advance.nameAr : advance.nameEn}</h3><p>{advance.id} · {advance.from} — {advance.to}</p></div>
             <div className="advance-card-actions"><button onClick={() => setViewing({ advance, allocation })}>{t.view}</button>{!nurseryMode && <><button className={advance.status === 'open' ? 'close-advance' : 'reopen-advance'} onClick={() => toggleStatus(advance.id)}>{advance.status === 'open' ? t.close : t.reopen}</button><button className="delete-advance" onClick={() => deleteAdvance(advance)}>⌫ {t.deleteAdvance}</button></>}</div>
           </div>
           <div className="advance-balance-grid">
@@ -304,15 +355,16 @@ export default function Advances({ lang, profile, databaseMode }) {
       })}
     </div>
 
-    {creating && <CreateAdvanceModal ar={ar} t={t} nurseries={databaseMode ? dbNurseries : NURSERIES.map((n, index) => ({ id: `demo-${index}`, name_ar: n.ar, name_en: n.en, active: true }))} loading={dbLoading} onClose={() => setCreating(false)} onSave={createAdvance} />}
+    {creating && <CreateAdvanceModal ar={ar} t={t} advanceTypes={advanceTypes} nurseries={databaseMode ? dbNurseries : NURSERIES.map((n, index) => ({ id: `demo-${index}`, name_ar: n.ar, name_en: n.en, active: true }))} loading={dbLoading} onClose={() => setCreating(false)} onSave={createAdvance} />}
     {viewing && <AdvanceDetails ar={ar} t={t} data={viewing} nurseryMode={nurseryMode} onClose={() => setViewing(null)} onToggle={() => { toggleStatus(viewing.advance.id); setViewing(null); }} onDelete={() => deleteAdvance(viewing.advance)} onDemo={allocation => addDemoInvoice(viewing.advance.id, allocation.nurseryAr)} />}
     {toast && <div className="asset-toast">✓ {toast}</div>}
   </section>;
 }
 
-function CreateAdvanceModal({ ar, t, nurseries, loading, onClose, onSave }) {
+function CreateAdvanceModal({ ar, t, advanceTypes, nurseries, loading, onClose, onSave }) {
   const activeNurseries = (nurseries || []).filter((nursery) => nursery.active !== false);
-  const [form, setForm] = useState({ name: '', type: 'monthly', from: '2026-08-01', to: '2026-09-30', sameAmount: '', rows: activeNurseries.map((nursery) => ({ id: nursery.id, ar: nursery.name_ar, en: nursery.name_en || nursery.name_ar, selected: false, amount: '' })) });
+  const availableTypes = (advanceTypes || []).length ? advanceTypes : DEFAULT_ADVANCE_TYPES;
+  const [form, setForm] = useState({ name: '', type: availableTypes[0]?.value || 'monthly', from: '2026-08-01', to: '2026-09-30', sameAmount: '', rows: activeNurseries.map((nursery) => ({ id: nursery.id, ar: nursery.name_ar, en: nursery.name_en || nursery.name_ar, selected: false, amount: '' })) });
   function setRows(fn) { setForm(current => ({ ...current, rows: fn(current.rows) })); }
   function applySame() { if (!Number(form.sameAmount)) return; setRows(rows => rows.map(row => row.selected ? { ...row, amount: form.sameAmount } : row)); }
   function submit(status) { if (!form.name.trim()) return; onSave(form, status); }
@@ -320,7 +372,7 @@ function CreateAdvanceModal({ ar, t, nurseries, loading, onClose, onSave }) {
     <div className="drawer-header"><div><small>SAAMS Advances</small><h2>{t.createTitle}</h2></div><button onClick={onClose}>×</button></div>
     <div className="advance-form-grid">
       <label className="wide"><span>{t.customName}</span><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t.customNameHint} /></label>
-      <label><span>{t.type}</span><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option value="monthly">{t.monthly}</option><option value="event">{t.event}</option></select></label>
+      <label><span>{t.type}</span><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>{availableTypes.map(type => <option key={type.value} value={type.value}>{ar ? type.nameAr : (type.nameEn || type.nameAr)}</option>)}</select></label>
       <label><span>{t.fromDate}</span><input type="date" value={form.from} onChange={e => setForm({ ...form, from: e.target.value })} /></label>
       <label><span>{t.toDate}</span><input type="date" value={form.to} onChange={e => setForm({ ...form, to: e.target.value })} /></label>
     </div>
