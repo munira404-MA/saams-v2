@@ -152,6 +152,7 @@ export default function Assets({lang,profile}){
  const pagedAssets=useMemo(()=>filtered.slice((safeAssetPage-1)*ASSET_PAGE_SIZE,safeAssetPage*ASSET_PAGE_SIZE),[filtered,safeAssetPage]);
  useEffect(()=>{setAssetPage(1)},[search,nurseryFilter,categoryFilter,previewNursery,accountNursery,tab]);
  useEffect(()=>{if(assetPage>assetPageCount)setAssetPage(assetPageCount)},[assetPage,assetPageCount]);
+ useEffect(()=>{if(!isAdmin&&tab==='requests')setTab('register')},[isAdmin,tab]);
  function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2600)}
  async function addAsset(form){
   const duplicate=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode));
@@ -389,13 +390,13 @@ export default function Assets({lang,profile}){
   </div>
   <div className="asset-tabs">
    <button className={tab==='register'?'active':''} onClick={()=>setTab('register')}>{t.register}</button>
-   <button className={tab==='requests'?'active':''} onClick={()=>setTab('requests')}>{t.requests}</button>
+   {isAdmin&&<button className={tab==='requests'?'active':''} onClick={()=>setTab('requests')}>{t.requests}</button>}
   </div>
   {tab==='register'?<>
    <div className="asset-toolbar asset-toolbar-stacked">
     <div className="asset-filter-row">
-     <div className="invoice-search asset-search-main"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={ar?'ابحثي باسم الأصل أو الباركود أو الحضانة أو التصنيف...':'Search asset, barcode, nursery, or category...'}/></div>
-     <select className="asset-filter-select" value={nurseryFilter} onChange={e=>setNurseryFilter(e.target.value)}><option value="">{ar?'كل الحضانات':'All nurseries'}</option>{nurseryFilterOptions.map(n=><option key={n} value={n}>{n}</option>)}</select>
+     <div className="invoice-search asset-search-main"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={isAdmin||previewNursery?(ar?'ابحثي باسم الأصل أو الباركود أو الحضانة أو التصنيف...':'Search asset, barcode, nursery, or category...'):(ar?'ابحثي باسم الأصل أو الباركود أو التصنيف...':'Search asset, barcode, or category...')}/></div>
+     {isAdmin||previewNursery?<select className="asset-filter-select" value={nurseryFilter} onChange={e=>setNurseryFilter(e.target.value)}><option value="">{ar?'كل الحضانات':'All nurseries'}</option>{nurseryFilterOptions.map(n=><option key={n} value={n}>{n}</option>)}</select>:<div className="asset-nursery-fixed-filter"><small>{ar?'الحضانة':'Nursery'}</small><strong>{accountNursery||'—'}</strong></div>}
      <select className="asset-filter-select" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">{ar?'كل التصنيفات':'All categories'}</option>{categoryFilterOptions.map(c=><option key={c} value={c}>{c}</option>)}</select>
      <button type="button" className="asset-clear-filters" disabled={!search&&!nurseryFilter&&!categoryFilter} onClick={()=>{setSearch('');setNurseryFilter('');setCategoryFilter('')}}>{ar?'مسح الفلاتر':'Clear filters'}</button>
     </div>
@@ -410,7 +411,7 @@ export default function Assets({lang,profile}){
   {officialDocument&&<AssetOfficialDocument request={officialDocument} ar={ar} onClose={()=>setOfficialDocument(null)} />}
   {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} onClose={()=>setHistoryAsset(null)} />}
   {editingAsset&&<AssetEditModal asset={editingAsset} ar={ar} t={t} nurseries={nurseries} onClose={()=>setEditingAsset(null)} onSave={updateAsset}/>}
-  {modal&&<AssetModal type={modal} ar={ar} defaultNursery={accountNursery} t={t} assets={assets} nurseries={nurseries} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
+  {modal&&<AssetModal type={modal} ar={ar} defaultNursery={accountNursery} t={t} assets={isAdmin&&!previewNursery?assets:scopedAssets} nurseries={nurseries} isAdmin={isAdmin&&!previewNursery} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
   {viewing&&<RequestDetails request={viewing} ar={ar} t={t} isAdmin={isAdmin} onClose={()=>setViewing(null)} onApprove={()=>approveRequest(viewing.id)} onReject={()=>setRejecting(viewing)}/>}
   {rejecting&&<RejectModal request={rejecting} ar={ar} t={t} onClose={()=>setRejecting(null)} onConfirm={reason=>rejectRequest(rejecting.id,reason)}/>}
   {toast&&<div className="asset-toast">✓ {toast}</div>}
@@ -431,14 +432,20 @@ function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
  </form></div>
 }
 
-function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery}){
- const [form,setForm]=useState({barcode:'',asset:'',from:defaultNursery||nurseries[0]||'',to:nurseries.find(n=>n!==defaultNursery)||nurseries[1]||'',reason:'',name:'',category:'',notes:''});
+function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,isAdmin=false}){
+ const [form,setForm]=useState({barcode:'',asset:'',from:defaultNursery||'',to:'',reason:'',name:'',category:'',notes:''});
  const [lookup,setLookup]=useState(null),[camera,setCamera]=useState(false),[scanMsg,setScanMsg]=useState('');
  const videoRef=useRef(null),streamRef=useRef(null);
  const selected=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode));
  const duplicateOnAdd=type==='add'?selected:null;
- function applyAsset(a){if(!a)return;setLookup('found');setForm(f=>({...f,barcode:a.barcode,asset:assetLabel(a,ar),from:nurseryLabel(a,ar)}))}
+ function applyAsset(a){if(!a)return;setLookup('found');setForm(f=>({...f,barcode:a.barcode,asset:assetLabel(a,ar),category:ar?a.categoryAr:a.categoryEn,from:nurseryLabel(a,ar),to:f.to===nurseryLabel(a,ar)?'':f.to}))}
  function findAsset(){if(selected)applyAsset(selected);else setLookup('missing')}
+ function handleRequestBarcode(value){
+  const match=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(value));
+  if(match){applyAsset(match);return}
+  setForm(f=>({...f,barcode:value,asset:'',category:'',from:defaultNursery||f.from}));setLookup(value?'missing':null);
+ }
+ function chooseRequestAsset(value){const a=assets.find(x=>x.id===value||normalizeBarcode(x.barcode)===normalizeBarcode(value));if(a)applyAsset(a)}
  async function decodeImage(file){
   try{if(!('BarcodeDetector' in window)){setScanMsg(t.cameraUnsupported);return}const detector=new BarcodeDetector({formats:['code_128','code_39','ean_13','ean_8','qr_code']});const bmp=await createImageBitmap(file);const codes=await detector.detect(bmp);if(codes[0]){const value=codes[0].rawValue;setForm(f=>({...f,barcode:value}));const a=assets.find(x=>x.barcode.toLowerCase()===value.toLowerCase());if(a)applyAsset(a);else setLookup('missing')}else setScanMsg(ar?'لم يتم اكتشاف باركود واضح في الصورة.':'No clear barcode was detected in the image.')}catch(e){setScanMsg(t.cameraUnsupported)}
  }
@@ -447,13 +454,13 @@ function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery}){
   try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});streamRef.current=stream;setCamera(true);setTimeout(async()=>{if(videoRef.current)videoRef.current.srcObject=stream;const detector=new BarcodeDetector({formats:['code_128','code_39','ean_13','ean_8','qr_code']});const tick=async()=>{if(!streamRef.current)return;try{const codes=await detector.detect(videoRef.current);if(codes[0]){const value=codes[0].rawValue;setForm(f=>({...f,barcode:value}));const a=assets.find(x=>x.barcode.toLowerCase()===value.toLowerCase());if(a)applyAsset(a);else setLookup('missing');stopCamera();return}}catch{}requestAnimationFrame(tick)};requestAnimationFrame(tick)},150)}catch{setScanMsg(t.cameraUnsupported)}
  }
  function stopCamera(){streamRef.current?.getTracks().forEach(x=>x.stop());streamRef.current=null;setCamera(false)}
- function submit(e){e.preventDefault();if(type==='add'&&duplicateOnAdd){setLookup('duplicate');return}if(type!=='add'&&!selected)return setLookup('missing');onSave(form)}
+ function submit(e){e.preventDefault();if(type==='add'&&duplicateOnAdd){setLookup('duplicate');return}if(type!=='add'&&!selected)return setLookup('missing');if(type==='transfer'&&!form.to)return;onSave(form)}
  const hint=type==='transfer'?t.transferHint:type==='surplus'?t.surplusHint:type==='disposal'?t.disposalHint:'';
  return <div className="invoice-overlay" onClick={()=>{stopCamera();onClose()}}><form className="asset-modal" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="drawer-header"><div><small>SAAMS Assets</small><h2>{type==='add'?t.add:t[type]}</h2></div><button type="button" onClick={()=>{stopCamera();onClose()}}>×</button></div>
   {type==='add'?<div className="asset-form-grid"><label><span>{t.barcode}</span><input required value={form.barcode} onChange={e=>{setForm({...form,barcode:e.target.value});setLookup(null)}}/>{duplicateOnAdd&&<div className="duplicate-asset-warning"><b>⚠ {t.duplicateBarcode}</b><span>{duplicateOnAdd.barcode} · {assetLabel(duplicateOnAdd,ar)} · {t.duplicateBarcodeDetail}: {nurseryLabel(duplicateOnAdd,ar)}</span><small>{t.duplicateBarcodeBlocked}</small></div>}</label><label><span>{t.assetName}</span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label><label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label><label className="wide"><span>{t.notes}</span><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label></div>:<>
-   <p className="request-hint">{hint}</p><div className="barcode-panel"><label><span>{t.barcode}</span><div className="barcode-input-row"><input required value={form.barcode} onChange={e=>{setForm({...form,barcode:e.target.value});setLookup(null)}} placeholder="SEA-000000"/><button type="button" onClick={findAsset}>{t.lookup}</button></div></label><div className="barcode-tools"><button type="button" onClick={startCamera}>▣ {t.scan}</button><label className="upload-barcode">⇧ {t.upload}<input type="file" accept="image/*" capture="environment" onChange={e=>e.target.files[0]&&decodeImage(e.target.files[0])}/></label></div><small>{t.manual}</small>{scanMsg&&<div className="scan-warning">{scanMsg}</div>}{lookup==='found'&&selected&&<div className="asset-found"><b>✓ {t.found}</b><strong>{assetLabel(selected,ar)}</strong><span>{nurseryLabel(selected,ar)} · {selected.barcode}</span></div>}{lookup==='missing'&&<div className="scan-error">! {t.notFound}</div>}</div>
+   <p className="request-hint">{hint}</p>{!isAdmin&&<label className="nursery-asset-picker"><span>{ar?'اختاري الأصل من قائمة أصول الحضانة':'Choose from nursery assets'}</span><select value={selected?.id||selected?.barcode||''} onChange={e=>chooseRequestAsset(e.target.value)}><option value="">{ar?'اختاري الأصل...':'Choose asset...'}</option>{assets.map(a=><option key={a.id||a.barcode} value={a.id||a.barcode}>{a.barcode} — {assetLabel(a,ar)}</option>)}</select></label>}<div className="barcode-panel"><label><span>{t.barcode}</span><div className="barcode-input-row"><input required value={form.barcode} onChange={e=>handleRequestBarcode(e.target.value)} placeholder="SEA-000000"/><button type="button" onClick={findAsset}>{t.lookup}</button></div></label><div className="barcode-tools"><button type="button" onClick={startCamera}>▣ {t.scan}</button><label className="upload-barcode">⇧ {t.upload}<input type="file" accept="image/*" capture="environment" onChange={e=>e.target.files[0]&&decodeImage(e.target.files[0])}/></label></div><small>{ar?'يمكنك اختيار الأصل من القائمة أو إدخال كوده مباشرة، وسيتم تعبئة البيانات تلقائيًا.':'Choose an asset from the list or enter its code; details will fill automatically.'}</small>{scanMsg&&<div className="scan-warning">{scanMsg}</div>}{lookup==='found'&&selected&&<div className="asset-found"><b>✓ {t.found}</b><strong>{assetLabel(selected,ar)}</strong><span>{nurseryLabel(selected,ar)} · {selected.barcode}</span></div>}{lookup==='missing'&&form.barcode&&<div className="scan-error">! {t.notFound}</div>}</div>
    {camera&&<div className="camera-box"><video ref={videoRef} autoPlay muted playsInline/><div className="scan-frame"></div><p>{t.cameraHint}</p><button type="button" onClick={stopCamera}>{t.closeCamera}</button></div>}
-   <div className="asset-form-grid"><label><span>{t.asset}</span><input readOnly value={form.asset}/></label><label><span>{t.from}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label>{type==='transfer'&&<label><span>{t.to}</span><select value={form.to} onChange={e=>setForm({...form,to:e.target.value})}>{nurseries.filter(n=>n!==form.from).map(n=><option key={n}>{n}</option>)}</select></label>}<label className={type==='transfer'?'':'wide'}><span>{t.reason}</span><textarea required value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/></label></div>
+   <div className="asset-form-grid"><label><span>{t.asset}</span><input readOnly value={form.asset}/></label><label><span>{t.category}</span><input readOnly value={form.category}/></label><label><span>{t.from}</span>{isAdmin?<select required value={form.from} onChange={e=>setForm({...form,from:e.target.value,to:e.target.value===form.to?'':form.to})}><option value="">{ar?'اختاري الحضانة...':'Choose nursery...'}</option>{nurseries.map(n=><option key={n}>{n}</option>)}</select>:<input readOnly value={form.from||defaultNursery||''}/>}</label>{type==='transfer'&&<label><span>{t.to}</span><select required value={form.to} onChange={e=>setForm({...form,to:e.target.value})}><option value="">{ar?'اختاري الحضانة المنقول إليها...':'Choose destination nursery...'}</option>{nurseries.filter(n=>n!==form.from).map(n=><option key={n} value={n}>{n}</option>)}</select></label>}<label className="wide"><span>{t.reason}</span><textarea required value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/></label></div>
   </>}
   <div className="asset-modal-actions"><button type="button" className="secondary-action" onClick={()=>{stopCamera();onClose()}}>{t.cancel}</button><button className="primary-action" disabled={(type==='add'&&!!duplicateOnAdd)||(type!=='add'&&!selected)}>{type==='add'?t.save:t.submit}</button></div></form></div>
 }

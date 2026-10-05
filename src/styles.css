@@ -2895,3 +2895,12 @@ html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
 @media(max-width:720px){.asset-filter-row{grid-template-columns:1fr}.asset-search-main{grid-column:auto}.asset-filter-select,.asset-clear-filters{width:100%}}
 
 @media(max-width:700px){.advance-details-drawer{width:100vw;padding:16px}.advance-nursery-tabs button{font-size:9px;padding:7px 9px}.advance-nursery-section-head{align-items:flex-start}}
+
+/* Nursery asset register UX: fixed nursery scope + guided request selection */
+.asset-nursery-fixed-filter{min-width:220px;border:1px solid #d9e6ef;border-radius:16px;background:#f7fbfc;padding:8px 14px;display:flex;flex-direction:column;gap:2px;justify-content:center}
+.asset-nursery-fixed-filter small{font-size:11px;color:#8aa0b3}
+.asset-nursery-fixed-filter strong{font-size:14px;color:#29445b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nursery-asset-picker{display:flex;flex-direction:column;gap:8px;margin:4px 0 14px}
+.nursery-asset-picker>span{font-weight:800;color:#29445b}
+.nursery-asset-picker select{width:100%;min-height:48px;border:1px solid #d8e4ee;border-radius:14px;background:#fff;padding:0 14px;font:inherit;color:#24384c}
+@media(max-width:900px){.asset-nursery-fixed-filter{min-width:0;width:100%}}
