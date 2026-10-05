@@ -2904,3 +2904,8 @@ html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
 .nursery-asset-picker>span{font-weight:800;color:#29445b}
 .nursery-asset-picker select{width:100%;min-height:48px;border:1px solid #d8e4ee;border-radius:14px;background:#fff;padding:0 14px;font:inherit;color:#24384c}
 @media(max-width:900px){.asset-nursery-fixed-filter{min-width:0;width:100%}}
+
+/* Asset request modal: always open centered in the current viewport */
+.asset-request-overlay{position:fixed!important;inset:0!important;z-index:5000!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;overflow:auto!important}
+.asset-request-overlay .asset-modal{margin:0!important;max-height:min(90dvh,900px)!important;overflow:auto!important;position:relative!important}
+@media(max-width:900px){.asset-request-overlay{align-items:center!important;padding:10px!important;overflow:auto!important}.asset-request-overlay .asset-modal{width:min(760px,96vw)!important;height:auto!important;max-height:92dvh!important;border-radius:20px!important;padding:18px!important;overflow:auto!important}}
