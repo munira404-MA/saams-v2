@@ -71,19 +71,27 @@ export async function findNurseryByName(name) {
 }
 
 export async function listInvoices() {
-  const { data, error } = await supabase
-    .from('invoices')
-    .select(`
-      *,
-      nurseries(name_ar,name_en),
-      advance_allocations(
-        id,
-        advances(code,name_ar,name_en)
-      )
-    `)
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data || []).map((row) => ({
+  const rows = [];
+  const batchSize = 1000;
+  for (let from = 0; ; from += batchSize) {
+    const { data, error } = await supabase
+      .from('invoices')
+      .select(`
+        *,
+        nurseries(name_ar,name_en),
+        advance_allocations(
+          id,
+          advances(code,name_ar,name_en)
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .range(from, from + batchSize - 1);
+    if (error) throw error;
+    const batch = data || [];
+    rows.push(...batch);
+    if (batch.length < batchSize) break;
+  }
+  return rows.map((row) => ({
     dbId: row.id,
     id: row.invoice_number,
     nurseryId: row.nursery_id,
@@ -442,6 +450,131 @@ export async function writeAuditLog(payload) {
     after_data: payload.after || null,
   });
   if (error) console.error('Audit insert failed:', error);
+}
+
+
+export async function listAllAssets(nurseryId = null) {
+  const rows = [];
+  const batchSize = 1000;
+  for (let from = 0; ; from += batchSize) {
+    let query = supabase
+      .from('assets')
+      .select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,updated_at,nurseries(name_ar,name_en)')
+      .order('created_at', { ascending: false })
+      .range(from, from + batchSize - 1);
+    if (nurseryId) query = query.eq('nursery_id', nurseryId);
+    const { data, error } = await query;
+    if (error) throw error;
+    const batch = data || [];
+    rows.push(...batch.map((row) => ({
+      dbId: row.id,
+      id: row.barcode,
+      barcode: row.barcode,
+      nameAr: row.name_ar || '',
+      nameEn: row.name_en || row.name_ar || '',
+      categoryAr: row.category_ar || '',
+      categoryEn: row.category_en || row.category_ar || '',
+      nurseryId: row.nursery_id,
+      nurseryAr: row.nurseries?.name_ar || '',
+      nurseryEn: row.nurseries?.name_en || '',
+      status: row.status || 'active',
+      notes: row.notes || '',
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })));
+    if (batch.length < batchSize) break;
+  }
+  return rows;
+}
+
+export async function listAuditLogs({ nurseryId = null, limit = 200 } = {}) {
+  let query = supabase
+    .from('audit_logs')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (nurseryId) query = query.eq('nursery_id', nurseryId);
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const userIds = [...new Set((data || []).map((row) => row.user_id).filter(Boolean))];
+  const nurseryIds = [...new Set((data || []).map((row) => row.nursery_id).filter(Boolean))];
+  const [profilesResult, nurseriesResult] = await Promise.all([
+    userIds.length ? supabase.from('profiles').select('id,full_name,username').in('id', userIds) : Promise.resolve({ data: [] }),
+    nurseryIds.length ? supabase.from('nurseries').select('id,name_ar,name_en').in('id', nurseryIds) : Promise.resolve({ data: [] }),
+  ]);
+  const profileMap = new Map((profilesResult.data || []).map((row) => [row.id, row]));
+  const nurseryMap = new Map((nurseriesResult.data || []).map((row) => [row.id, row]));
+  return (data || []).map((row) => {
+    const created = row.created_at ? new Date(row.created_at) : new Date();
+    const user = profileMap.get(row.user_id);
+    const nursery = nurseryMap.get(row.nursery_id);
+    return {
+      id: row.id,
+      createdAt: row.created_at,
+      date: created.toLocaleDateString('ar-AE'),
+      time: created.toLocaleTimeString('ar-AE', { hour: '2-digit', minute: '2-digit' }),
+      userId: row.user_id || '',
+      user: user?.full_name || user?.username || 'المستخدم',
+      username: user?.username || '',
+      nurseryId: row.nursery_id || '',
+      nursery: nursery?.name_ar || nursery?.name_en || '',
+      screen: row.screen || '',
+      action: row.action || '',
+      actionType: row.action_type || 'update',
+      entityType: row.entity_type || '',
+      entityId: row.entity_id || '',
+      details: row.details || '',
+      reason: row.reason || '',
+      before: row.before_data || null,
+      after: row.after_data || null,
+    };
+  });
+}
+
+export async function listAttachmentIndex(nurseryId = null) {
+  const rows = [];
+  const batchSize = 1000;
+  for (let from = 0; ; from += batchSize) {
+    let query = supabase
+      .from('invoices')
+      .select('id,invoice_number,supplier_name,nursery_id,attachment_path,receipt_path,created_at,nurseries(name_ar,name_en)')
+      .order('created_at', { ascending: false })
+      .range(from, from + batchSize - 1);
+    if (nurseryId) query = query.eq('nursery_id', nurseryId);
+    const { data, error } = await query;
+    if (error) throw error;
+    const batch = data || [];
+    for (const row of batch) {
+      const nurseryAr = row.nurseries?.name_ar || '';
+      const nurseryEn = row.nurseries?.name_en || '';
+      const base = {
+        entityType: 'invoice',
+        entityId: row.invoice_number || row.id,
+        dbId: row.id,
+        nurseryId: row.nursery_id,
+        nursery: nurseryAr || nurseryEn,
+        nurseryAr,
+        nurseryEn,
+        supplier: row.supplier_name || '',
+        createdAt: row.created_at,
+      };
+      if (row.attachment_path) rows.push({
+        ...base, id: `db-invoice-${row.id}`, kind: 'invoice', path: row.attachment_path,
+        name: row.attachment_path.split('/').pop() || `${row.invoice_number || row.id}.pdf`,
+        mime: /\.pdf$/i.test(row.attachment_path) ? 'application/pdf' : 'image/*',
+        source: 'database',
+      });
+      if (row.receipt_path) rows.push({
+        ...base, id: `db-receipt-${row.id}`, kind: 'receipt', path: row.receipt_path,
+        name: row.receipt_path.split('/').pop() || `${row.invoice_number || row.id}_receipt`,
+        mime: /\.pdf$/i.test(row.receipt_path) ? 'application/pdf' : 'image/*',
+        source: 'database',
+      });
+    }
+    if (batch.length < batchSize) break;
+  }
+  return rows;
 }
 
 export function normalizeDate(value) {

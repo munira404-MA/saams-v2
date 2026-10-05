@@ -183,6 +183,7 @@ export default function Advances({ lang, profile, databaseMode }) {
       }
     }
     setAdvances(current => [next, ...current]);
+    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'advances'}}));
     setCreating(false); notify(t.created); return true;
   }
   async function toggleStatus(id) {
@@ -202,6 +203,7 @@ export default function Advances({ lang, profile, databaseMode }) {
       }
     }
     setAdvances(current => current.map(a => a.id === id ? { ...a, status: nextStatus } : a));
+    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'advances'}}));
     notify(item?.status === 'open' ? t.closedMsg : t.reopenedMsg);
   }
   async function openCreateAdvance() {
@@ -240,6 +242,7 @@ export default function Advances({ lang, profile, databaseMode }) {
       return;
     }
     setAdvances((current) => current.filter((advance) => advance.id !== item.id));
+    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'advances'}}));
     if (viewing?.advance?.id === item.id) setViewing(null);
     notify(t.deleteSuccess);
   }

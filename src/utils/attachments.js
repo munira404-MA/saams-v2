@@ -33,4 +33,6 @@ export function registerAttachment(item) {
   const filtered = rows.filter((row) => row.id !== key);
   localStorage.setItem(ATTACHMENTS_KEY, JSON.stringify([next, ...filtered].slice(0, 400)));
   window.dispatchEvent(new CustomEvent('saams:attachments-updated'));
+  window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'attachments' } }));
 }
+

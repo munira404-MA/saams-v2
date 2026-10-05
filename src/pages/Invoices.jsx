@@ -1100,6 +1100,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
     setRows((current) => [next, ...current]);
     if (attachmentDataUrl) registerAttachment({entityType:'invoice',entityId:next.id,kind:'invoice',name:next.attachmentName||`${next.id}.pdf`,mime:next.attachmentType,dataUrl:attachmentDataUrl,nursery:next.nurseryAr,supplier:next.supplierAr});
     if (receiptDataUrl) registerAttachment({entityType:'invoice',entityId:next.id,kind:'receipt',name:next.receiptName||`${next.id}_receipt`,mime:next.receiptType,dataUrl:receiptDataUrl,nursery:next.nurseryAr,supplier:next.supplierAr});
+    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'invoices'}}));
     recordAudit({
       profile,
       screen: 'الفواتير',
@@ -1173,6 +1174,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
       after: { status: 'approved', approvedAt },
     });
     window.dispatchEvent(new Event('saams:invoice-status-changed'));
+    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'invoices'}}));
     showActionMessage(t.approvedSuccess);
   }
 
@@ -1220,6 +1222,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
     setReturnTarget(null);
     setReturnReason('');
     window.dispatchEvent(new Event('saams:invoice-status-changed'));
+    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'invoices'}}));
     showActionMessage(t.returnedSuccess);
   }
 

@@ -1,3 +1,4 @@
+import { writeAuditLog } from '../data/supabaseData';
 export const AUDIT_STORAGE_KEY = 'saams-audit-log-v2';
 const AUDIT_CLEANUP_KEY = 'saams-production-clean-audit-v1';
 
@@ -65,6 +66,15 @@ export function recordAudit({
 
   const rows = [row, ...loadAuditLog()];
   saveAuditLog(rows);
+  // Mirror the same operation to Supabase so Dashboard, Command Center and Settings
+  // share one central activity history across browsers/devices. Local storage stays as
+  // a fast fallback if the network is temporarily unavailable.
+  writeAuditLog({
+    nurseryId: profile?.nursery_id || metadata?.nurseryId || null,
+    screen, action, actionType, entityType, entityId, details, reason, before, after,
+  }).then(() => {
+    window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'audit_logs' } }));
+  }).catch((error) => console.warn('Central audit sync failed', error));
   return row;
 }
 
