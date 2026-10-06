@@ -19,12 +19,12 @@ const translations = {
   ar: {
     greeting: 'مرحباً', intro: 'مرحباً بكِ في منظومة الأصول والسلف الذكية', filter: 'تصفية حسب',
     totalAssets: 'إجمالي الأصول', openAdvances: 'السلف المفتوحة', pendingInvoices: 'الفواتير قيد الاعتماد', lateInvoices: 'الفواتير المتأخرة',
-    asset: 'أصل', advance: 'سلفة', invoice: 'فاتورة', awaitingReview: 'بانتظار المراجعة', invoiceStatus: 'حالة الفواتير', assetByNursery: 'توزيع الأصول حسب الحضانة', thisMonth: 'هذا الشهر', approved: 'معتمدة', review: 'قيد المراجعة', returned: 'معادة للحضانة', late: 'متأخرة', alerts: 'التنبيهات', viewAll: 'عرض الكل', quickActions: 'العمليات السريعة', todayActivity: 'نشاط اليوم', activity: 'النشاط', details: 'التفاصيل', user: 'المستخدم', time: 'الوقت', addAsset: 'أصل جديد', addInvoice: 'فاتورة جديدة', addAdvance: 'سلفة جديدة', transferAsset: 'نقل أصل', addUser: 'مستخدم جديد', report: 'تقرير', noAlerts: 'لا توجد تنبيهات حالياً', noActivity: 'لا يوجد نشاط مسجل حالياً', noAssetData: 'لا توجد أصول مسجلة حالياً', totalInvoices: 'إجمالي الفواتير', loading: 'جاري تحميل البيانات...', loadError: 'تعذر تحميل بعض بيانات الصفحة الرئيسية.'
+    asset: 'أصل', advance: 'سلفة', invoice: 'فاتورة', awaitingReview: 'بانتظار المراجعة', invoiceStatus: 'حالة الفواتير', assetByNursery: 'توزيع الأصول حسب الحضانة', thisMonth: 'هذا الشهر', approved: 'معتمدة', review: 'قيد المراجعة', returned: 'معادة للحضانة', late: 'متأخرة', alerts: 'التنبيهات', viewAll: 'عرض الكل', quickActions: 'العمليات السريعة', todayActivity: 'نشاط اليوم', activity: 'النشاط', details: 'التفاصيل', user: 'المستخدم', time: 'الوقت', addAsset: 'أصل جديد', addInvoice: 'فاتورة جديدة', addAdvance: 'سلفة جديدة', transferAsset: 'نقل أصل', addUser: 'مستخدم جديد', report: 'تقرير', noAlerts: 'لا توجد تنبيهات حالياً', noActivity: 'لا يوجد نشاط مسجل حالياً', noAssetData: 'لا توجد أصول مسجلة حالياً', totalInvoices: 'إجمالي الفواتير', loading: 'جاري تحميل البيانات...', loadError: 'تعذر تحميل بعض بيانات الصفحة الرئيسية.', showLess: 'عرض أقل', invoiceApprovedAlert: 'تم اعتماد الفاتورة', invoiceReturnedAlert: 'تمت إعادة الفاتورة للتعديل', invoiceRejectedAlert: 'تم رفض الفاتورة', invoiceReviewAlert: 'الفاتورة قيد المراجعة', assetTransfer: 'نقل', assetSurplus: 'فائض', assetDisposal: 'إسقاط', requestApprovedAlert: 'تمت الموافقة على طلب', requestRejectedAlert: 'تم رفض طلب', requestReturnedAlert: 'تمت إعادة طلب', requestPendingAlert: 'طلب بانتظار المراجعة', tapForDetails: 'اضغطي لعرض التفاصيل' 
   },
   en: {
     greeting: 'Welcome', intro: 'Welcome to the Smart Assets & Advances Management System', filter: 'Filter by',
     totalAssets: 'Total Assets', openAdvances: 'Open Advances', pendingInvoices: 'Invoices Pending Approval', lateInvoices: 'Late Invoices',
-    asset: 'Assets', advance: 'Advances', invoice: 'Invoices', awaitingReview: 'awaiting review', invoiceStatus: 'Invoice Status', assetByNursery: 'Assets by Nursery', thisMonth: 'This Month', approved: 'Approved', review: 'Under Review', returned: 'Returned', late: 'Late', alerts: 'Alerts', viewAll: 'View All', quickActions: 'Quick Actions', todayActivity: 'Today’s Activity', activity: 'Activity', details: 'Details', user: 'User', time: 'Time', addAsset: 'New Asset', addInvoice: 'New Invoice', addAdvance: 'New Advance', transferAsset: 'Transfer Asset', addUser: 'New User', report: 'Report', noAlerts: 'No alerts at the moment', noActivity: 'No activity recorded yet', noAssetData: 'No assets are registered yet', totalInvoices: 'Total invoices', loading: 'Loading data...', loadError: 'Some dashboard data could not be loaded.'
+    asset: 'Assets', advance: 'Advances', invoice: 'Invoices', awaitingReview: 'awaiting review', invoiceStatus: 'Invoice Status', assetByNursery: 'Assets by Nursery', thisMonth: 'This Month', approved: 'Approved', review: 'Under Review', returned: 'Returned', late: 'Late', alerts: 'Alerts', viewAll: 'View All', quickActions: 'Quick Actions', todayActivity: 'Today’s Activity', activity: 'Activity', details: 'Details', user: 'User', time: 'Time', addAsset: 'New Asset', addInvoice: 'New Invoice', addAdvance: 'New Advance', transferAsset: 'Transfer Asset', addUser: 'New User', report: 'Report', noAlerts: 'No alerts at the moment', noActivity: 'No activity recorded yet', noAssetData: 'No assets are registered yet', totalInvoices: 'Total invoices', loading: 'Loading data...', loadError: 'Some dashboard data could not be loaded.', showLess: 'Show Less', invoiceApprovedAlert: 'Invoice approved', invoiceReturnedAlert: 'Invoice returned for editing', invoiceRejectedAlert: 'Invoice rejected', invoiceReviewAlert: 'Invoice under review', assetTransfer: 'Transfer', assetSurplus: 'Surplus', assetDisposal: 'Disposal', requestApprovedAlert: 'Asset request approved', requestRejectedAlert: 'Asset request rejected', requestReturnedAlert: 'Asset request returned', requestPendingAlert: 'Asset request awaiting review', tapForDetails: 'Tap to view details' 
   },
 };
 
@@ -72,6 +72,7 @@ export default function Dashboard({ lang, setActive, profile }) {
   const [activities,setActivities]=useState([]);
   const [loading,setLoading]=useState(true), [error,setError]=useState('');
   const [developerOpen,setDeveloperOpen]=useState(false);
+  const [showAllAlerts,setShowAllAlerts]=useState(false);
 
   useEffect(()=>{ let alive=true;
     const loadDashboard=async()=>{
@@ -130,9 +131,55 @@ export default function Dashboard({ lang, setActive, profile }) {
         const distribution=[...distMap.entries()].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
 
         const nextAlerts=[];
-        if(late>0) nextAlerts.push({tone:'red',title:ar?`${late} فاتورة متأخرة لأكثر من أسبوع`:`${late} invoice(s) overdue for more than a week`,sub:ar?'بانتظار الاعتماد':'Awaiting approval'});
-        if(returned>0) nextAlerts.push({tone:'orange',title:ar?`${returned} فاتورة معادة/مرفوضة`:`${returned} returned/rejected invoice(s)`,sub:ar?'تحتاج متابعة':'Needs follow-up'});
-        if(openAdvances>0) nextAlerts.push({tone:'blue',title:ar?`${openAdvances} سلفة مفتوحة حالياً`:`${openAdvances} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
+        if(isNursery&&profile?.nursery_id){
+          const [{data:invoiceEvents,error:invoiceEventsError},{data:requestEvents,error:requestEventsError}]=await Promise.all([
+            supabase.from('invoices')
+              .select('id,invoice_number,status,supplier_name,return_reason,created_at,approved_at,returned_at')
+              .eq('nursery_id',profile.nursery_id)
+              .order('created_at',{ascending:false})
+              .limit(100),
+            supabase.from('asset_requests')
+              .select('id,request_code,request_type,barcode,asset_name_ar,asset_name_en,status,rejection_reason_ar,rejection_reason_en,created_at,updated_at,decision_at,to_name_ar,to_name_en')
+              .eq('created_by',profile?.id||'00000000-0000-0000-0000-000000000000')
+              .order('updated_at',{ascending:false})
+              .limit(100)
+          ]);
+          // Asset requests table is an optional production upgrade; invoice alerts should still work if it is not ready yet.
+          if(invoiceEventsError) console.warn('Dashboard invoice notifications load failed',invoiceEventsError);
+          if(requestEventsError) console.warn('Dashboard asset request notifications load failed',requestEventsError);
+          const eventTime=(row)=>row.approved_at||row.returned_at||row.decision_at||row.updated_at||row.created_at||'';
+          const formatWhen=(value)=>{
+            if(!value)return '';
+            try{return new Intl.DateTimeFormat(ar?'ar-AE':'en-AE',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(value))}catch{return ''}
+          };
+          for(const inv of invoiceEvents||[]){
+            const number=inv.invoice_number||'—';
+            let title='',tone='blue';
+            if(inv.status==='approved'){title=ar?`${t.invoiceApprovedAlert} رقم ${number}`:`${t.invoiceApprovedAlert}: ${number}`;tone='green'}
+            else if(inv.status==='returned'){title=ar?`${t.invoiceReturnedAlert} رقم ${number}`:`${t.invoiceReturnedAlert}: ${number}`;tone='orange'}
+            else if(inv.status==='rejected'){title=ar?`${t.invoiceRejectedAlert} رقم ${number}`:`${t.invoiceRejectedAlert}: ${number}`;tone='red'}
+            else {title=ar?`${t.invoiceReviewAlert} رقم ${number}`:`${t.invoiceReviewAlert}: ${number}`;tone='blue'}
+            const reason=String(inv.return_reason||'').trim();
+            nextAlerts.push({tone,title,sub:[inv.supplier_name,reason,formatWhen(eventTime(inv))].filter(Boolean).join(' • '),target:'invoices',time:eventTime(inv)});
+          }
+          const requestTypeLabel=(type)=>type==='surplus'?t.assetSurplus:type==='disposal'?t.assetDisposal:t.assetTransfer;
+          for(const req of requestEvents||[]){
+            const type=requestTypeLabel(req.request_type);
+            const asset=(ar?req.asset_name_ar:req.asset_name_en)||req.asset_name_ar||req.asset_name_en||req.barcode||'—';
+            let title='',tone='blue';
+            if(req.status==='approved'){title=ar?`${t.requestApprovedAlert} ${type}`:`${t.requestApprovedAlert}: ${type}`;tone='green'}
+            else if(req.status==='rejected'){title=ar?`${t.requestRejectedAlert} ${type}`:`${t.requestRejectedAlert}: ${type}`;tone='red'}
+            else if(req.status==='returned'){title=ar?`${t.requestReturnedAlert} ${type}`:`${t.requestReturnedAlert}: ${type}`;tone='orange'}
+            else {title=ar?`${type} — ${t.requestPendingAlert}`:`${type} — ${t.requestPendingAlert}`;tone='blue'}
+            const reason=String((ar?req.rejection_reason_ar:req.rejection_reason_en)||req.rejection_reason_ar||req.rejection_reason_en||'').trim();
+            nextAlerts.push({tone,title,sub:[asset,req.barcode,reason,formatWhen(eventTime(req))].filter(Boolean).join(' • '),target:'assets',time:eventTime(req)});
+          }
+          nextAlerts.sort((a,b)=>new Date(b.time||0)-new Date(a.time||0));
+        }else{
+          if(late>0) nextAlerts.push({tone:'red',title:ar?`${late} فاتورة متأخرة لأكثر من أسبوع`:`${late} invoice(s) overdue for more than a week`,sub:ar?'بانتظار الاعتماد':'Awaiting approval'});
+          if(returned>0) nextAlerts.push({tone:'orange',title:ar?`${returned} فاتورة معادة/مرفوضة`:`${returned} returned/rejected invoice(s)`,sub:ar?'تحتاج متابعة':'Needs follow-up'});
+          if(openAdvances>0) nextAlerts.push({tone:'blue',title:ar?`${openAdvances} سلفة مفتوحة حالياً`:`${openAdvances} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
+        }
 
         const auditRows=loadAuditLog().filter(x=>!isNursery||!profile?.nursery||x.nursery===profile.nursery).slice(0,8);
         if(alive){
@@ -154,10 +201,18 @@ export default function Dashboard({ lang, setActive, profile }) {
     window.addEventListener('saams:data-updated',onUpdate);
     window.addEventListener('focus',onUpdate);
     document.addEventListener('visibilitychange',onVisible);
-    const timer=setInterval(loadDashboard,30000);
+    const timer=setInterval(loadDashboard,isNursery?10000:30000);
+    let liveChannel=null;
+    if(isNursery&&profile?.nursery_id){
+      liveChannel=supabase.channel(`nursery-dashboard-${profile.nursery_id}-${profile?.id||'user'}`)
+        .on('postgres_changes',{event:'*',schema:'public',table:'invoices',filter:`nursery_id=eq.${profile.nursery_id}`},loadDashboard)
+        .on('postgres_changes',{event:'*',schema:'public',table:'asset_requests',filter:`created_by=eq.${profile?.id||''}`},loadDashboard)
+        .subscribe();
+    }
     return()=>{
       alive=false;
       clearInterval(timer);
+      if(liveChannel)supabase.removeChannel(liveChannel);
       window.removeEventListener('saams:data-updated',onUpdate);
       window.removeEventListener('focus',onUpdate);
       document.removeEventListener('visibilitychange',onVisible);
@@ -173,13 +228,14 @@ export default function Dashboard({ lang, setActive, profile }) {
     {label:t.lateInvoices,value:stats.late,suffix:t.invoice,icon:'◷',tone:'orange',note:ar?'لا توجد بيانات تجريبية':'No demo data'},
   ],[stats,t,ar]);
   const today=new Intl.DateTimeFormat(ar?'ar-AE':'en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
+  const visibleAlerts=isNursery&&!showAllAlerts?alerts.slice(0,5):alerts;
 
   return <div className="glass-dashboard">
     <section className="dashboard-hero"><div><span className="eyebrow">SAAMS Official 3.2</span><h1>{greeting} <span className="wave">👋</span></h1><p>{intro}</p></div><div className="dashboard-filters"><button type="button">☷ {t.filter}</button><button type="button">▣ {today}</button></div></section>
     {loading&&<div className="dashboard-live-note">{t.loading}</div>}{error&&<div className="dashboard-live-note error">{error}</div>}
     <section className="stat-grid">{cards.map((c,i)=><article className={`stat-card ${c.tone}`} key={c.label} style={{animationDelay:`${i*70}ms`}}><div className="stat-icon">{c.icon}</div><span>{c.label}</span><strong><AnimatedNumber value={c.value}/></strong><em>{c.suffix}</em><footer>{c.note}</footer></article>)}</section>
     <section className="dashboard-grid dashboard-grid-top">
-      <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2><button type="button">{t.viewAll}</button></div><div className="alerts-list">{alerts.length?alerts.map((a,i)=><div className={`live-alert ${a.tone}`} key={`${a.title}-${i}`}><b>!</b><div><strong>{a.title}</strong><small>{a.sub}</small></div></div>):<div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div>}</div></article>
+      <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2>{alerts.length>5&&<button type="button" onClick={()=>setShowAllAlerts(v=>!v)}>{showAllAlerts?t.showLess:t.viewAll}</button>}</div><div className="alerts-list">{visibleAlerts.length?visibleAlerts.map((a,i)=><div className={`live-alert ${a.tone} ${a.target?'clickable':''}`} key={`${a.title}-${i}`} role={a.target?'button':undefined} tabIndex={a.target?0:undefined} onClick={()=>a.target&&setActive(a.target)} onKeyDown={(e)=>{if(a.target&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setActive(a.target)}}}><b>{a.tone==='green'?'✓':a.tone==='red'?'!':a.tone==='orange'?'↩':'•'}</b><div><strong>{a.title}</strong><small>{a.sub}{a.target?` • ${t.tapForDetails}`:''}</small></div></div>):<div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div>}</div></article>
       <article className="glass-panel chart-panel"><div className="panel-heading"><h2>{isNursery?(ar?`أصول ${nurseryName}`:`${nurseryName} Assets`):t.assetByNursery}</h2><button type="button">{t.thisMonth}⌄</button></div><AssetDistribution t={t} rows={assetDistribution}/></article>
       <article className="glass-panel status-panel"><div className="panel-heading"><h2>{t.invoiceStatus}</h2><button type="button">{t.thisMonth}⌄</button></div><StatusDonut t={t} counts={{approved:stats.approved,review:stats.review,returned:stats.returned,late:stats.late}}/><p className="panel-total">{t.totalInvoices}: {stats.totalInvoices}</p></article>
     </section>

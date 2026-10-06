@@ -2909,3 +2909,9 @@ html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
 .asset-request-overlay{position:fixed!important;inset:0!important;z-index:5000!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:18px!important;overflow:auto!important}
 .asset-request-overlay .asset-modal{margin:0!important;max-height:min(90dvh,900px)!important;overflow:auto!important;position:relative!important}
 @media(max-width:900px){.asset-request-overlay{align-items:center!important;padding:10px!important;overflow:auto!important}.asset-request-overlay .asset-modal{width:min(760px,96vw)!important;height:auto!important;max-height:92dvh!important;border-radius:20px!important;padding:18px!important;overflow:auto!important}}
+/* Nursery dashboard live notifications */
+.live-alert.green>b{background:#e8f8ef;color:#23975a}
+.live-alert.violet>b{background:#f2edff;color:#7158d9}
+.live-alert.clickable{cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
+.live-alert.clickable:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(42,76,96,.08);border-color:#cfe1ea}
+.live-alert.clickable:focus-visible{outline:2px solid #4d7ce8;outline-offset:2px}
