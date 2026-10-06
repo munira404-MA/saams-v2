@@ -2915,3 +2915,10 @@ html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
 .live-alert.clickable{cursor:pointer;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease}
 .live-alert.clickable:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(42,76,96,.08);border-color:#cfe1ea}
 .live-alert.clickable:focus-visible{outline:2px solid #4d7ce8;outline-offset:2px}
+
+/* Asset report: live register + asset requests */
+.asset-report-subtabs{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 16px;padding:6px;background:#f7fbfd;border:1px solid #dbe8ef;border-radius:16px}
+.asset-report-subtabs button{border:1px solid #d8e5ee;background:#fff;color:#52677f;border-radius:12px;padding:11px 18px;font:inherit;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:8px}
+.asset-report-subtabs button b{min-width:28px;padding:2px 8px;border-radius:999px;background:#eef4ff;color:#4567da;font-size:12px}
+.asset-report-subtabs button.active{background:linear-gradient(135deg,#3d7de5,#5665eb);color:#fff;border-color:transparent;box-shadow:0 8px 18px rgba(72,100,220,.16)}
+.asset-report-subtabs button.active b{background:rgba(255,255,255,.2);color:#fff}

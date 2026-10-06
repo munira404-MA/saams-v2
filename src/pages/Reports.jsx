@@ -19,6 +19,25 @@ async function listAllAssets(){
   return rows;
 }
 
+async function listAllAssetRequests(){
+  const rows=[];
+  for(let from=0;;from+=ASSET_PAGE_SIZE){
+    const {data,error}=await supabase
+      .from('asset_requests')
+      .select('*')
+      .order('created_at',{ascending:false})
+      .range(from,from+ASSET_PAGE_SIZE-1);
+    if(error){
+      // Keep reports usable before the optional requests table is installed.
+      if(String(error?.message||'').includes('asset_requests') || error?.code==='42P01') return [];
+      throw error;
+    }
+    rows.push(...(data||[]));
+    if((data||[]).length<ASSET_PAGE_SIZE) break;
+  }
+  return rows;
+}
+
 const COPY = {
   ar:{
     title:'التقارير',sub:'تقارير تشغيلية مباشرة من قاعدة البيانات للفواتير والسلف والأصول، مع التصفية حسب الحضانة وتصدير Excel.',
@@ -26,7 +45,7 @@ const COPY = {
     nursery:'الحضانة',advance:'السلفة',from:'من تاريخ',to:'إلى تاريخ',status:'الحالة',all:'الكل',allNurseries:'كل الحضانات',allAdvances:'كل السلف',search:'بحث داخل التقرير...',records:'عدد السجلات',totalValue:'إجمالي القيمة',totalInvoices:'إجمالي الفواتير',totalAllocated:'إجمالي السلف',totalSpent:'إجمالي المصروف المعتمد',totalRemaining:'إجمالي المتبقي',preview:'معاينة التقرير',noData:'لا توجد بيانات مطابقة للتصفية.',reset:'إعادة التصفية',pdf:'حفظ PDF',
     loading:'جاري تحديث التقارير من قاعدة البيانات...',connected:'التقارير مرتبطة ببيانات التشغيل الفعلية من Supabase.',loadFailed:'تعذر تحديث التقارير من قاعدة البيانات.',
     approved:'معتمدة',review:'قيد المراجعة',returned:'معادة للتعديل',rejected:'مرفوضة',open:'مفتوحة',closed:'مغلقة',draft:'مسودة',active:'نشط',
-    approvedCount:'معتمدة',reviewCount:'بانتظار المراجعة',returnedCount:'معادة للتعديل',proof:'إثبات الخصم',yes:'مرفق',no:'غير مرفق',
+    approvedCount:'معتمدة',reviewCount:'بانتظار المراجعة',returnedCount:'معادة للتعديل',proof:'إثبات الخصم',yes:'مرفق',no:'غير مرفق',assetRegister:'جميع الأصول',assetRequests:'طلبات الأصول',transfer:'نقل',surplus:'فائض',disposal:'إسقاط',pending:'قيد الاعتماد',requestCode:'رقم الطلب',requestType:'نوع الطلب',reason:'السبب',destination:'إلى',source:'من',decisionDate:'تاريخ القرار',rejectionReason:'سبب الرفض',requestDate:'تاريخ الطلب',
   },
   en:{
     title:'Reports',sub:'Live operational reports for invoices, advances, and assets with filters and Excel export.',
@@ -34,7 +53,7 @@ const COPY = {
     nursery:'Nursery',advance:'Advance',from:'From Date',to:'To Date',status:'Status',all:'All',allNurseries:'All Nurseries',allAdvances:'All Advances',search:'Search report...',records:'Records',totalValue:'Total Value',totalInvoices:'Invoice Total',totalAllocated:'Total Advances',totalSpent:'Approved Spent',totalRemaining:'Total Remaining',preview:'Report Preview',noData:'No data matches the filters.',reset:'Reset Filters',pdf:'Save PDF',
     loading:'Refreshing reports from database...',connected:'Reports are linked to live operational data from Supabase.',loadFailed:'Could not refresh reports from database.',
     approved:'Approved',review:'Under Review',returned:'Returned',rejected:'Rejected',open:'Open',closed:'Closed',draft:'Draft',active:'Active',
-    approvedCount:'Approved',reviewCount:'Pending Review',returnedCount:'Returned',proof:'Payment Proof',yes:'Attached',no:'Not Attached',
+    approvedCount:'Approved',reviewCount:'Pending Review',returnedCount:'Returned',proof:'Payment Proof',yes:'Attached',no:'Not Attached',assetRegister:'All Assets',assetRequests:'Asset Requests',transfer:'Transfer',surplus:'Surplus',disposal:'Disposal',pending:'Pending Approval',requestCode:'Request No.',requestType:'Request Type',reason:'Reason',destination:'To',source:'From',decisionDate:'Decision Date',rejectionReason:'Rejection Reason',requestDate:'Request Date',
   }
 };
 
@@ -43,7 +62,7 @@ const safe = v => String(v ?? '').toLowerCase();
 const dateInRange = (date, from, to) => (!from || !date || date >= from) && (!to || !date || date <= to);
 const statusText = (status, ar) => ({
   approved: ar?'معتمدة':'Approved', review:ar?'قيد المراجعة':'Under Review', returned:ar?'معادة للتعديل':'Returned', rejected:ar?'مرفوضة':'Rejected',
-  open:ar?'مفتوحة':'Open', closed:ar?'مغلقة':'Closed', draft:ar?'مسودة':'Draft', active:ar?'نشط':'Active'
+  open:ar?'مفتوحة':'Open', closed:ar?'مغلقة':'Closed', draft:ar?'مسودة':'Draft', active:ar?'نشط':'Active', pending:ar?'قيد الاعتماد':'Pending Approval'
 }[status] || status || '—');
 
 function autoWidth(rows){
@@ -76,7 +95,10 @@ export default function Reports({lang,profile}){
   const [invoiceRows,setInvoiceRows] = useState([]);
   const [advanceRows,setAdvanceRows] = useState([]);
   const [assetRows,setAssetRows] = useState([]);
+  const [assetRequestRows,setAssetRequestRows] = useState([]);
+  const [assetReportView,setAssetReportView] = useState('register');
   const [assetReportPage,setAssetReportPage] = useState(1);
+  const [assetRequestPage,setAssetRequestPage] = useState(1);
 
   useEffect(()=>{
     setFilters(current=>({...current,nursery:isNursery?accountNursery:t.allNurseries,advance:t.allAdvances,status:t.all}));
@@ -88,7 +110,7 @@ export default function Reports({lang,profile}){
     const refresh = async()=>{
       setLoading(true);setLoadError('');
       try{
-        const [nurseries,invoices,advances,assets]=await Promise.all([listNurseries(),listInvoices(),listAdvances(),listAllAssets()]);
+        const [nurseries,invoices,advances,assets,assetRequests]=await Promise.all([listNurseries(),listInvoices(),listAdvances(),listAllAssets(),listAllAssetRequests()]);
         if(!active)return;
         setNurseryRows((nurseries||[]).filter(n=>n.active!==false));
         setInvoiceRows((invoices||[]).map(row=>({
@@ -124,6 +146,22 @@ export default function Reports({lang,profile}){
           nurseryAr:row.nurseries?.name_ar||'', nurseryEn:row.nurseries?.name_en||'',
           status:row.status||'active', notes:row.notes||'', createdAt:(row.created_at||'').slice(0,10)
         })));
+        setAssetRequestRows((assetRequests||[]).map(row=>({
+          id:row.id, requestCode:row.request_code||String(row.id||'—'), type:row.request_type||'transfer',
+          barcode:row.barcode||'—',
+          asset:ar?(row.asset_name_ar||row.asset_name_en||'—'):(row.asset_name_en||row.asset_name_ar||'—'),
+          assetAr:row.asset_name_ar||'', assetEn:row.asset_name_en||'',
+          from:ar?(row.from_name_ar||row.from_name_en||'—'):(row.from_name_en||row.from_name_ar||'—'),
+          fromAr:row.from_name_ar||'', fromEn:row.from_name_en||'',
+          to:ar?(row.to_name_ar||row.to_name_en||'—'):(row.to_name_en||row.to_name_ar||'—'),
+          toAr:row.to_name_ar||'', toEn:row.to_name_en||'',
+          reason:ar?(row.reason_ar||row.reason_en||'—'):(row.reason_en||row.reason_ar||'—'),
+          reasonAr:row.reason_ar||'', reasonEn:row.reason_en||'',
+          status:row.status||'pending',
+          rejectionReason:ar?(row.rejection_reason_ar||row.rejection_reason_en||''):(row.rejection_reason_en||row.rejection_reason_ar||''),
+          rejectionReasonAr:row.rejection_reason_ar||'', rejectionReasonEn:row.rejection_reason_en||'',
+          createdAt:(row.created_at||'').slice(0,10), decisionAt:(row.decision_at||'').slice(0,10)
+        })));
       }catch(error){ if(active){setLoadError(error?.message||t.loadFailed);} }
       finally{if(active)setLoading(false);}
     };
@@ -150,13 +188,17 @@ export default function Reports({lang,profile}){
     const textMatch=row=>!term || Object.values(row).some(v=>safe(v).includes(term));
     return {
       assets:assetRows.filter(row=>nurseryMatch(row)&&dateInRange(row.createdAt,filters.from,filters.to)&&statusMatch(row)&&textMatch(row)),
+      assetRequests:assetRequestRows.filter(row=>{
+        const requestNurseryMatch=effectiveNursery===t.allNurseries || row.from===effectiveNursery || row.fromAr===effectiveNursery || row.fromEn===effectiveNursery;
+        return requestNurseryMatch&&dateInRange(row.createdAt,filters.from,filters.to)&&statusMatch(row)&&textMatch(row);
+      }),
       invoices:invoiceRows.filter(row=>nurseryMatch(row)&&advanceMatch(row)&&dateInRange(row.date,filters.from,filters.to)&&statusMatch(row)&&textMatch(row)),
       advances:advanceRows.filter(row=>nurseryMatch(row)&&advanceMatch(row)&&dateInRange(row.from,filters.from,filters.to)&&statusMatch(row)&&textMatch(row))
     };
-  },[filters,isNursery,accountNursery,t.allNurseries,t.allAdvances,t.all,invoiceRows,advanceRows,assetRows,ar]);
+  },[filters,isNursery,accountNursery,t.allNurseries,t.allAdvances,t.all,invoiceRows,advanceRows,assetRows,assetRequestRows,ar]);
 
   const summary = useMemo(()=>({
-    assetCount:filtered.assets.length,
+    assetCount:filtered.assets.length, assetRequestCount:filtered.assetRequests.length,
     invoiceCount:filtered.invoices.length,invoiceTotal:filtered.invoices.reduce((s,r)=>s+Number(r.total||0),0),
     approvedInvoices:filtered.invoices.filter(r=>r.status==='approved').length,reviewInvoices:filtered.invoices.filter(r=>r.status==='review').length,returnedInvoices:filtered.invoices.filter(r=>r.status==='returned').length,
     allocated:filtered.advances.reduce((s,r)=>s+Number(r.allocated||0),0),spent:filtered.advances.reduce((s,r)=>s+Number(r.spent||0),0),remaining:filtered.advances.reduce((s,r)=>s+Number(r.remaining||0),0),
@@ -177,6 +219,7 @@ export default function Reports({lang,profile}){
     const invRows=invoiceExcelRows(filtered.invoices);
     const advRows=advanceExcelRows(filtered.advances);
     const assetRows=filtered.assets.map(r=>ar?{'رقم الباركود':r.barcode,'اسم الأصل':r.name,'الفئة':r.category,'الحضانة':r.nursery,'الحالة':statusText(r.status,true),'ملاحظات':r.notes,'تاريخ التسجيل':r.createdAt}:{Barcode:r.barcode,Asset:r.name,Category:r.category,Nursery:r.nursery,Status:statusText(r.status,false),Notes:r.notes,'Created Date':r.createdAt});
+    const assetRequestExcelRows=filtered.assetRequests.map(r=>ar?{'رقم الطلب':r.requestCode,'نوع الطلب':r.type==='transfer'?'نقل':r.type==='surplus'?'فائض':'إسقاط','اسم الأصل':r.asset,'الباركود':r.barcode,'من':r.from,'إلى':r.type==='transfer'?(r.to||'—'):'—','السبب':r.reason,'الحالة':statusText(r.status,true),'تاريخ الطلب':r.createdAt,'تاريخ القرار':r.decisionAt||'—','سبب الرفض':r.rejectionReason||'—'}:{'Request No.':r.requestCode,'Request Type':r.type==='transfer'?'Transfer':r.type==='surplus'?'Surplus':'Disposal',Asset:r.asset,Barcode:r.barcode,From:r.from,To:r.type==='transfer'?(r.to||'—'):'—',Reason:r.reason,Status:statusText(r.status,false),'Request Date':r.createdAt,'Decision Date':r.decisionAt||'—','Rejection Reason':r.rejectionReason||'—'});
     const summaryRows=ar?[
       {'المؤشر':'عدد الفواتير','القيمة':summary.invoiceCount},{'المؤشر':'إجمالي الفواتير','القيمة':summary.invoiceTotal},{'المؤشر':'الفواتير المعتمدة','القيمة':summary.approvedInvoices},{'المؤشر':'بانتظار المراجعة','القيمة':summary.reviewInvoices},{'المؤشر':'معادة للتعديل','القيمة':summary.returnedInvoices},{'المؤشر':'إجمالي السلف','القيمة':summary.allocated},{'المؤشر':'المصروف المعتمد','القيمة':summary.spent},{'المؤشر':'المتبقي','القيمة':summary.remaining},{'المؤشر':'إجمالي الأصول','القيمة':summary.assetCount}
     ]:[
@@ -184,9 +227,9 @@ export default function Reports({lang,profile}){
     ];
     if(kind==='invoices')addSheet(wb,ar?'الفواتير':'Invoices',invRows);
     if(kind==='advances')addSheet(wb,ar?'السلف':'Advances',advRows);
-    if(kind==='assets')addSheet(wb,ar?'الأصول':'Assets',assetRows);
+    if(kind==='assets'){addSheet(wb,ar?'الأصول':'Assets',assetRows);addSheet(wb,ar?'طلبات الأصول':'Asset Requests',assetRequestExcelRows);}
     if(kind==='comprehensive'){
-      addSheet(wb,ar?'الملخص':'Summary',summaryRows);addSheet(wb,ar?'الفواتير':'Invoices',invRows);addSheet(wb,ar?'السلف':'Advances',advRows);addSheet(wb,ar?'الأصول':'Assets',assetRows);
+      addSheet(wb,ar?'الملخص':'Summary',summaryRows);addSheet(wb,ar?'الفواتير':'Invoices',invRows);addSheet(wb,ar?'السلف':'Advances',advRows);addSheet(wb,ar?'الأصول':'Assets',assetRows);addSheet(wb,ar?'طلبات الأصول':'Asset Requests',assetRequestExcelRows);
       const nurseryNames=Array.from(new Set(filtered.invoices.map(r=>r.nursery).filter(Boolean)));
       nurseryNames.forEach(name=>addSheet(wb,name,invoiceExcelRows(filtered.invoices.filter(r=>r.nursery===name))));
     }
@@ -197,8 +240,12 @@ export default function Reports({lang,profile}){
   const assetReportPageCount=Math.max(1,Math.ceil(filtered.assets.length/100));
   const safeAssetReportPage=Math.min(assetReportPage,assetReportPageCount);
   const pagedReportAssets=filtered.assets.slice((safeAssetReportPage-1)*100,safeAssetReportPage*100);
-  useEffect(()=>{setAssetReportPage(1)},[filters.nursery,filters.from,filters.to,filters.status,filters.search,tab]);
+  const assetRequestPageCount=Math.max(1,Math.ceil(filtered.assetRequests.length/100));
+  const safeAssetRequestPage=Math.min(assetRequestPage,assetRequestPageCount);
+  const pagedAssetRequests=filtered.assetRequests.slice((safeAssetRequestPage-1)*100,safeAssetRequestPage*100);
+  useEffect(()=>{setAssetReportPage(1);setAssetRequestPage(1)},[filters.nursery,filters.from,filters.to,filters.status,filters.search,tab,assetReportView]);
   useEffect(()=>{if(assetReportPage>assetReportPageCount)setAssetReportPage(assetReportPageCount)},[assetReportPage,assetReportPageCount]);
+  useEffect(()=>{if(assetRequestPage>assetRequestPageCount)setAssetRequestPage(assetRequestPageCount)},[assetRequestPage,assetRequestPageCount]);
 
   return <section className="reports-page">
     <div className="module-heading reports-heading"><div><span className="eyebrow">SAAMS Official 3.2</span><h1>{t.title}</h1><p>{t.sub}</p></div><div className="report-heading-actions"><button className="secondary-action" onClick={()=>window.print()}>PDF {t.pdf}</button><button className="primary-action report-master-export" onClick={()=>exportExcel('comprehensive')}>⇩ {t.downloadAll}</button></div></div>
@@ -213,7 +260,7 @@ export default function Reports({lang,profile}){
       <label><span>{t.advance}</span><select value={filters.advance} onChange={e=>setFilters({...filters,advance:e.target.value})}>{advanceOptions.map(n=><option key={n}>{n}</option>)}</select></label>
       <label><span>{t.from}</span><input type="date" value={filters.from} onChange={e=>setFilters({...filters,from:e.target.value})}/></label>
       <label><span>{t.to}</span><input type="date" value={filters.to} onChange={e=>setFilters({...filters,to:e.target.value})}/></label>
-      <label><span>{t.status}</span><select value={filters.status} onChange={e=>setFilters({...filters,status:e.target.value})}><option>{t.all}</option><option>{t.approved}</option><option>{t.review}</option><option>{t.returned}</option><option>{t.rejected}</option><option>{t.open}</option><option>{t.closed}</option><option>{t.draft}</option><option>{t.active}</option></select></label>
+      <label><span>{t.status}</span><select value={filters.status} onChange={e=>setFilters({...filters,status:e.target.value})}><option>{t.all}</option><option>{t.approved}</option><option>{t.review}</option><option>{t.returned}</option><option>{t.rejected}</option><option>{t.open}</option><option>{t.closed}</option><option>{t.draft}</option><option>{t.active}</option><option>{t.pending}</option></select></label>
       <label className="report-search"><span>{t.search}</span><input value={filters.search} onChange={e=>setFilters({...filters,search:e.target.value})} placeholder={t.search}/></label>
       <button className="report-reset" onClick={reset}>↻ {t.reset}</button>
     </div>
@@ -221,13 +268,19 @@ export default function Reports({lang,profile}){
     <div className="report-summary-grid">
       {(tab==='invoices'||tab==='comprehensive')&&<><article><span>▤</span><small>{t.records}</small><strong>{summary.invoiceCount}</strong></article><article><span>↗</span><small>{t.totalInvoices}</small><strong>{money(summary.invoiceTotal)} <b>AED</b></strong></article><article><span>✓</span><small>{t.approvedCount}</small><strong>{summary.approvedInvoices}</strong></article><article><span>◷</span><small>{t.reviewCount}</small><strong>{summary.reviewInvoices}</strong></article></>}
       {(tab==='advances'||tab==='comprehensive')&&<><article><span>▥</span><small>{t.totalAllocated}</small><strong>{money(summary.allocated)} <b>AED</b></strong></article><article><span>↘</span><small>{t.totalSpent}</small><strong>{money(summary.spent)} <b>AED</b></strong></article><article><span>◉</span><small>{t.totalRemaining}</small><strong>{money(summary.remaining)} <b>AED</b></strong></article></>}
-      {tab==='assets'&&<article><span>◇</span><small>{t.records}</small><strong>{summary.assetCount.toLocaleString('en-US')}</strong></article>}
+      {tab==='assets'&&<><article><span>◇</span><small>{t.assetRegister}</small><strong>{summary.assetCount.toLocaleString('en-US')}</strong></article><article><span>⇄</span><small>{t.assetRequests}</small><strong>{summary.assetRequestCount.toLocaleString('en-US')}</strong></article></>}
     </div>
 
     <div className="report-preview-card"><div className="report-preview-head"><div><small>{t.preview}</small><h2>{tabs.find(x=>x.id===tab)?.label}</h2></div><div className="report-preview-actions"><button onClick={()=>window.print()}>PDF</button><button onClick={()=>exportExcel(tab)}>⇩ {t.download}</button></div></div>
       {tab==='invoices'&&<InvoicesTable rows={filtered.invoices} ar={ar} empty={t.noData}/>} 
       {tab==='advances'&&<AdvancesTable rows={filtered.advances} ar={ar} empty={t.noData}/>} 
-      {tab==='assets'&&<><AssetsTable rows={pagedReportAssets} ar={ar} empty={t.noData}/>{filtered.assets.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetReportPage-1)*100+1}–${Math.min(safeAssetReportPage*100,filtered.assets.length)} من ${filtered.assets.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetReportPage-1)*100+1}–${Math.min(safeAssetReportPage*100,filtered.assets.length)} of ${filtered.assets.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button disabled={safeAssetReportPage<=1} onClick={()=>setAssetReportPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?'صفحة':'Page'} {safeAssetReportPage} / {assetReportPageCount}</span><button disabled={safeAssetReportPage>=assetReportPageCount} onClick={()=>setAssetReportPage(p=>Math.min(assetReportPageCount,p+1))}>{ar?'التالي':'Next'}</button></div></div>}</>} 
+      {tab==='assets'&&<>
+        <div className="asset-report-subtabs">
+          <button className={assetReportView==='register'?'active':''} onClick={()=>setAssetReportView('register')}>◇ {t.assetRegister} <b>{summary.assetCount.toLocaleString('en-US')}</b></button>
+          <button className={assetReportView==='requests'?'active':''} onClick={()=>setAssetReportView('requests')}>⇄ {t.assetRequests} <b>{summary.assetRequestCount.toLocaleString('en-US')}</b></button>
+        </div>
+        {assetReportView==='register'?<><AssetsTable rows={pagedReportAssets} ar={ar} empty={t.noData}/>{filtered.assets.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetReportPage-1)*100+1}–${Math.min(safeAssetReportPage*100,filtered.assets.length)} من ${filtered.assets.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetReportPage-1)*100+1}–${Math.min(safeAssetReportPage*100,filtered.assets.length)} of ${filtered.assets.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button disabled={safeAssetReportPage<=1} onClick={()=>setAssetReportPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?'صفحة':'Page'} {safeAssetReportPage} / {assetReportPageCount}</span><button disabled={safeAssetReportPage>=assetReportPageCount} onClick={()=>setAssetReportPage(p=>Math.min(assetReportPageCount,p+1))}>{ar?'التالي':'Next'}</button></div></div>}</>:<><AssetRequestsTable rows={pagedAssetRequests} ar={ar} empty={t.noData}/>{filtered.assetRequests.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetRequestPage-1)*100+1}–${Math.min(safeAssetRequestPage*100,filtered.assetRequests.length)} من ${filtered.assetRequests.length.toLocaleString('en-US')} طلب`:`Showing ${(safeAssetRequestPage-1)*100+1}–${Math.min(safeAssetRequestPage*100,filtered.assetRequests.length)} of ${filtered.assetRequests.length.toLocaleString('en-US')} requests`}</div><div className="asset-pagination-controls"><button disabled={safeAssetRequestPage<=1} onClick={()=>setAssetRequestPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?'صفحة':'Page'} {safeAssetRequestPage} / {assetRequestPageCount}</span><button disabled={safeAssetRequestPage>=assetRequestPageCount} onClick={()=>setAssetRequestPage(p=>Math.min(assetRequestPageCount,p+1))}>{ar?'التالي':'Next'}</button></div></div>}</>}
+      </>} 
       {tab==='comprehensive'&&<ComprehensivePreview summary={summary} rows={filtered} ar={ar}/>} 
     </div>
     {toast&&<div className="asset-toast">✓ {toast}</div>}
@@ -236,6 +289,7 @@ export default function Reports({lang,profile}){
 
 function Empty({text}){return <div className="report-empty">▦<strong>{text}</strong></div>}
 function AssetsTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;return <div className="report-table-wrap"><table><thead><tr><th>{ar?'الباركود':'Barcode'}</th><th>{ar?'اسم الأصل':'Asset'}</th><th>{ar?'الفئة':'Category'}</th><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'الحالة':'Status'}</th><th>{ar?'ملاحظات':'Notes'}</th><th>{ar?'تاريخ التسجيل':'Created'}</th></tr></thead><tbody>{rows.map(r=><tr key={r.id||r.barcode}><td><b>{r.barcode}</b></td><td>{r.name}</td><td>{r.category}</td><td>{r.nursery}</td><td><span className={`report-status ${r.status}`}>{statusText(r.status,ar)}</span></td><td>{r.notes||'—'}</td><td>{r.createdAt||'—'}</td></tr>)}</tbody></table></div>}
+function AssetRequestsTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;const typeText=t=>t==='transfer'?(ar?'نقل':'Transfer'):t==='surplus'?(ar?'فائض':'Surplus'):(ar?'إسقاط':'Disposal');return <div className="report-table-wrap"><table><thead><tr><th>{ar?'رقم الطلب':'Request No.'}</th><th>{ar?'نوع الطلب':'Type'}</th><th>{ar?'اسم الأصل':'Asset'}</th><th>{ar?'الباركود':'Barcode'}</th><th>{ar?'من':'From'}</th><th>{ar?'إلى':'To'}</th><th>{ar?'السبب':'Reason'}</th><th>{ar?'الحالة':'Status'}</th><th>{ar?'تاريخ الطلب':'Request Date'}</th><th>{ar?'تاريخ القرار':'Decision Date'}</th><th>{ar?'سبب الرفض':'Rejection Reason'}</th></tr></thead><tbody>{rows.map(r=><tr key={r.id||r.requestCode}><td><b>{r.requestCode}</b></td><td><span className={`request-type ${r.type}`}>{typeText(r.type)}</span></td><td>{r.asset}</td><td><b>{r.barcode}</b></td><td>{r.from}</td><td>{r.type==='transfer'?(r.to||'—'):'—'}</td><td>{r.reason||'—'}</td><td><span className={`report-status ${r.status==='pending'?'review':r.status}`}>{statusText(r.status,ar)}</span></td><td>{r.createdAt||'—'}</td><td>{r.decisionAt||'—'}</td><td>{r.rejectionReason||'—'}</td></tr>)}</tbody></table></div>}
 function InvoicesTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;return <div className="report-table-wrap"><table><thead><tr><th>{ar?'رقم الفاتورة':'Invoice'}</th><th>{ar?'المورد':'Supplier'}</th><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'السلفة':'Advance'}</th><th>{ar?'التاريخ':'Date'}</th><th>{ar?'قبل الضريبة':'Subtotal'}</th><th>{ar?'الضريبة':'VAT'}</th><th>{ar?'الإجمالي':'Total'}</th><th>{ar?'الدفع':'Payment'}</th><th>{ar?'إثبات الخصم':'Proof'}</th><th>{ar?'الحالة':'Status'}</th></tr></thead><tbody>{rows.map((r,i)=><tr key={`${r.invoiceNo}-${i}`}><td><b>{r.invoiceNo}</b></td><td>{r.supplier}</td><td>{r.nursery}</td><td>{r.advance||'—'}</td><td>{r.date}</td><td>{money(r.beforeVat)} AED</td><td>{money(r.vat)} AED</td><td><b>{money(r.total)} AED</b></td><td>{r.payment==='card'?(ar?'بطاقة':'Card'):(ar?'نقد':'Cash')}</td><td><span className={`report-proof ${r.proof?'yes':'no'}`}>{r.payment==='card'?(r.proof?(ar?'مرفق':'Attached'):(ar?'غير مرفق':'Missing')):'—'}</span></td><td><span className={`report-status ${r.status}`}>{statusText(r.status,ar)}</span></td></tr>)}</tbody></table></div>}
 function AdvancesTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;return <div className="report-table-wrap"><table><thead><tr><th>{ar?'السلفة':'Advance'}</th><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'المخصص':'Allocated'}</th><th>{ar?'المصروف المعتمد':'Approved Spent'}</th><th>{ar?'المتبقي':'Remaining'}</th><th>{ar?'الفواتير':'Invoices'}</th><th>{ar?'معتمدة':'Approved'}</th><th>{ar?'مراجعة':'Review'}</th><th>{ar?'معادة':'Returned'}</th><th>{ar?'الحالة':'Status'}</th></tr></thead><tbody>{rows.map((r,i)=><tr key={`${r.advanceNo}-${r.nursery}-${i}`}><td><b>{r.name}</b><small>{r.advanceNo}</small></td><td>{r.nursery}</td><td>{money(r.allocated)} AED</td><td>{money(r.spent)} AED</td><td className="remaining-cell">{money(r.remaining)} AED</td><td>{r.invoices}</td><td>{r.approved}</td><td>{r.review}</td><td>{r.returned}</td><td><span className={`report-status ${r.status}`}>{statusText(r.status,ar)}</span></td></tr>)}</tbody></table></div>}
 function ComprehensivePreview({summary,rows,ar}){return <div className="comprehensive-preview"><div className="comprehensive-hero"><div><small>{ar?'الوضع المالي التشغيلي':'Operational Financial Position'}</small><strong>{money(summary.remaining)} AED</strong><p>{ar?'إجمالي المتبقي في السلف ضمن التصفية الحالية':'Total remaining advances in current filter'}</p></div><span>SAAMS</span></div><div className="comprehensive-sections"><article><h3>{ar?'الفواتير':'Invoices'}</h3><b>{summary.invoiceCount}</b><p>{money(summary.invoiceTotal)} AED</p></article><article><h3>{ar?'المعتمدة':'Approved'}</h3><b>{summary.approvedInvoices}</b><p>{ar?'فاتورة':'invoice(s)'}</p></article><article><h3>{ar?'السلف':'Advances'}</h3><b>{rows.advances.length}</b><p>{money(summary.spent)} AED {ar?'مصروف معتمد':'approved spent'}</p></article><article><h3>{ar?'المتبقي':'Remaining'}</h3><b>{money(summary.remaining)}</b><p>AED</p></article></div></div>}
