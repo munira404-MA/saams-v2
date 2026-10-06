@@ -226,7 +226,22 @@ export default function Reports({lang,profile}){
       {Metric:'Invoice Count',Value:summary.invoiceCount},{Metric:'Invoice Total',Value:summary.invoiceTotal},{Metric:'Approved Invoices',Value:summary.approvedInvoices},{Metric:'Pending Review',Value:summary.reviewInvoices},{Metric:'Returned',Value:summary.returnedInvoices},{Metric:'Allocated Advances',Value:summary.allocated},{Metric:'Approved Spent',Value:summary.spent},{Metric:'Remaining',Value:summary.remaining},{Metric:'Asset Count',Value:summary.assetCount}
     ];
     if(kind==='invoices')addSheet(wb,ar?'الفواتير':'Invoices',invRows);
-    if(kind==='advances')addSheet(wb,ar?'السلف':'Advances',advRows);
+    if(kind==='advances'){
+      // Keep a compact overview first, then place each advance in its own worksheet.
+      addSheet(wb,ar?'ملخص السلف':'Advances Summary',advRows);
+      const grouped=new Map();
+      filtered.advances.forEach(row=>{
+        const key=`${row.advanceNo||''}__${row.name||''}`;
+        if(!grouped.has(key)) grouped.set(key,[]);
+        grouped.get(key).push(row);
+      });
+      grouped.forEach(rows=>{
+        const first=rows[0]||{};
+        const label=(first.name||first.advanceNo|| (ar?'سلفة':'Advance'));
+        const sheetLabel=first.advanceNo?`${label} ${first.advanceNo}`:label;
+        addSheet(wb,sheetLabel,advanceExcelRows(rows));
+      });
+    }
     if(kind==='assets'){addSheet(wb,ar?'الأصول':'Assets',assetRows);addSheet(wb,ar?'طلبات الأصول':'Asset Requests',assetRequestExcelRows);}
     if(kind==='comprehensive'){
       addSheet(wb,ar?'الملخص':'Summary',summaryRows);addSheet(wb,ar?'الفواتير':'Invoices',invRows);addSheet(wb,ar?'السلف':'Advances',advRows);addSheet(wb,ar?'الأصول':'Assets',assetRows);addSheet(wb,ar?'طلبات الأصول':'Asset Requests',assetRequestExcelRows);
