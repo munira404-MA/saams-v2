@@ -386,17 +386,30 @@ export default function Assets({lang,profile}){
     valid.push({excelRow:r.excelRow,barcode:r.barcode,payload:{barcode:r.barcode,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null}});
    }
    let imported=0;
-   // Excel import rule: add every asset that is not already registered.
-   // Existing barcodes are skipped without overwriting or duplicating the existing asset.
+   // Production-safe Excel import:
+   // 1) read the current barcodes from Supabase,
+   // 2) skip only the assets that already exist,
+   // 3) INSERT new assets without ON CONFLICT.
+   // This avoids depending on a database UNIQUE constraint and prevents one duplicate
+   // from blocking an entire Excel batch.
+   const existingResult=await fetchAllAssetRows();
+   if(existingResult.error) throw new Error(`DB_ASSETS:${existingResult.error.message||existingResult.error.code||'error'}`);
+   const existingKeys=new Set((existingResult.data||[]).map(r=>normalizeBarcode(r.barcode)).filter(Boolean));
+   const pending=[];
+   for(const item of valid){
+    const key=normalizeBarcode(item.barcode);
+    if(existingKeys.has(key)){
+      issues.push({row:item.excelRow,reason:`${ar?'الباركود موجود مسبقًا — تم تخطيه بدون تكرار':'Barcode already exists — skipped without duplication'}: ${item.barcode}`});
+      continue;
+    }
+    pending.push(item);
+   }
    async function insertEntries(entries){
     if(!entries.length)return;
     const payload=entries.map(x=>x.payload);
-    const {data,error}=await supabase
-      .from('assets')
-      .upsert(payload,{onConflict:'barcode',ignoreDuplicates:true})
-      .select('id,barcode');
+    const {data,error}=await supabase.from('assets').insert(payload).select('id,barcode');
     if(error){
-      // Isolate non-duplicate row errors so one bad row never blocks the rest of the file.
+      // Isolate the exact bad row; all other valid rows continue saving.
       if(entries.length>1){
         const mid=Math.ceil(entries.length/2);
         await insertEntries(entries.slice(0,mid));
@@ -404,19 +417,20 @@ export default function Assets({lang,profile}){
         return;
       }
       const item=entries[0];
-      issues.push({row:item.excelRow,reason:`${ar?'تعذر حفظ هذا الأصل':'Could not save this asset'}: ${error.message||error.code||'Database error'}`});
+      if(error.code==='23505'){
+        issues.push({row:item.excelRow,reason:`${ar?'الباركود موجود مسبقًا — تم تخطيه بدون تكرار':'Barcode already exists — skipped without duplication'}: ${item.barcode}`});
+        existingKeys.add(normalizeBarcode(item.barcode));
+      }else{
+        issues.push({row:item.excelRow,reason:`${ar?'تعذر حفظ هذا الأصل':'Could not save this asset'}: ${error.message||error.code||'Database error'}`});
+      }
       return;
     }
-    const insertedKeys=new Set((data||[]).map(r=>normalizeBarcode(r.barcode)));
-    imported+=insertedKeys.size;
-    for(const item of entries){
-      if(!insertedKeys.has(normalizeBarcode(item.barcode))){
-        issues.push({row:item.excelRow,reason:`${ar?'الباركود موجود مسبقًا — تم تخطيه بدون تكرار':'Barcode already exists — skipped without duplication'}: ${item.barcode}`});
-      }
-    }
+    const rows=data||[];
+    imported+=rows.length;
+    for(const row of rows) existingKeys.add(normalizeBarcode(row.barcode));
    }
-   for(let i=0;i<valid.length;i+=200){
-    await insertEntries(valid.slice(i,i+200));
+   for(let i=0;i<pending.length;i+=200){
+    await insertEntries(pending.slice(i,i+200));
    }
    const refreshed=await fetchAllAssetRows();
    if(!refreshed.error)setAssets((refreshed.data||[]).map(dbAssetToUi));
