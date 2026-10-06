@@ -2922,3 +2922,73 @@ html[dir="ltr"] .dashboard-footer-rights{direction:ltr}
 .asset-report-subtabs button b{min-width:28px;padding:2px 8px;border-radius:999px;background:#eef4ff;color:#4567da;font-size:12px}
 .asset-report-subtabs button.active{background:linear-gradient(135deg,#3d7de5,#5665eb);color:#fff;border-color:transparent;box-shadow:0 8px 18px rgba(72,100,220,.16)}
 .asset-report-subtabs button.active b{background:rgba(255,255,255,.2);color:#fff}
+
+/* English readability + complete LTR presentation */
+html[lang="en"] body{font-size:16px;letter-spacing:.005em}
+html[lang="en"] .module-heading h1{font-size:34px;line-height:1.2}
+html[lang="en"] .module-heading p{font-size:15px;line-height:1.6}
+html[lang="en"] .eyebrow{font-size:11px}
+html[lang="en"] .sidebar-nav button,
+html[lang="en"] .sidebar-section-title,
+html[lang="en"] .sidebar-user-card strong,
+html[lang="en"] .topbar-user strong{font-size:13px!important}
+html[lang="en"] .sidebar-nav small,
+html[lang="en"] .topbar-user small{font-size:11px!important}
+html[lang="en"] button,
+html[lang="en"] input,
+html[lang="en"] select,
+html[lang="en"] textarea{font-size:13px}
+html[lang="en"] .asset-list-table th,
+html[lang="en"] .invoice-table th,
+html[lang="en"] .report-table-wrap th,
+html[lang="en"] .batch-review-table th{font-size:12px!important}
+html[lang="en"] .asset-list-table td,
+html[lang="en"] .invoice-table td,
+html[lang="en"] .report-table-wrap td,
+html[lang="en"] .batch-review-table td{font-size:13px!important;line-height:1.5}
+html[lang="en"] .asset-name-cell{font-size:13px!important}
+html[lang="en"] .asset-row-actions button,
+html[lang="en"] .row-actions button,
+html[lang="en"] .request-actions-cell button{font-size:12px!important}
+html[lang="en"] .asset-filter-summary,
+html[lang="en"] .asset-pagination-summary,
+html[lang="en"] .asset-pagination-controls span{font-size:12px!important}
+html[lang="en"] .drawer-header small{font-size:12px!important}
+html[lang="en"] .drawer-header h2,
+html[lang="en"] .asset-modal h2{font-size:24px!important;line-height:1.25}
+html[lang="en"] .asset-modal label>span,
+html[lang="en"] .invoice-drawer label>span,
+html[lang="en"] .settings-page label>span{font-size:12px!important;font-weight:800}
+html[lang="en"] .asset-modal input,
+html[lang="en"] .asset-modal select,
+html[lang="en"] .asset-modal textarea{font-size:14px!important;line-height:1.45}
+html[lang="en"] .asset-modal-actions button{font-size:13px!important;min-height:42px}
+html[lang="en"] .asset-stat-grid small,
+html[lang="en"] .metric-card small,
+html[lang="en"] .dashboard-card small{font-size:11.5px!important}
+html[lang="en"] .asset-stat-grid strong{font-size:24px!important}
+html[lang="en"] .live-alert strong{font-size:12px!important}
+html[lang="en"] .live-alert small{font-size:10.5px!important}
+html[lang="en"] .advance-status-summary small{font-size:11.5px!important}
+html[lang="en"] .accepted-payment-proof-types span{font-size:11px!important}
+html[lang="en"] .batch-review-status,
+html[lang="en"] .batch-proof,
+html[lang="en"] .batch-review-select{font-size:10.5px!important}
+html[lang="en"] .batch-review-message{font-size:10.5px!important}
+
+@media(max-width:900px){
+ html[lang="en"] body{font-size:15px}
+ html[lang="en"] .module-heading h1{font-size:28px}
+ html[lang="en"] .module-heading p{font-size:14px}
+ html[lang="en"] .asset-list-table th,
+ html[lang="en"] .invoice-table th,
+ html[lang="en"] .report-table-wrap th{font-size:11.5px!important}
+ html[lang="en"] .asset-list-table td,
+ html[lang="en"] .invoice-table td,
+ html[lang="en"] .report-table-wrap td{font-size:12.5px!important}
+ html[lang="en"] .asset-modal{font-size:14px}
+ html[lang="en"] .asset-modal label>span{font-size:12px!important}
+ html[lang="en"] .asset-modal input,
+ html[lang="en"] .asset-modal select,
+ html[lang="en"] .asset-modal textarea{font-size:14px!important;min-height:44px}
+}

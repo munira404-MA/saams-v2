@@ -74,6 +74,9 @@ export default function App() {
   useEffect(() => {
     document.documentElement.lang = lang;
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.body.dataset.lang = lang;
+    document.body.classList.toggle('language-en', lang === 'en');
+    document.body.classList.toggle('language-ar', lang === 'ar');
     document.title = lang === 'ar'
       ? 'منظومة الأصول والسلف الذكية'
       : 'SAAMS Enterprise';

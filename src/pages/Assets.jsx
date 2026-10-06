@@ -8,7 +8,19 @@ import * as XLSX from 'xlsx';
 const ASSETS = [];
 
 const NURSERIES_AR=['الرحمانية الجديدة','مركز اللؤلؤية للطفولة المبكرة','مركز السيوح للطفولة المبكرة','واسط 2','مركز الرحمانية للطفولة المبكرة','البديع','اللية','القليعة','مركز البستان للطفولة المبكرة','مركز كلباء للطفولة المبكرة','الغيل','الطيبة','الحرس الأميري','الحمرية','المدينة الباسمة','الشرطي الصغير','الثميد','سهيلة','سهيلة الجديدة','البرير','مليحة','القادسية','دبا الحصن','السياقة','الشارقة النموذجية','مغيدر','الشيماء','المستقبل','غرفتي الصغيرة','جميلة','الباحثة','النحوة','جامعة خورفكان','جامعة كلباء','وادي الحلو','شيص'];
-const NURSERIES_EN=NURSERIES_AR;
+const NURSERIES_EN=['New Al Rahmaniya','Al Luluya Early Childhood Center','Al Suyoh Early Childhood Center','Wasit 2','Al Rahmaniya Early Childhood Center','Al Badie','Al Layyah','Al Qulayaa','Al Bustan Early Childhood Center','Kalba Early Childhood Center','Al Ghail','Al Taybah','Amiri Guard','Al Hamriyah','Al Madina Al Basma','Little Policeman','Al Thameed','Suhaila','New Suhaila','Al Brayer','Mleiha','Al Qadisiyah','Dibba Al Hisn','Driving Nursery','Sharjah Model Nursery','Mughaider','Al Shaimaa','Al Mustaqbal','My Little Room','Jameela','Al Bahitha','Al Nahwa','University of Khorfakkan','University of Kalba','Wadi Al Helo','Shees'];
+const NURSERY_EN_BY_AR=Object.fromEntries(NURSERIES_AR.map((name,index)=>[name,NURSERIES_EN[index]]));
+const CATEGORY_EN_BY_AR={
+ 'الأثاث':'Furniture','اثاث':'Furniture','أثاث':'Furniture',
+ 'معدات المطبخ':'Kitchen Equipment','أجهزة التكييف':'Air Conditioning Equipment','اجهزة التكييف':'Air Conditioning Equipment',
+ 'معدات تقنية المعلومات':'IT Equipment','تقنية المعلومات':'IT Equipment','معدات رياضية':'Sports Equipment',
+ 'معدات مكتبية':'Office Equipment','أجهزة كهربائية':'Electrical Equipment','اجهزة كهربائية':'Electrical Equipment',
+ 'ألعاب':'Toys','العاب':'Toys','معدات تعليمية':'Educational Equipment','تقنية':'Technology','أجهزة':'Equipment','اجهزة':'Equipment'
+};
+function hasArabic(value){return /[\u0600-\u06FF]/.test(String(value||''))}
+function englishNursery(value){return NURSERY_EN_BY_AR[String(value||'').trim()]||value||''}
+function englishCategory(value){const key=String(value||'').trim();return CATEGORY_EN_BY_AR[key]||key}
+
 const EXTRA_TRANSFER_DESTINATIONS_AR=['المخزن','المبنى الرئيسي'];
 const EXTRA_TRANSFER_DESTINATIONS_EN=['Warehouse','Main Building'];
 
@@ -19,7 +31,7 @@ const COPY={
 };
 
 function assetLabel(a,ar){return ar?a.nameAr:a.nameEn}
-function nurseryLabel(a,ar){return ar?a.nurseryAr:a.nurseryEn}
+function nurseryLabel(a,ar){if(ar)return a.nurseryAr;const value=a.nurseryEn||a.nurseryAr;return hasArabic(value)?englishNursery(a.nurseryAr||value):value}
 function normalizeBarcode(value){return String(value||'').trim().replace(/\s+/g,'').toLowerCase()}
 
 const NURSERY_IMPORT_ALIASES={
@@ -540,7 +552,7 @@ export default function Assets({lang,profile}){
      {isAdmin&&!previewNursery&&<><button type="button" className="asset-excel-template-btn" onClick={downloadAssetExcelTemplate}>⇩ {t.excelTemplate}</button><button type="button" className="asset-excel-upload-btn" disabled={excelImporting} onClick={()=>excelInputRef.current?.click()}>{excelImporting?'… '+t.excelReading:'⇧ '+t.excelUpload}</button><input ref={excelInputRef} className="asset-excel-hidden-input" type="file" accept=".xlsx,.xls" onChange={e=>e.target.files?.[0]&&importAssetsExcel(e.target.files[0])}/><button className="primary-action" onClick={()=>setModal('add')}>＋ {t.add}</button></>}
     </div>
    </div>
-   <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button></td><td>{nurseryLabel(a,ar)}</td><td>{ar?a.categoryAr:a.categoryEn}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="5" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>
+   <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button></td><td>{nurseryLabel(a,ar)}</td><td>{ar?a.categoryAr:englishCategory(a.categoryEn||a.categoryAr)}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="5" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>
   </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:r.assetEn}</td><td>{r.barcode}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{t[r.status]}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
   {officialDocument&&<AssetOfficialDocument request={officialDocument} ar={ar} onClose={()=>setOfficialDocument(null)} />}
   {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} onClose={()=>setHistoryAsset(null)} />}
@@ -553,7 +565,7 @@ export default function Assets({lang,profile}){
 }
 
 function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
- const [form,setForm]=useState({name:ar?asset.nameAr:asset.nameEn,category:ar?asset.categoryAr:asset.categoryEn,from:ar?asset.nurseryAr:asset.nurseryEn});
+ const [form,setForm]=useState({name:ar?asset.nameAr:(asset.nameEn||asset.nameAr),category:ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr),from:ar?asset.nurseryAr:nurseryLabel(asset,false)});
  return <div className="invoice-overlay" onClick={onClose}><form className="asset-modal" onSubmit={e=>{e.preventDefault();onSave(form)}} onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>SAAMS Assets</small><h2>{t.editAsset}</h2></div><button type="button" onClick={onClose}>×</button></div>
   <div className="asset-form-grid">
@@ -573,7 +585,7 @@ function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,is
  const selected=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode));
  const transferDestinations=[...nurseries,...(ar?EXTRA_TRANSFER_DESTINATIONS_AR:EXTRA_TRANSFER_DESTINATIONS_EN)];
  const duplicateOnAdd=type==='add'?selected:null;
- function applyAsset(a){if(!a)return;setLookup('found');setForm(f=>({...f,barcode:a.barcode,asset:assetLabel(a,ar),category:ar?a.categoryAr:a.categoryEn,from:nurseryLabel(a,ar),to:f.to===nurseryLabel(a,ar)?'':f.to}))}
+ function applyAsset(a){if(!a)return;setLookup('found');setForm(f=>({...f,barcode:a.barcode,asset:assetLabel(a,ar),category:ar?a.categoryAr:englishCategory(a.categoryEn||a.categoryAr),from:nurseryLabel(a,ar),to:f.to===nurseryLabel(a,ar)?'':f.to}))}
  function findAsset(){if(selected)applyAsset(selected);else setLookup('missing')}
  function handleRequestBarcode(value){
   const match=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(value));
@@ -635,7 +647,7 @@ function AssetHistory({asset,ar,onClose}){
  const rows=logs.length?logs.slice().reverse():fallback;
  return <div className="invoice-overlay" onClick={onClose}><aside className="asset-history-modal" onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>{ar?'سجل الأصل':'Asset History'}</small><h2>{asset.barcode}</h2></div><button onClick={onClose}>×</button></div>
-  <div className="asset-history-summary"><div className="asset-card-icon">◇</div><div><strong>{ar?asset.nameAr:asset.nameEn}</strong><span>{ar?asset.nurseryAr:asset.nurseryEn}</span><small>{ar?asset.categoryAr:asset.categoryEn}</small></div></div>
+  <div className="asset-history-summary"><div className="asset-card-icon">◇</div><div><strong>{ar?asset.nameAr:asset.nameEn}</strong><span>{ar?asset.nurseryAr:asset.nurseryEn}</span><small>{ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr)}</small></div></div>
   <div className="asset-history-note">{ar?'يعرض هذا السجل حركات النقل والفائض والإسقاط فقط.':'This history shows transfer, surplus, and disposal movements only.'}</div>
   <div className="entity-timeline asset-timeline">{rows.map((x,i)=><div key={x.id}><span>{i+1}</span><div><strong>{x.action}</strong><small>{x.date} · {x.time} · {x.user}</small><p>{x.details}</p>{x.reason&&<p className="timeline-reason">{x.reason}</p>}</div></div>)}</div>
  </aside></div>
