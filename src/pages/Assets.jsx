@@ -72,6 +72,47 @@ async function fetchAllAssetRows(){
  return {data:all,error:null};
 }
 
+function dbRequestToUi(row){
+ return {
+  dbId:row.id,
+  id:row.request_code||String(row.id||''),
+  type:row.request_type||'transfer',
+  barcode:row.barcode||'',
+  assetAr:row.asset_name_ar||row.asset_name_en||'',
+  assetEn:row.asset_name_en||row.asset_name_ar||'',
+  fromAr:row.from_name_ar||row.from_name_en||'',
+  fromEn:row.from_name_en||row.from_name_ar||'',
+  toAr:row.to_name_ar||row.to_name_en||'',
+  toEn:row.to_name_en||row.to_name_ar||'',
+  reasonAr:row.reason_ar||row.reason_en||'',
+  reasonEn:row.reason_en||row.reason_ar||'',
+  status:row.status||'pending',
+  date:row.created_at?new Date(row.created_at).toLocaleDateString('en-GB'):'',
+  rejectionReasonAr:row.rejection_reason_ar||row.rejection_reason_en||'',
+  rejectionReasonEn:row.rejection_reason_en||row.rejection_reason_ar||'',
+  decisionDate:row.decision_at?new Date(row.decision_at).toLocaleDateString('en-GB'):'',
+  createdBy:row.created_by||null
+ };
+}
+
+async function fetchAllAssetRequestRows(){
+ const pageSize=1000;
+ let from=0;
+ let all=[];
+ while(true){
+  const {data,error}=await supabase.from('asset_requests')
+   .select('*')
+   .order('created_at',{ascending:false})
+   .range(from,from+pageSize-1);
+  if(error)return {data:null,error};
+  const rows=data||[];
+  all=all.concat(rows);
+  if(rows.length<pageSize)break;
+  from+=pageSize;
+ }
+ return {data:all,error:null};
+}
+
 export default function Assets({lang,profile}){
  const ar=lang==='ar',t=COPY[lang]||COPY.ar;
  const isAdmin=profile?.role!=='nursery';
@@ -90,6 +131,7 @@ export default function Assets({lang,profile}){
  const [assetsLoading,setAssetsLoading]=useState(true);
  const [assetsDbReady,setAssetsDbReady]=useState(false);
  const [requests,setRequests]=useState([]);
+ const [requestsDbReady,setRequestsDbReady]=useState(false);
  const [search,setSearch]=useState('');
  const [nurseryFilter,setNurseryFilter]=useState('');
  const [categoryFilter,setCategoryFilter]=useState('');
@@ -136,6 +178,29 @@ export default function Assets({lang,profile}){
  })();return()=>{alive=false}},[profile?.id]);
 
  const scopedAssets=useMemo(()=>isAdmin||previewNursery?assets:assets.filter(a=>a.nurseryAr===accountNursery||a.nurseryEn===accountNursery),[assets,isAdmin,previewNursery,accountNursery]);
+ async function loadRequests(){
+  try{
+   const {data,error}=await fetchAllAssetRequestRows();
+   if(error) throw error;
+   setRequests((data||[]).map(dbRequestToUi));
+   setRequestsDbReady(true);
+  }catch(err){
+   console.warn('asset_requests load failed',err);
+   setRequestsDbReady(false);
+  }
+ }
+ useEffect(()=>{
+  let alive=true;
+  const run=async()=>{if(!alive)return;await loadRequests()};
+  run();
+  const timer=setInterval(run,15000);
+  const onFocus=()=>run();
+  const onSync=()=>run();
+  window.addEventListener('focus',onFocus);
+  window.addEventListener('saams:data-changed',onSync);
+  return()=>{alive=false;clearInterval(timer);window.removeEventListener('focus',onFocus);window.removeEventListener('saams:data-changed',onSync)};
+ },[profile?.id]);
+
  const scopedRequests=useMemo(()=>isAdmin||previewNursery?requests:requests.filter(r=>r.fromAr===accountNursery||r.fromEn===accountNursery),[requests,isAdmin,previewNursery,accountNursery]);
  const nurseryFilterOptions=useMemo(()=>[...new Set(scopedAssets.map(a=>nurseryLabel(a,ar)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,ar?'ar':'en')),[scopedAssets,ar]);
  const categoryFilterOptions=useMemo(()=>[...new Set(scopedAssets.map(a=>ar?a.categoryAr:a.categoryEn).filter(Boolean))].sort((a,b)=>a.localeCompare(b,ar?'ar':'en')),[scopedAssets,ar]);
@@ -375,14 +440,66 @@ export default function Assets({lang,profile}){
   }
  }
 
- function addRequest(form){const a=assets.find(x=>x.barcode===form.barcode);setRequests(x=>[{id:`AST-REQ-${String(x.length+27).padStart(3,'0')}`,type:modal,barcode:form.barcode,assetAr:a?.nameAr||form.asset,assetEn:a?.nameEn||form.asset,fromAr:form.from,fromEn:form.from,toAr:form.to,toEn:form.to,reasonAr:form.reason,reasonEn:form.reason,status:'pending',date:new Date().toLocaleDateString('en-GB')},...x]);setModal(null);notify(t.requestSent)}
- function approveRequest(id){
-  const req=requests.find(r=>r.id===id);
-  const decisionDate=new Date().toLocaleDateString('en-GB');
-  setRequests(x=>x.map(r=>r.id===id?{...r,status:'approved',decisionDate}:r));setViewing(null);notify(ar?'تم اعتماد الطلب بنجاح':'Request approved successfully');
-  if(req)recordAudit({profile,screen:'الأصول',action:'اعتماد طلب أصل',actionType:'approve',entityType:'asset_request',entityId:req.id,nursery:req.fromAr,details:`${req.assetAr} — ${req.barcode}`,before:{status:req.status},after:{status:'approved',decisionDate}});
+ async function addRequest(form){
+  const a=assets.find(x=>normalizeBarcode(x.barcode)===normalizeBarcode(form.barcode));
+  const requestCode=`AST-REQ-${Date.now().toString().slice(-9)}`;
+  const payload={
+   request_code:requestCode,
+   request_type:modal,
+   asset_id:a?.id||null,
+   barcode:form.barcode,
+   asset_name_ar:a?.nameAr||form.asset,
+   asset_name_en:a?.nameEn||form.asset,
+   from_name_ar:form.from,
+   from_name_en:form.from,
+   to_name_ar:modal==='transfer'?(form.to||''):null,
+   to_name_en:modal==='transfer'?(form.to||''):null,
+   reason_ar:form.reason,
+   reason_en:form.reason,
+   status:'pending',
+   created_by:profile?.id||null
+  };
+  try{
+   const {data,error}=await supabase.from('asset_requests').insert(payload).select('*').single();
+   if(error) throw error;
+   const saved=dbRequestToUi(data);
+   setRequests(x=>[saved,...x.filter(r=>r.id!==saved.id)]);
+   setRequestsDbReady(true);
+   setModal(null);
+   notify(t.requestSent);
+   recordAudit({profile,screen:'الأصول',action:modal==='transfer'?'طلب نقل أصل':modal==='surplus'?'طلب فائض أصل':'طلب إسقاط أصل',actionType:modal,entityType:'asset_request',entityId:saved.id,nursery:form.from,details:`${saved.assetAr} — ${saved.barcode}`,after:{status:'pending',to:form.to||null}});
+   window.dispatchEvent(new CustomEvent('saams:data-changed',{detail:{entity:'asset_request',action:'insert'}}));
+  }catch(err){
+   console.error('asset request save failed',err);
+   const message=String(err?.message||'');
+   alert(ar?`تعذر إرسال الطلب إلى الإدارة. ${message.includes('asset_requests')?'تأكدي من تشغيل ملف SQL الخاص بطلبات الأصول في Supabase.':message}`:`Could not send request to administration. ${message}`);
+  }
  }
- function rejectRequest(id,reason){setRequests(x=>x.map(r=>r.id===id?{...r,status:'rejected',rejectionReasonAr:reason,rejectionReasonEn:reason,decisionDate:new Date().toLocaleDateString('en-GB')}:r));setRejecting(null);setViewing(null);notify(ar?'تم رفض الطلب وإضافة سبب الرفض':'Request rejected with reason')}
+ async function approveRequest(id){
+  const req=requests.find(r=>r.id===id);
+  if(!req)return;
+  const decisionAt=new Date().toISOString();
+  try{
+   const query=supabase.from('asset_requests').update({status:'approved',decision_at:decisionAt,decided_by:profile?.id||null}).eq(req.dbId?'id':'request_code',req.dbId||req.id).select('*').single();
+   const {data,error}=await query;
+   if(error)throw error;
+   const updated=dbRequestToUi(data);
+   setRequests(x=>x.map(r=>r.id===id?updated:r));setViewing(null);notify(ar?'تم اعتماد الطلب بنجاح':'Request approved successfully');
+   recordAudit({profile,screen:'الأصول',action:'اعتماد طلب أصل',actionType:'approve',entityType:'asset_request',entityId:req.id,nursery:req.fromAr,details:`${req.assetAr} — ${req.barcode}`,before:{status:req.status},after:{status:'approved',decisionDate:updated.decisionDate}});
+   window.dispatchEvent(new CustomEvent('saams:data-changed',{detail:{entity:'asset_request',action:'approve'}}));
+  }catch(err){console.error(err);alert(ar?'تعذر اعتماد الطلب. حاولي مرة أخرى.':'Could not approve request.')}
+ }
+ async function rejectRequest(id,reason){
+  const req=requests.find(r=>r.id===id);if(!req)return;
+  const decisionAt=new Date().toISOString();
+  try{
+   const {data,error}=await supabase.from('asset_requests').update({status:'rejected',rejection_reason_ar:reason,rejection_reason_en:reason,decision_at:decisionAt,decided_by:profile?.id||null}).eq(req.dbId?'id':'request_code',req.dbId||req.id).select('*').single();
+   if(error)throw error;
+   const updated=dbRequestToUi(data);
+   setRequests(x=>x.map(r=>r.id===id?updated:r));setRejecting(null);setViewing(null);notify(ar?'تم رفض الطلب وإضافة سبب الرفض':'Request rejected with reason');
+   window.dispatchEvent(new CustomEvent('saams:data-changed',{detail:{entity:'asset_request',action:'reject'}}));
+  }catch(err){console.error(err);alert(ar?'تعذر رفض الطلب. حاولي مرة أخرى.':'Could not reject request.')}
+ }
  return <section className="assets-page">
   <div className="module-heading assets-heading"><div><span className="eyebrow">SAAMS Official 3.2</span><h1>{t.title}</h1><p>{t.sub}</p></div><div className="assets-heading-actions">{isAdmin&&<button className="preview-nursery-btn" onClick={()=>setPreviewNursery(v=>!v)}>{previewNursery?t.exitPreview:t.previewNursery}</button>}<div className="role-pill">{isAdmin&&!previewNursery?t.admin:t.nursery}</div></div></div>
   <div className="asset-stat-grid">
