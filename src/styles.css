@@ -3019,3 +3019,45 @@ html[lang="en"] .asset-found span{font-size:13px!important}
  html[lang="en"] .asset-list-table td{font-size:14px!important}
  html[lang="en"] .asset-modal{font-size:15px!important}
 }
+
+/* English readability pass v2 — larger desktop type throughout the live UI */
+html[lang="en"] body{font-size:18px!important}
+html[lang="en"] .side-product strong{font-size:16px!important}
+html[lang="en"] .side-product p{font-size:13px!important;line-height:1.55!important}
+html[lang="en"] .sidebar-profile-copy strong{font-size:16px!important}
+html[lang="en"] .sidebar-profile-copy small{font-size:12.5px!important}
+html[lang="en"] .sidebar-nav button,
+html[lang="en"] .sidebar-group-button,
+html[lang="en"] .sidebar-subitem,
+html[lang="en"] .sidebar-standalone{font-size:16.5px!important;line-height:1.45!important}
+html[lang="en"] .module-heading h1{font-size:42px!important}
+html[lang="en"] .module-heading p{font-size:18px!important}
+html[lang="en"] .stat-card>span{font-size:16px!important}
+html[lang="en"] .stat-card strong{font-size:34px!important}
+html[lang="en"] .panel-heading h2{font-size:19px!important}
+html[lang="en"] .asset-list-table th,
+html[lang="en"] .invoice-table th,
+html[lang="en"] .report-table-wrap th{font-size:15.5px!important;font-weight:800!important}
+html[lang="en"] .asset-list-table td,
+html[lang="en"] .invoice-table td,
+html[lang="en"] .report-table-wrap td{font-size:16.5px!important;line-height:1.65!important}
+html[lang="en"] .asset-name-cell{font-size:17px!important;font-weight:900!important}
+html[lang="en"] .asset-barcode-cell{font-size:15.5px!important}
+html[lang="en"] .activity-table .activity-row span{font-size:15.5px!important;line-height:1.55!important}
+html[lang="en"] .dashboard-hero h1{font-size:38px!important}
+html[lang="en"] .dashboard-hero p{font-size:17px!important}
+html[lang="en"] button,
+html[lang="en"] input,
+html[lang="en"] select,
+html[lang="en"] textarea{font-size:16px!important}
+html[lang="en"] .asset-modal h2{font-size:30px!important}
+html[lang="en"] .asset-modal label>span{font-size:15px!important}
+html[lang="en"] .asset-modal input,
+html[lang="en"] .asset-modal select,
+html[lang="en"] .asset-modal textarea{font-size:17px!important;min-height:50px!important}
+@media(max-width:900px){
+ html[lang="en"] body{font-size:16.5px!important}
+ html[lang="en"] .sidebar-nav button{font-size:15.5px!important}
+ html[lang="en"] .module-heading h1{font-size:33px!important}
+ html[lang="en"] .asset-list-table td{font-size:15px!important}
+}

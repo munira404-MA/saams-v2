@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import SmartAssistant from './SmartAssistant';
 import { loadAuditLog } from '../utils/audit';
+import { englishPersonName } from '../utils/englishDisplay';
 
 const icons = {
   dashboard: '⌂',  commandcenter: '◆',  invoices: '▤',
@@ -25,6 +26,7 @@ export default function Layout({
   databaseMode,
 }) {
   const ar = lang === 'ar';
+  const profileDisplayName = ar ? (profile?.full_name || 'منيرة الأحمد') : englishPersonName(profile?.full_name || 'Munira Alahmed');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [auditRows, setAuditRows] = useState(loadAuditLog);
@@ -205,10 +207,10 @@ export default function Layout({
 
         <div className="sidebar-profile-card">
           <div className="sidebar-profile-avatar">
-            {(profile?.full_name || 'م').trim().charAt(0)}
+            {profileDisplayName.trim().charAt(0)}
           </div>
           <div className="sidebar-profile-copy">
-            <strong>{profile?.full_name || (ar ? 'منيرة الأحمد' : 'Munira Alahmed')}</strong>
+            <strong>{profileDisplayName}</strong>
             <small>
               {profile?.role === 'nursery'
                 ? (profile?.nursery || (ar ? 'حساب حضانة' : 'Nursery Account'))
@@ -336,9 +338,9 @@ export default function Layout({
             </button>
 
             <div className="topbar-user">
-              <div className="avatar">{(profile?.full_name || 'م').trim().charAt(0)}</div>
+              <div className="avatar">{profileDisplayName.trim().charAt(0)}</div>
               <div>
-                <strong>{profile?.full_name || (ar ? 'منيرة الأحمد' : 'Munira Alahmed')}</strong>
+                <strong>{profileDisplayName}</strong>
                 <small>
                   {profile?.role === 'nursery'
                     ? (profile?.nursery || (ar ? 'حساب حضانة' : 'Nursery Account'))

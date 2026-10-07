@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import { loadAuditLog } from '../utils/audit';
 import { translateAssetName } from '../utils/assetTranslations';
+import { englishPersonName, englishActivityText, englishTime } from '../utils/englishDisplay';
 
 
 const DEVELOPER_NAME_AR = 'منيرة الأحمد';
@@ -65,7 +66,7 @@ function AssetDistribution({ t, rows }) {
 export default function Dashboard({ lang, setActive, profile }) {
   const ar=lang==='ar', t=translations[lang]||translations.ar;
   const isNursery=profile?.role==='nursery';
-  const displayName=profile?.full_name || (ar?'المستخدم':'User');
+  const displayName=ar?(profile?.full_name||'المستخدم'):englishPersonName(profile?.full_name||'User');
   const nurseryName=profile?.nursery || (ar?'الحضانة':'Nursery');
   const [stats,setStats]=useState({assets:0,openAdvances:0,review:0,late:0,approved:0,returned:0,totalInvoices:0});
   const [assetDistribution,setAssetDistribution]=useState([]);
@@ -242,7 +243,7 @@ export default function Dashboard({ lang, setActive, profile }) {
     </section>
     <section className="dashboard-grid dashboard-grid-bottom">
       <article className="glass-panel quick-panel"><div className="panel-heading"><h2>ϟ {t.quickActions}</h2></div><div className="quick-grid">{(isNursery?[[ '▤',t.addInvoice,'green','invoices'],['⇄',t.transferAsset,'orange','assets'],['▣',t.openAdvances,'blue','advances'],['▥',t.report,'violet','reports']]:[['◇',t.addAsset,'teal','assets'],['▤',t.addInvoice,'green','invoices'],['▣',t.addAdvance,'blue','advances'],['⇄',t.transferAsset,'orange','assets'],['♙',t.addUser,'sky','users'],['▥',t.report,'violet','reports']]).map(([icon,label,tone,target])=><button className={`quick-action ${tone}`} type="button" key={label} onClick={()=>setActive(target)}><span>{icon}</span><strong>{label}</strong></button>)}</div></article>
-      <article className="glass-panel activity-panel"><div className="panel-heading"><h2>◷ {t.todayActivity}</h2><button type="button">{t.viewAll}</button></div><div className="activity-table"><div className="activity-row activity-head"><span>{t.activity}</span><span>{t.details}</span><span>{t.user}</span><span>{t.time}</span></div>{activities.length?activities.map(x=><div className="activity-row" key={x.id}><span>{x.action}</span><span>{x.details||x.screen||'—'}</span><span>{x.user||'—'}</span><span>{x.time||'—'}</span></div>):<div className="dashboard-empty-state activity-empty"><span>{t.noActivity}</span></div>}</div></article>
+      <article className="glass-panel activity-panel"><div className="panel-heading"><h2>◷ {t.todayActivity}</h2><button type="button">{t.viewAll}</button></div><div className="activity-table"><div className="activity-row activity-head"><span>{t.activity}</span><span>{t.details}</span><span>{t.user}</span><span>{t.time}</span></div>{activities.length?activities.map(x=><div className="activity-row" key={x.id}><span>{ar?x.action:englishActivityText(x.action)}</span><span>{ar?(x.details||x.screen||'—'):englishActivityText(x.details||x.screen||'—')}</span><span>{ar?(x.user||'—'):englishPersonName(x.user||'—')}</span><span>{ar?(x.time||'—'):englishTime(x.time||'—')}</span></div>):<div className="dashboard-empty-state activity-empty"><span>{t.noActivity}</span></div>}</div></article>
     </section>
     <footer className="dashboard-footer">
       <span>SAAMS Official 3.2</span>
