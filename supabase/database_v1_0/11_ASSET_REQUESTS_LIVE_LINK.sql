@@ -9,6 +9,7 @@ create table if not exists public.asset_requests (
   request_type text not null check (request_type in ('transfer','surplus','disposal')),
   asset_id uuid null references public.assets(id) on delete set null,
   barcode text not null,
+  central_finance_barcode text,
   asset_name_ar text not null,
   asset_name_en text,
   from_name_ar text not null,
@@ -31,6 +32,7 @@ create index if not exists asset_requests_status_idx on public.asset_requests(st
 create index if not exists asset_requests_type_idx on public.asset_requests(request_type);
 create index if not exists asset_requests_created_by_idx on public.asset_requests(created_by);
 create index if not exists asset_requests_barcode_idx on public.asset_requests(barcode);
+create index if not exists asset_requests_central_finance_barcode_idx on public.asset_requests(central_finance_barcode);
 
 create or replace function public.set_asset_requests_updated_at()
 returns trigger language plpgsql as $$

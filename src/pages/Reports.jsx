@@ -8,14 +8,22 @@ const ASSET_PAGE_SIZE = 1000;
 async function listAllAssets(){
   const rows=[];
   for(let from=0;;from+=ASSET_PAGE_SIZE){
-    const {data,error}=await supabase
+    let response=await supabase
       .from('assets')
-      .select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,updated_at,nurseries(name_ar,name_en)')
+      .select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,updated_at,nurseries(name_ar,name_en)')
       .order('created_at',{ascending:false})
       .range(from,from+ASSET_PAGE_SIZE-1);
-    if(error) throw error;
-    rows.push(...(data||[]));
-    if((data||[]).length<ASSET_PAGE_SIZE) break;
+    if(response.error && (response.error.code==='42703'||String(response.error.message||'').includes('central_finance_barcode'))){
+      response=await supabase
+        .from('assets')
+        .select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,updated_at,nurseries(name_ar,name_en)')
+        .order('created_at',{ascending:false})
+        .range(from,from+ASSET_PAGE_SIZE-1);
+      if(!response.error) response={...response,data:(response.data||[]).map(r=>({...r,central_finance_barcode:null}))};
+    }
+    if(response.error) throw response.error;
+    rows.push(...(response.data||[]));
+    if((response.data||[]).length<ASSET_PAGE_SIZE) break;
   }
   return rows;
 }
@@ -138,7 +146,7 @@ export default function Reports({lang,profile}){
         });
         setAdvanceRows(flat);
         setAssetRows((assets||[]).map(row=>({
-          id:row.id, barcode:row.barcode||'—',
+          id:row.id, barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'—',
           name:ar?(row.name_ar||row.name_en||'—'):translateAssetName(row.name_en||row.name_ar||'—'),
           nameAr:row.name_ar||'', nameEn:row.name_en||'',
           category:ar?(row.category_ar||row.category_en||'—'):(row.category_en||row.category_ar||'—'),
@@ -149,7 +157,7 @@ export default function Reports({lang,profile}){
         })));
         setAssetRequestRows((assetRequests||[]).map(row=>({
           id:row.id, requestCode:row.request_code||String(row.id||'—'), type:row.request_type||'transfer',
-          barcode:row.barcode||'—',
+          barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'—',
           asset:ar?(row.asset_name_ar||row.asset_name_en||'—'):translateAssetName(row.asset_name_en||row.asset_name_ar||'—'),
           assetAr:row.asset_name_ar||'', assetEn:row.asset_name_en||'',
           from:ar?(row.from_name_ar||row.from_name_en||'—'):(row.from_name_en||row.from_name_ar||'—'),
@@ -219,8 +227,8 @@ export default function Reports({lang,profile}){
     const wb=XLSX.utils.book_new();
     const invRows=invoiceExcelRows(filtered.invoices);
     const advRows=advanceExcelRows(filtered.advances);
-    const assetRows=filtered.assets.map(r=>ar?{'رقم الباركود':r.barcode,'اسم الأصل':r.name,'الفئة':r.category,'الحضانة':r.nursery,'الحالة':statusText(r.status,true),'ملاحظات':r.notes,'تاريخ التسجيل':r.createdAt}:{Barcode:r.barcode,Asset:r.name,Category:r.category,Nursery:r.nursery,Status:statusText(r.status,false),Notes:r.notes,'Created Date':r.createdAt});
-    const assetRequestExcelRows=filtered.assetRequests.map(r=>ar?{'رقم الطلب':r.requestCode,'نوع الطلب':r.type==='transfer'?'نقل':r.type==='surplus'?'فائض':'إسقاط','اسم الأصل':r.asset,'الباركود':r.barcode,'من':r.from,'إلى':r.type==='transfer'?(r.to||'—'):'—','السبب':r.reason,'الحالة':statusText(r.status,true),'تاريخ الطلب':r.createdAt,'تاريخ القرار':r.decisionAt||'—','سبب الرفض':r.rejectionReason||'—'}:{'Request No.':r.requestCode,'Request Type':r.type==='transfer'?'Transfer':r.type==='surplus'?'Surplus':'Disposal',Asset:r.asset,Barcode:r.barcode,From:r.from,To:r.type==='transfer'?(r.to||'—'):'—',Reason:r.reason,Status:statusText(r.status,false),'Request Date':r.createdAt,'Decision Date':r.decisionAt||'—','Rejection Reason':r.rejectionReason||'—'});
+    const assetRows=filtered.assets.map(r=>ar?{'الباركود الداخلي':r.barcode,'باركود المالية المركزية':r.centralBarcode,'اسم الأصل':r.name,'الفئة':r.category,'الحضانة':r.nursery,'الحالة':statusText(r.status,true),'ملاحظات':r.notes,'تاريخ التسجيل':r.createdAt}:{'Internal Barcode':r.barcode,'Central Finance Barcode':r.centralBarcode,Asset:r.name,Category:r.category,Nursery:r.nursery,Status:statusText(r.status,false),Notes:r.notes,'Created Date':r.createdAt});
+    const assetRequestExcelRows=filtered.assetRequests.map(r=>ar?{'رقم الطلب':r.requestCode,'نوع الطلب':r.type==='transfer'?'نقل':r.type==='surplus'?'فائض':'إسقاط','اسم الأصل':r.asset,'الباركود الداخلي':r.barcode,'باركود المالية المركزية':r.centralBarcode,'من':r.from,'إلى':r.type==='transfer'?(r.to||'—'):'—','السبب':r.reason,'الحالة':statusText(r.status,true),'تاريخ الطلب':r.createdAt,'تاريخ القرار':r.decisionAt||'—','سبب الرفض':r.rejectionReason||'—'}:{'Request No.':r.requestCode,'Request Type':r.type==='transfer'?'Transfer':r.type==='surplus'?'Surplus':'Disposal',Asset:r.asset,'Internal Barcode':r.barcode,'Central Finance Barcode':r.centralBarcode,From:r.from,To:r.type==='transfer'?(r.to||'—'):'—',Reason:r.reason,Status:statusText(r.status,false),'Request Date':r.createdAt,'Decision Date':r.decisionAt||'—','Rejection Reason':r.rejectionReason||'—'});
     const summaryRows=ar?[
       {'المؤشر':'عدد الفواتير','القيمة':summary.invoiceCount},{'المؤشر':'إجمالي الفواتير','القيمة':summary.invoiceTotal},{'المؤشر':'الفواتير المعتمدة','القيمة':summary.approvedInvoices},{'المؤشر':'بانتظار المراجعة','القيمة':summary.reviewInvoices},{'المؤشر':'معادة للتعديل','القيمة':summary.returnedInvoices},{'المؤشر':'إجمالي السلف','القيمة':summary.allocated},{'المؤشر':'المصروف المعتمد','القيمة':summary.spent},{'المؤشر':'المتبقي','القيمة':summary.remaining},{'المؤشر':'إجمالي الأصول','القيمة':summary.assetCount}
     ]:[
@@ -304,8 +312,8 @@ export default function Reports({lang,profile}){
 }
 
 function Empty({text}){return <div className="report-empty">▦<strong>{text}</strong></div>}
-function AssetsTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;return <div className="report-table-wrap"><table><thead><tr><th>{ar?'الباركود':'Barcode'}</th><th>{ar?'اسم الأصل':'Asset'}</th><th>{ar?'الفئة':'Category'}</th><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'الحالة':'Status'}</th><th>{ar?'ملاحظات':'Notes'}</th><th>{ar?'تاريخ التسجيل':'Created'}</th></tr></thead><tbody>{rows.map(r=><tr key={r.id||r.barcode}><td><b>{r.barcode}</b></td><td>{r.name}</td><td>{r.category}</td><td>{r.nursery}</td><td><span className={`report-status ${r.status}`}>{statusText(r.status,ar)}</span></td><td>{r.notes||'—'}</td><td>{r.createdAt||'—'}</td></tr>)}</tbody></table></div>}
-function AssetRequestsTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;const typeText=t=>t==='transfer'?(ar?'نقل':'Transfer'):t==='surplus'?(ar?'فائض':'Surplus'):(ar?'إسقاط':'Disposal');return <div className="report-table-wrap"><table><thead><tr><th>{ar?'رقم الطلب':'Request No.'}</th><th>{ar?'نوع الطلب':'Type'}</th><th>{ar?'اسم الأصل':'Asset'}</th><th>{ar?'الباركود':'Barcode'}</th><th>{ar?'من':'From'}</th><th>{ar?'إلى':'To'}</th><th>{ar?'السبب':'Reason'}</th><th>{ar?'الحالة':'Status'}</th><th>{ar?'تاريخ الطلب':'Request Date'}</th><th>{ar?'تاريخ القرار':'Decision Date'}</th><th>{ar?'سبب الرفض':'Rejection Reason'}</th></tr></thead><tbody>{rows.map(r=><tr key={r.id||r.requestCode}><td><b>{r.requestCode}</b></td><td><span className={`request-type ${r.type}`}>{typeText(r.type)}</span></td><td>{r.asset}</td><td><b>{r.barcode}</b></td><td>{r.from}</td><td>{r.type==='transfer'?(r.to||'—'):'—'}</td><td>{r.reason||'—'}</td><td><span className={`report-status ${r.status==='pending'?'review':r.status}`}>{statusText(r.status,ar)}</span></td><td>{r.createdAt||'—'}</td><td>{r.decisionAt||'—'}</td><td>{r.rejectionReason||'—'}</td></tr>)}</tbody></table></div>}
+function AssetsTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;return <div className="report-table-wrap"><table><thead><tr><th>{ar?'الباركود الداخلي':'Internal Barcode'}</th><th>{ar?'باركود المالية المركزية':'Central Finance Barcode'}</th><th>{ar?'اسم الأصل':'Asset'}</th><th>{ar?'الفئة':'Category'}</th><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'الحالة':'Status'}</th><th>{ar?'ملاحظات':'Notes'}</th><th>{ar?'تاريخ التسجيل':'Created'}</th></tr></thead><tbody>{rows.map(r=><tr key={r.id||r.barcode}><td><b>{r.barcode}</b></td><td><b>{r.centralBarcode}</b></td><td>{r.name}</td><td>{r.category}</td><td>{r.nursery}</td><td><span className={`report-status ${r.status}`}>{statusText(r.status,ar)}</span></td><td>{r.notes||'—'}</td><td>{r.createdAt||'—'}</td></tr>)}</tbody></table></div>}
+function AssetRequestsTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;const typeText=t=>t==='transfer'?(ar?'نقل':'Transfer'):t==='surplus'?(ar?'فائض':'Surplus'):(ar?'إسقاط':'Disposal');return <div className="report-table-wrap"><table><thead><tr><th>{ar?'رقم الطلب':'Request No.'}</th><th>{ar?'نوع الطلب':'Type'}</th><th>{ar?'اسم الأصل':'Asset'}</th><th>{ar?'الباركود الداخلي':'Internal Barcode'}</th><th>{ar?'باركود المالية المركزية':'Central Finance Barcode'}</th><th>{ar?'من':'From'}</th><th>{ar?'إلى':'To'}</th><th>{ar?'السبب':'Reason'}</th><th>{ar?'الحالة':'Status'}</th><th>{ar?'تاريخ الطلب':'Request Date'}</th><th>{ar?'تاريخ القرار':'Decision Date'}</th><th>{ar?'سبب الرفض':'Rejection Reason'}</th></tr></thead><tbody>{rows.map(r=><tr key={r.id||r.requestCode}><td><b>{r.requestCode}</b></td><td><span className={`request-type ${r.type}`}>{typeText(r.type)}</span></td><td>{r.asset}</td><td><b>{r.barcode}</b></td><td><b>{r.centralBarcode}</b></td><td>{r.from}</td><td>{r.type==='transfer'?(r.to||'—'):'—'}</td><td>{r.reason||'—'}</td><td><span className={`report-status ${r.status==='pending'?'review':r.status}`}>{statusText(r.status,ar)}</span></td><td>{r.createdAt||'—'}</td><td>{r.decisionAt||'—'}</td><td>{r.rejectionReason||'—'}</td></tr>)}</tbody></table></div>}
 function InvoicesTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;return <div className="report-table-wrap"><table><thead><tr><th>{ar?'رقم الفاتورة':'Invoice'}</th><th>{ar?'المورد':'Supplier'}</th><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'السلفة':'Advance'}</th><th>{ar?'التاريخ':'Date'}</th><th>{ar?'قبل الضريبة':'Subtotal'}</th><th>{ar?'الضريبة':'VAT'}</th><th>{ar?'الإجمالي':'Total'}</th><th>{ar?'الدفع':'Payment'}</th><th>{ar?'إثبات الخصم':'Proof'}</th><th>{ar?'الحالة':'Status'}</th></tr></thead><tbody>{rows.map((r,i)=><tr key={`${r.invoiceNo}-${i}`}><td><b>{r.invoiceNo}</b></td><td>{r.supplier}</td><td>{r.nursery}</td><td>{r.advance||'—'}</td><td>{r.date}</td><td>{money(r.beforeVat)} AED</td><td>{money(r.vat)} AED</td><td><b>{money(r.total)} AED</b></td><td>{r.payment==='card'?(ar?'بطاقة':'Card'):(ar?'نقد':'Cash')}</td><td><span className={`report-proof ${r.proof?'yes':'no'}`}>{r.payment==='card'?(r.proof?(ar?'مرفق':'Attached'):(ar?'غير مرفق':'Missing')):'—'}</span></td><td><span className={`report-status ${r.status}`}>{statusText(r.status,ar)}</span></td></tr>)}</tbody></table></div>}
 function AdvancesTable({rows,ar,empty}){if(!rows.length)return <Empty text={empty}/>;return <div className="report-table-wrap"><table><thead><tr><th>{ar?'السلفة':'Advance'}</th><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'المخصص':'Allocated'}</th><th>{ar?'المصروف المعتمد':'Approved Spent'}</th><th>{ar?'المتبقي':'Remaining'}</th><th>{ar?'الفواتير':'Invoices'}</th><th>{ar?'معتمدة':'Approved'}</th><th>{ar?'مراجعة':'Review'}</th><th>{ar?'معادة':'Returned'}</th><th>{ar?'الحالة':'Status'}</th></tr></thead><tbody>{rows.map((r,i)=><tr key={`${r.advanceNo}-${r.nursery}-${i}`}><td><b>{r.name}</b><small>{r.advanceNo}</small></td><td>{r.nursery}</td><td>{money(r.allocated)} AED</td><td>{money(r.spent)} AED</td><td className="remaining-cell">{money(r.remaining)} AED</td><td>{r.invoices}</td><td>{r.approved}</td><td>{r.review}</td><td>{r.returned}</td><td><span className={`report-status ${r.status}`}>{statusText(r.status,ar)}</span></td></tr>)}</tbody></table></div>}
 function ComprehensivePreview({summary,rows,ar}){return <div className="comprehensive-preview"><div className="comprehensive-hero"><div><small>{ar?'الوضع المالي التشغيلي':'Operational Financial Position'}</small><strong>{money(summary.remaining)} AED</strong><p>{ar?'إجمالي المتبقي في السلف ضمن التصفية الحالية':'Total remaining advances in current filter'}</p></div><span>SAAMS</span></div><div className="comprehensive-sections"><article><h3>{ar?'الفواتير':'Invoices'}</h3><b>{summary.invoiceCount}</b><p>{money(summary.invoiceTotal)} AED</p></article><article><h3>{ar?'المعتمدة':'Approved'}</h3><b>{summary.approvedInvoices}</b><p>{ar?'فاتورة':'invoice(s)'}</p></article><article><h3>{ar?'السلف':'Advances'}</h3><b>{rows.advances.length}</b><p>{money(summary.spent)} AED {ar?'مصروف معتمد':'approved spent'}</p></article><article><h3>{ar?'المتبقي':'Remaining'}</h3><b>{money(summary.remaining)}</b><p>AED</p></article></div></div>}

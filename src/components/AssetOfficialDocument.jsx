@@ -41,7 +41,7 @@ export default function AssetOfficialDocument({ request, ar, onClose }) {
             <h2>{ar?'بيانات الأصل':'Asset Details'}</h2>
             <div className="official-document-grid">
               <div><span>{ar?'اسم الأصل':'Asset Name'}</span><strong>{ar?request.assetAr:request.assetEn}</strong></div>
-              <div><span>{ar?'رقم الباركود':'Barcode'}</span><strong>{request.barcode}</strong></div>
+              <div><span>{ar?'الباركود الداخلي':'Internal Barcode'}</span><strong>{request.barcode}</strong></div><div><span>{ar?'باركود المالية المركزية':'Central Finance Barcode'}</span><strong>{request.centralBarcode||'—'}</strong></div>
               <div><span>{ar?'من':'From'}</span><strong>{ar?request.fromAr:request.fromEn}</strong></div>
               {isTransfer&&<div><span>{ar?'إلى':'To'}</span><strong>{ar?request.toAr:request.toEn}</strong></div>}
               <div className="wide"><span>{ar?'السبب':'Reason'}</span><strong>{ar?request.reasonAr:request.reasonEn}</strong></div>

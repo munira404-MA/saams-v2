@@ -459,7 +459,7 @@ export async function listAllAssets(nurseryId = null) {
   for (let from = 0; ; from += batchSize) {
     let query = supabase
       .from('assets')
-      .select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,updated_at,nurseries(name_ar,name_en)')
+      .select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,updated_at,nurseries(name_ar,name_en)')
       .order('created_at', { ascending: false })
       .range(from, from + batchSize - 1);
     if (nurseryId) query = query.eq('nursery_id', nurseryId);
@@ -470,6 +470,7 @@ export async function listAllAssets(nurseryId = null) {
       dbId: row.id,
       id: row.barcode,
       barcode: row.barcode,
+      centralBarcode: row.central_finance_barcode || '',
       nameAr: row.name_ar || '',
       nameEn: row.name_en || row.name_ar || '',
       categoryAr: row.category_ar || '',

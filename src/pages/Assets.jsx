@@ -27,8 +27,8 @@ const EXTRA_TRANSFER_DESTINATIONS_EN=['Warehouse','Main Building'];
 
 
 const COPY={
- ar:{title:'إدارة الأصول',sub:'سجل الأصول وطلبات النقل والفائض والإسقاط في شاشة موحدة.',admin:'الإدارة',nursery:'الحضانة',add:'إضافة أصل',register:'سجل الأصول',requests:'طلبات الأصول',transfer:'طلب نقل',surplus:'طلب فائض',disposal:'طلب إسقاط',barcode:'رقم الباركود',asset:'اسم الأصل',from:'من',to:'إلى',reason:'السبب',scan:'تصوير الباركود',upload:'رفع صورة الباركود',manual:'أو أدخلي الرقم يدويًا',lookup:'البحث عن الأصل',found:'تم التعرف على الأصل',notFound:'لم يتم العثور على أصل بهذا الباركود',submit:'إرسال الطلب',cancel:'إلغاء',status:'الحالة',date:'التاريخ',type:'نوع الطلب',pending:'قيد الاعتماد',approved:'معتمد',returned:'معاد',rejected:'مرفوض',approve:'اعتماد',reject:'رفض',actions:'الإجراءات',rejectionReason:'سبب الرفض',confirmReject:'تأكيد الرفض',previewNursery:'معاينة طلبات الحضانة',exitPreview:'العودة لوضع الإدارة',viewRequest:'عرض الطلب',all:'الكل',category:'التصنيف',location:'الموقع الحالي',save:'حفظ الأصل',assetName:'اسم الأصل',choose:'اختاري',notes:'ملاحظات',cameraHint:'وجهي الكاميرا على الباركود حتى تتم قراءته تلقائيًا.',cameraUnsupported:'المتصفح لا يدعم قراءة الباركود مباشرة. استخدمي رفع الصورة أو اكتبي الرقم.',closeCamera:'إغلاق الكاميرا',requestSent:'تم إرسال الطلب بنجاح',assetSaved:'تمت إضافة الأصل بنجاح',adminOnly:'إضافة الأصول متاحة للإدارة فقط',destinationNotNeeded:'الفائض لا يحتاج تحديد جهة مستلمة.',disposalHint:'أرفقي سبب الإسقاط بشكل واضح ليتم عرضه على الإدارة.',surplusHint:'حددي سبب اعتبار الأصل فائضًا، ولن يظهر حقل «إلى».',transferHint:'حددي الحضانة المنقول منها وإليها مع سبب النقل.',edit:'تعديل',delete:'حذف',editAsset:'تعديل الأصل',deleteConfirm:'هل أنتِ متأكدة من حذف هذا الأصل؟ لا يمكن التراجع عن الحذف.',assetUpdated:'تم تحديث الأصل بنجاح',assetDeleted:'تم حذف الأصل بنجاح',duplicateBarcode:'هذا الأصل مسجل مسبقًا في النظام',duplicateBarcodeDetail:'الموقع الحالي',duplicateBarcodeBlocked:'لا يمكن حفظ أصل جديد بنفس الباركود',excelTemplate:'تحميل قالب Excel',excelUpload:'رفع Excel',excelReading:'جاري قراءة الملف...',excelBadFile:'تعذر قراءة ملف Excel. تأكدي من استخدام القالب المعتمد.',excelMissingHeaders:'أعمدة ملف Excel غير مطابقة للقالب المعتمد.',excelNoRows:'لا توجد أصول مكتملة في الملف.',excelConfirm:'سيتم فحص الملف وحفظ الأصول الصحيحة فقط. هل تريدين المتابعة؟',excelDone:'اكتمل رفع الأصول من Excel',excelTemplateMade:'تم تنزيل قالب Excel المعتمد',excelParsed:'تمت قراءة ملف Excel بنجاح',excelDbError:'تمت قراءة Excel لكن تعذر الاتصال ببيانات الأصول'},
- en:{title:'Asset Management',sub:'A unified register for asset transfers, surplus, and disposal requests.',admin:'Administration',nursery:'Nursery',add:'Add Asset',register:'Asset Register',requests:'Asset Requests',transfer:'Transfer Request',surplus:'Surplus Request',disposal:'Disposal Request',barcode:'Barcode Number',asset:'Asset Name',from:'From',to:'To',reason:'Reason',scan:'Scan Barcode',upload:'Upload Barcode Image',manual:'or enter the number manually',lookup:'Find Asset',found:'Asset identified',notFound:'No asset found for this barcode',submit:'Submit Request',cancel:'Cancel',status:'Status',date:'Date',type:'Request Type',pending:'Pending Approval',approved:'Approved',returned:'Returned',rejected:'Rejected',approve:'Approve',reject:'Reject',actions:'Actions',rejectionReason:'Rejection Reason',confirmReject:'Confirm Rejection',previewNursery:'Preview Nursery Requests',exitPreview:'Back to Admin Mode',viewRequest:'View Request',all:'All',category:'Category',location:'Current Location',save:'Save Asset',assetName:'Asset Name',choose:'Choose',notes:'Notes',cameraHint:'Point the camera at the barcode to scan it automatically.',cameraUnsupported:'Barcode scanning is not supported by this browser. Upload an image or enter the number manually.',closeCamera:'Close Camera',requestSent:'Request submitted successfully',assetSaved:'Asset added successfully',adminOnly:'Only administration can add assets',destinationNotNeeded:'Surplus requests do not require a destination.',disposalHint:'Provide a clear disposal reason for administration review.',surplusHint:'Explain why the asset is surplus. The “To” field is not required.',transferHint:'Select the source and destination nurseries and state the transfer reason.',edit:'Edit',delete:'Delete',editAsset:'Edit Asset',deleteConfirm:'Are you sure you want to delete this asset? This action cannot be undone.',assetUpdated:'Asset updated successfully',assetDeleted:'Asset deleted successfully',duplicateBarcode:'This asset is already registered in the system',duplicateBarcodeDetail:'Current location',duplicateBarcodeBlocked:'A new asset cannot be saved with the same barcode',excelTemplate:'Download Excel Template',excelUpload:'Upload Excel',excelReading:'Reading file...',excelBadFile:'Could not read the Excel file. Please use the approved template.',excelMissingHeaders:'Excel columns do not match the approved template.',excelNoRows:'No complete asset rows were found.',excelConfirm:'The file will be validated and only valid assets will be saved. Continue?',excelDone:'Excel asset import completed',excelTemplateMade:'Approved Excel template downloaded',excelParsed:'Excel file read successfully',excelDbError:'Excel was read, but asset data could not be loaded'}
+ ar:{title:'إدارة الأصول',sub:'سجل الأصول وطلبات النقل والفائض والإسقاط في شاشة موحدة.',admin:'الإدارة',nursery:'الحضانة',add:'إضافة أصل',register:'سجل الأصول',requests:'طلبات الأصول',transfer:'طلب نقل',surplus:'طلب فائض',disposal:'طلب إسقاط',barcode:'الباركود الداخلي',centralBarcode:'باركود المالية المركزية',asset:'اسم الأصل',from:'من',to:'إلى',reason:'السبب',scan:'تصوير الباركود',upload:'رفع صورة الباركود',manual:'أو أدخلي الرقم يدويًا',lookup:'البحث عن الأصل',found:'تم التعرف على الأصل',notFound:'لم يتم العثور على أصل بهذا الباركود',submit:'إرسال الطلب',cancel:'إلغاء',status:'الحالة',date:'التاريخ',type:'نوع الطلب',pending:'قيد الاعتماد',approved:'معتمد',returned:'معاد',rejected:'مرفوض',approve:'اعتماد',reject:'رفض',actions:'الإجراءات',rejectionReason:'سبب الرفض',confirmReject:'تأكيد الرفض',previewNursery:'معاينة طلبات الحضانة',exitPreview:'العودة لوضع الإدارة',viewRequest:'عرض الطلب',all:'الكل',category:'التصنيف',location:'الموقع الحالي',save:'حفظ الأصل',assetName:'اسم الأصل',choose:'اختاري',notes:'ملاحظات',cameraHint:'وجهي الكاميرا على الباركود حتى تتم قراءته تلقائيًا.',cameraUnsupported:'المتصفح لا يدعم قراءة الباركود مباشرة. استخدمي رفع الصورة أو اكتبي الرقم.',closeCamera:'إغلاق الكاميرا',requestSent:'تم إرسال الطلب بنجاح',assetSaved:'تمت إضافة الأصل بنجاح',adminOnly:'إضافة الأصول متاحة للإدارة فقط',destinationNotNeeded:'الفائض لا يحتاج تحديد جهة مستلمة.',disposalHint:'أرفقي سبب الإسقاط بشكل واضح ليتم عرضه على الإدارة.',surplusHint:'حددي سبب اعتبار الأصل فائضًا، ولن يظهر حقل «إلى».',transferHint:'حددي الحضانة المنقول منها وإليها مع سبب النقل.',edit:'تعديل',delete:'حذف',editAsset:'تعديل الأصل',deleteConfirm:'هل أنتِ متأكدة من حذف هذا الأصل؟ لا يمكن التراجع عن الحذف.',assetUpdated:'تم تحديث الأصل بنجاح',assetDeleted:'تم حذف الأصل بنجاح',duplicateBarcode:'هذا الأصل مسجل مسبقًا في النظام',duplicateBarcodeDetail:'الموقع الحالي',duplicateBarcodeBlocked:'لا يمكن حفظ أصل جديد إذا كان أي من الباركودين مسجلاً مسبقًا',excelTemplate:'تحميل قالب Excel',excelUpload:'رفع Excel',excelReading:'جاري قراءة الملف...',excelBadFile:'تعذر قراءة ملف Excel. تأكدي من استخدام القالب المعتمد.',excelMissingHeaders:'أعمدة ملف Excel غير مطابقة للقالب المعتمد.',excelNoRows:'لا توجد أصول مكتملة في الملف.',excelConfirm:'سيتم فحص الملف وحفظ الأصول الصحيحة فقط. هل تريدين المتابعة؟',excelDone:'اكتمل رفع الأصول من Excel',excelTemplateMade:'تم تنزيل قالب Excel المعتمد',excelParsed:'تمت قراءة ملف Excel بنجاح',excelDbError:'تمت قراءة Excel لكن تعذر الاتصال ببيانات الأصول'},
+ en:{title:'Asset Management',sub:'A unified register for asset transfers, surplus, and disposal requests.',admin:'Administration',nursery:'Nursery',add:'Add Asset',register:'Asset Register',requests:'Asset Requests',transfer:'Transfer Request',surplus:'Surplus Request',disposal:'Disposal Request',barcode:'Internal Barcode',centralBarcode:'Central Finance Barcode',asset:'Asset Name',from:'From',to:'To',reason:'Reason',scan:'Scan Barcode',upload:'Upload Barcode Image',manual:'or enter the number manually',lookup:'Find Asset',found:'Asset identified',notFound:'No asset found for this barcode',submit:'Submit Request',cancel:'Cancel',status:'Status',date:'Date',type:'Request Type',pending:'Pending Approval',approved:'Approved',returned:'Returned',rejected:'Rejected',approve:'Approve',reject:'Reject',actions:'Actions',rejectionReason:'Rejection Reason',confirmReject:'Confirm Rejection',previewNursery:'Preview Nursery Requests',exitPreview:'Back to Admin Mode',viewRequest:'View Request',all:'All',category:'Category',location:'Current Location',save:'Save Asset',assetName:'Asset Name',choose:'Choose',notes:'Notes',cameraHint:'Point the camera at the barcode to scan it automatically.',cameraUnsupported:'Barcode scanning is not supported by this browser. Upload an image or enter the number manually.',closeCamera:'Close Camera',requestSent:'Request submitted successfully',assetSaved:'Asset added successfully',adminOnly:'Only administration can add assets',destinationNotNeeded:'Surplus requests do not require a destination.',disposalHint:'Provide a clear disposal reason for administration review.',surplusHint:'Explain why the asset is surplus. The “To” field is not required.',transferHint:'Select the source and destination nurseries and state the transfer reason.',edit:'Edit',delete:'Delete',editAsset:'Edit Asset',deleteConfirm:'Are you sure you want to delete this asset? This action cannot be undone.',assetUpdated:'Asset updated successfully',assetDeleted:'Asset deleted successfully',duplicateBarcode:'This asset is already registered in the system',duplicateBarcodeDetail:'Current location',duplicateBarcodeBlocked:'A new asset cannot be saved if either barcode is already registered',excelTemplate:'Download Excel Template',excelUpload:'Upload Excel',excelReading:'Reading file...',excelBadFile:'Could not read the Excel file. Please use the approved template.',excelMissingHeaders:'Excel columns do not match the approved template.',excelNoRows:'No complete asset rows were found.',excelConfirm:'The file will be validated and only valid assets will be saved. Continue?',excelDone:'Excel asset import completed',excelTemplateMade:'Approved Excel template downloaded',excelParsed:'Excel file read successfully',excelDbError:'Excel was read, but asset data could not be loaded'}
 };
 
 function assetLabel(a,ar){
@@ -73,25 +73,33 @@ function rebuildAssetsFromAudit(){
 
 function dbAssetToUi(row){
  const n=Array.isArray(row.nurseries)?row.nurseries[0]:row.nurseries;
- return {id:row.id,barcode:row.barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||n?.name_en||'',nurseryEn:n?.name_en||n?.name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||''};
+ return {id:row.id,barcode:row.barcode||'',centralBarcode:row.central_finance_barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||n?.name_en||'',nurseryEn:n?.name_en||n?.name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||''};
 }
 
 async function fetchAllAssetRows(){
  const pageSize=1000;
  let from=0;
  let all=[];
+ let supportsCentralBarcode=true;
  while(true){
-  const {data,error}=await supabase.from('assets')
-   .select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)')
+  let response=await supabase.from('assets')
+   .select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)')
    .order('created_at',{ascending:false})
    .range(from,from+pageSize-1);
-  if(error)return {data:null,error};
-  const rows=data||[];
+  if(response.error && (response.error.code==='42703'||String(response.error.message||'').includes('central_finance_barcode'))){
+   supportsCentralBarcode=false;
+   response=await supabase.from('assets')
+    .select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)')
+    .order('created_at',{ascending:false})
+    .range(from,from+pageSize-1);
+  }
+  if(response.error)return {data:null,error:response.error,supportsCentralBarcode};
+  const rows=(response.data||[]).map(r=>supportsCentralBarcode?r:{...r,central_finance_barcode:null});
   all=all.concat(rows);
   if(rows.length<pageSize)break;
   from+=pageSize;
  }
- return {data:all,error:null};
+ return {data:all,error:null,supportsCentralBarcode};
 }
 
 function dbRequestToUi(row){
@@ -100,6 +108,7 @@ function dbRequestToUi(row){
   id:row.request_code||String(row.id||''),
   type:row.request_type||'transfer',
   barcode:row.barcode||'',
+  centralBarcode:row.central_finance_barcode||'',
   assetAr:row.asset_name_ar||row.asset_name_en||'',
   assetEn:row.asset_name_en||row.asset_name_ar||'',
   fromAr:row.from_name_ar||row.from_name_en||'',
@@ -179,7 +188,7 @@ export default function Assets({lang,profile}){
       const nurseryMap=new Map();
       for(const n of nurseryRows||[]){if(n.name_ar)nurseryMap.set(n.name_ar,n.id);if(n.name_en)nurseryMap.set(n.name_en,n.id)}
       const payload=missing.map(a=>({
-        barcode:String(a.barcode||'').trim(),name_ar:a.nameAr||a.nameEn||'',name_en:a.nameEn||a.nameAr||'',
+        barcode:String(a.barcode||'').trim(),central_finance_barcode:String(a.centralBarcode||'').trim()||null,name_ar:a.nameAr||a.nameEn||'',name_en:a.nameEn||a.nameAr||'',
         category_ar:a.categoryAr||a.categoryEn||'',category_en:a.categoryEn||a.categoryAr||'',
         nursery_id:nurseryMap.get(a.nurseryAr)||nurseryMap.get(a.nurseryEn)||a.nurseryId||null,
         status:a.status||'active',notes:a.notes||'',created_by:profile?.id||null
@@ -231,7 +240,7 @@ export default function Assets({lang,profile}){
   return scopedAssets.filter(a=>{
    const nursery=nurseryLabel(a,ar)||'';
    const category=(ar?a.categoryAr:a.categoryEn)||'';
-   const matchesSearch=!q||[a.barcode,a.nameAr,a.nameEn,assetLabel(a,false),a.nurseryAr,a.nurseryEn,nurseryLabel(a,false),a.categoryAr,a.categoryEn,englishCategory(a.categoryEn||a.categoryAr)].some(v=>String(v||'').toLowerCase().includes(q));
+   const matchesSearch=!q||[a.barcode,a.centralBarcode,a.nameAr,a.nameEn,assetLabel(a,false),a.nurseryAr,a.nurseryEn,nurseryLabel(a,false),a.categoryAr,a.categoryEn,englishCategory(a.categoryEn||a.categoryAr)].some(v=>String(v||'').toLowerCase().includes(q));
    const matchesNursery=!nurseryFilter||nursery===nurseryFilter;
    const matchesCategory=!categoryFilter||category===categoryFilter;
    return matchesSearch&&matchesNursery&&matchesCategory;
@@ -245,26 +254,33 @@ export default function Assets({lang,profile}){
  useEffect(()=>{if(!isAdmin&&tab==='requests')setTab('register')},[isAdmin,tab]);
  function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2600)}
  async function addAsset(form){
-  const duplicate=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode));
-  if(duplicate){notify(`${t.duplicateBarcode}: ${duplicate.barcode} — ${nurseryLabel(duplicate,ar)}`);return false}
   const barcode=String(form.barcode||'').trim();
-  const next={barcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category,status:'active',notes:form.notes||''};
+  const centralBarcode=String(form.centralBarcode||'').trim();
+  if(!barcode||!centralBarcode){notify(ar?'الباركود الداخلي وباركود المالية المركزية إلزاميان':'Both Internal Barcode and Central Finance Barcode are required');return false}
+  const duplicate=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(barcode)||normalizeBarcode(a.centralBarcode)===normalizeBarcode(centralBarcode));
+  if(duplicate){notify(`${t.duplicateBarcode}: ${duplicate.barcode}${duplicate.centralBarcode?` / ${duplicate.centralBarcode}`:''} — ${nurseryLabel(duplicate,ar)}`);return false}
+  const next={barcode,centralBarcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category,status:'active',notes:form.notes||''};
   if(!assetsDbReady){notify(ar?'تعذر حفظ الأصل: قاعدة بيانات الأصول غير جاهزة. شغلي ملف 10_ASSETS_LIVE_DASHBOARD.sql أولاً.':'Could not save the asset: the assets database is not ready. Run 10_ASSETS_LIVE_DASHBOARD.sql first.');return false}
   const {data:nurseryRows,error:nurseryErr}=await supabase.from('nurseries').select('id,name_ar,name_en').or(`name_ar.eq.${form.from},name_en.eq.${form.from}`).limit(1);
   if(nurseryErr){notify(ar?'تعذر التحقق من الحضانة':'Could not verify the nursery');return false}
   const nurseryId=nurseryRows?.[0]?.id||null;
   if(!nurseryId){notify(ar?'تعذر حفظ الأصل: لم يتم العثور على الحضانة المحددة في قاعدة البيانات':'Could not save the asset: selected nursery was not found');return false}
-  const {data,error}=await supabase.from('assets').insert({barcode,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,status:'active',notes:form.notes||'',created_by:profile?.id||null}).select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,nurseries(name_ar,name_en)').single();
+  const {data,error}=await supabase.from('assets').insert({barcode,central_finance_barcode:centralBarcode,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,status:'active',notes:form.notes||'',created_by:profile?.id||null}).select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,nurseries(name_ar,name_en)').single();
   if(error){if(error.code==='23505'){notify(`${t.duplicateBarcode}: ${barcode}`);return false}console.error('Asset insert failed',error);notify(ar?`تعذر حفظ الأصل في قاعدة البيانات: ${error.message||'خطأ غير معروف'}`:`Could not save the asset: ${error.message||'Unknown error'}`);return false}
   const saved=dbAssetToUi(data);setAssets(x=>[saved,...x]);next.id=saved.id;next.nurseryId=saved.nurseryId;
   setModal(null);notify(t.assetSaved);recordAudit({profile,screen:'الأصول',action:'إضافة أصل',actionType:'create',entityType:'asset',entityId:next.barcode,nursery:next.nurseryAr,details:next.nameAr,after:next});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));return true;
  }
  async function updateAsset(form){
-  if(!editingAsset)return; const before=editingAsset; let updated={...editingAsset,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category};
+  if(!editingAsset)return;
+  const centralBarcode=String(form.centralBarcode||'').trim();
+  if(!centralBarcode){notify(ar?'باركود المالية المركزية إلزامي':'Central Finance Barcode is required');return}
+  const duplicateCentral=assets.find(a=>a.id!==editingAsset.id&&normalizeBarcode(a.centralBarcode)===normalizeBarcode(centralBarcode));
+  if(duplicateCentral){notify(`${t.duplicateBarcode}: ${centralBarcode}`);return}
+  const before=editingAsset; let updated={...editingAsset,centralBarcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category};
   if(assetsDbReady){
    const {data:nurseryRows}=await supabase.from('nurseries').select('id,name_ar,name_en').or(`name_ar.eq.${form.from},name_en.eq.${form.from}`).limit(1); const nurseryId=nurseryRows?.[0]?.id||null;
-   let q=supabase.from('assets').update({name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,updated_at:new Date().toISOString()}); q=editingAsset.id?q.eq('id',editingAsset.id):q.eq('barcode',editingAsset.barcode);
-   const {data,error}=await q.select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,nurseries(name_ar,name_en)').single(); if(error){notify(ar?'تعذر تحديث الأصل':'Could not update the asset');return} updated=dbAssetToUi(data);
+   let q=supabase.from('assets').update({central_finance_barcode:centralBarcode,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,updated_at:new Date().toISOString()}); q=editingAsset.id?q.eq('id',editingAsset.id):q.eq('barcode',editingAsset.barcode);
+   const {data,error}=await q.select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,nurseries(name_ar,name_en)').single(); if(error){notify(ar?'تعذر تحديث الأصل':'Could not update the asset');return} updated=dbAssetToUi(data);
   }
   setAssets(x=>x.map(a=>(editingAsset.id&&a.id===editingAsset.id)||(!editingAsset.id&&a.barcode===editingAsset.barcode)?updated:a));setEditingAsset(null);notify(t.assetUpdated);recordAudit({profile,screen:'الأصول',action:'تعديل أصل',actionType:'update',entityType:'asset',entityId:updated.barcode,nursery:updated.nurseryAr,details:updated.nameAr,before,after:updated});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
  }
@@ -275,18 +291,18 @@ export default function Assets({lang,profile}){
  }
  function downloadAssetExcelTemplate(){
   try{
-   const rows=[['رقم الباركود','اسم الأصل','التصنيف','الحضانة / الموقع الحالي','ملاحظات']];
+   const rows=[['الباركود الداخلي','باركود المالية المركزية','اسم الأصل','التصنيف','الحضانة / الموقع الحالي','ملاحظات']];
    const ws=XLSX.utils.aoa_to_sheet(rows);
-   ws['!cols']=[{wch:22},{wch:30},{wch:24},{wch:38},{wch:34}];
+   ws['!cols']=[{wch:22},{wch:32},{wch:30},{wch:24},{wch:38},{wch:34}];
    const nurseryWs=XLSX.utils.aoa_to_sheet([['قائمة الحضانات الرسمية'],...NURSERIES_AR.map(n=>[n])]);
    nurseryWs['!cols']=[{wch:40}];
    const guideWs=XLSX.utils.aoa_to_sheet([
     ['طريقة الاستخدام'],
     ['1','كل أصل يكون في صف مستقل.'],
     ['2','لا تغيري أسماء الأعمدة أو ترتيبها.'],
-    ['3','رقم الباركود يجب أن يكون فريدًا على مستوى النظام.'],
+    ['3','الباركود الداخلي وباركود المالية المركزية إلزاميان، ويجب أن يكون كل واحد منهما فريدًا على مستوى النظام.'],
     ['4','اكتبي اسم الحضانة كما يظهر في ورقة «قائمة الحضانات».'],
-    ['5','الملاحظات اختيارية، وباقي الأعمدة إلزامية.'],
+    ['5','الملاحظات اختيارية، وباقي الأعمدة إلزامية بما فيها الباركودان.'],
     ['6','احفظي الملف بصيغة XLSX ثم ارفعيه من زر «رفع Excel».']
    ]);
    guideWs['!cols']=[{wch:8},{wch:75}];
@@ -333,7 +349,8 @@ export default function Assets({lang,profile}){
     .trim()
     .toLowerCase();
    const aliases={
-    barcode:['رقم الباركود','الباركود','barcode number','barcode','asset barcode','asset code','كود الأصل','رقم الأصل'],
+    barcode:['الباركود الداخلي','رقم الباركود الداخلي','رقم الباركود','الباركود','internal barcode','barcode number','barcode','asset barcode','asset code','كود الأصل','رقم الأصل'],
+    centralBarcode:['باركود المالية المركزية','رقم باركود المالية المركزية','باركود المالية','central finance barcode','finance barcode','central barcode'],
     name:['اسم الأصل','اسم الاصل','الأصل','الاصل','asset name','asset'],
     category:['التصنيف','الفئة','نوع الأصل','نوع الاصل','category','asset category'],
     nursery:['الحضانة الموقع الحالي','الحضانة','الموقع الحالي','الموقع','nursery current location','nursery','current location','location'],
@@ -347,44 +364,47 @@ export default function Assets({lang,profile}){
     const headers=(raw[ri]||[]).map(normalizeHeader);
     const cand={
      barcode:findCol(headers,normAliases.barcode),
+     centralBarcode:findCol(headers,normAliases.centralBarcode),
      name:findCol(headers,normAliases.name),
      category:findCol(headers,normAliases.category),
      nursery:findCol(headers,normAliases.nursery),
      notes:findCol(headers,normAliases.notes)
     };
-    const score=['barcode','name','category','nursery'].filter(k=>cand[k]>=0).length;
-    if(score===4){headerIndex=ri;indices=cand;break}
+    const score=['barcode','centralBarcode','name','category','nursery'].filter(k=>cand[k]>=0).length;
+    if(score===5){headerIndex=ri;indices=cand;break}
    }
    // Official template fallback: columns A:E in this exact order.
    if(headerIndex<0 && raw.length>=3){
     const third=(raw[2]||[]).map(normalizeHeader);
-    if(third.length>=4 && third.some(Boolean)){
-     headerIndex=2; indices={barcode:0,name:1,category:2,nursery:3,notes:4};
+    if(third.length>=5 && third.some(Boolean)){
+     headerIndex=2; indices={barcode:0,centralBarcode:1,name:2,category:3,nursery:4,notes:5};
     }
    }
    // Simple template fallback: headers in the first row, A:E.
    if(headerIndex<0 && raw.length){
     const first=(raw[0]||[]).map(normalizeHeader);
-    if(first.length>=4 && first.some(Boolean)){
-     headerIndex=0; indices={barcode:0,name:1,category:2,nursery:3,notes:4};
+    if(first.length>=5 && first.some(Boolean)){
+     headerIndex=0; indices={barcode:0,centralBarcode:1,name:2,category:3,nursery:4,notes:5};
     }
    }
    if(headerIndex<0||!indices) throw new Error('HEADERS');
    const iBarcode=indices.barcode;
+   const iCentralBarcode=indices.centralBarcode;
    const iName=indices.name;
    const iCategory=indices.category;
    const iNursery=indices.nursery;
    const iNotes=indices.notes;
-   if([iBarcode,iName,iCategory,iNursery].some(i=>i<0)) throw new Error('HEADERS');
+   if([iBarcode,iCentralBarcode,iName,iCategory,iNursery].some(i=>i<0)) throw new Error('HEADERS');
 
    const sourceRows=raw.slice(headerIndex+1).map((r,idx)=>({
     excelRow:headerIndex+2+idx,
     barcode:String(r[iBarcode]||'').trim(),
+    centralBarcode:String(r[iCentralBarcode]||'').trim(),
     name:String(r[iName]||'').trim(),
     category:String(r[iCategory]||'').trim(),
     nursery:String(r[iNursery]||'').trim(),
     notes:iNotes>=0?String(r[iNotes]||'').trim():''
-   })).filter(r=>r.barcode||r.name||r.category||r.nursery||r.notes);
+   })).filter(r=>r.barcode||r.centralBarcode||r.name||r.category||r.nursery||r.notes);
    if(!sourceRows.length){notify(t.excelNoRows);return}
    if(!window.confirm(`${t.excelConfirm}\n\n${ar?'عدد الصفوف في الملف':'Rows in file'}: ${sourceRows.length}`))return;
 
@@ -395,17 +415,18 @@ export default function Assets({lang,profile}){
     if(n.name_ar){const raw=String(n.name_ar).trim();nurseryMap.set(raw,n.id);nurseryMap.set(normalizeNurseryForImport(raw),n.id)}
     if(n.name_en){const raw=String(n.name_en).trim();nurseryMap.set(raw,n.id);nurseryMap.set(normalizeNurseryForImport(raw),n.id)}
    }
-   const seen=new Set();
+   const seen=new Set(); const seenCentral=new Set();
    const valid=[]; const issues=[];
    for(const r of sourceRows){
-    const key=normalizeBarcode(r.barcode);
-    if(!r.barcode||!r.name||!r.category||!r.nursery){issues.push({row:r.excelRow,reason:ar?'بيانات إلزامية ناقصة':'Missing required data'});continue}
-    if(seen.has(key)){issues.push({row:r.excelRow,reason:`${ar?'باركود مكرر داخل الملف':'Duplicate barcode in file'}: ${r.barcode}`});continue}
+    const key=normalizeBarcode(r.barcode); const centralKey=normalizeBarcode(r.centralBarcode);
+    if(!r.barcode||!r.centralBarcode||!r.name||!r.category||!r.nursery){issues.push({row:r.excelRow,reason:ar?'بيانات إلزامية ناقصة':'Missing required data'});continue}
+    if(seen.has(key)){issues.push({row:r.excelRow,reason:`${ar?'الباركود الداخلي مكرر داخل الملف':'Duplicate internal barcode in file'}: ${r.barcode}`});continue}
+    if(seenCentral.has(centralKey)){issues.push({row:r.excelRow,reason:`${ar?'باركود المالية المركزية مكرر داخل الملف':'Duplicate Central Finance barcode in file'}: ${r.centralBarcode}`});continue}
     const normalizedNursery=normalizeNurseryForImport(r.nursery);
     const nurseryId=nurseryMap.get(normalizedNursery)||nurseryMap.get(r.nursery);
     if(!nurseryId){issues.push({row:r.excelRow,reason:`${ar?'الحضانة غير فعالة/غير موجودة بالقائمة الرسمية وتحتاج مراجعة':'Nursery is not active/in the official list and needs review'}: ${r.nursery}`});continue}
-    seen.add(key);
-    valid.push({excelRow:r.excelRow,barcode:r.barcode,payload:{barcode:r.barcode,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null}});
+    seen.add(key); seenCentral.add(centralKey);
+    valid.push({excelRow:r.excelRow,barcode:r.barcode,centralBarcode:r.centralBarcode,payload:{barcode:r.barcode,central_finance_barcode:r.centralBarcode,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null}});
    }
    let imported=0;
    // Production-safe Excel import:
@@ -416,12 +437,40 @@ export default function Assets({lang,profile}){
    // from blocking an entire Excel batch.
    const existingResult=await fetchAllAssetRows();
    if(existingResult.error) throw new Error(`DB_ASSETS:${existingResult.error.message||existingResult.error.code||'error'}`);
-   const existingKeys=new Set((existingResult.data||[]).map(r=>normalizeBarcode(r.barcode)).filter(Boolean));
+   if(existingResult.supportsCentralBarcode===false) throw new Error('DB_ASSETS:شغلي ملف 12_DUAL_ASSET_BARCODES.sql في Supabase أولاً لإضافة باركود المالية المركزية');
+   const existingRows=existingResult.data||[];
+   const existingByInternal=new Map(existingRows.map(r=>[normalizeBarcode(r.barcode),r]).filter(([k])=>k));
+   const existingByCentral=new Map(existingRows.map(r=>[normalizeBarcode(r.central_finance_barcode),r]).filter(([k])=>k));
+   const existingKeys=new Set(existingByInternal.keys());
+   const existingCentralKeys=new Set(existingByCentral.keys());
    const pending=[];
+   let updatedExisting=0;
    for(const item of valid){
-    const key=normalizeBarcode(item.barcode);
-    if(existingKeys.has(key)){
-      issues.push({row:item.excelRow,reason:`${ar?'الباركود موجود مسبقًا — تم تخطيه بدون تكرار':'Barcode already exists — skipped without duplication'}: ${item.barcode}`});
+    const key=normalizeBarcode(item.barcode); const centralKey=normalizeBarcode(item.centralBarcode);
+    const byInternal=existingByInternal.get(key);
+    const byCentral=existingByCentral.get(centralKey);
+    if(byInternal){
+      const currentCentral=normalizeBarcode(byInternal.central_finance_barcode);
+      if(!currentCentral){
+        if(byCentral && byCentral.id!==byInternal.id){
+          issues.push({row:item.excelRow,reason:`${ar?'باركود المالية المركزية مرتبط بأصل آخر':'Central Finance barcode belongs to another asset'}: ${item.centralBarcode}`});
+          continue;
+        }
+        const {error:updateErr}=await supabase.from('assets').update({central_finance_barcode:item.centralBarcode,updated_at:new Date().toISOString()}).eq('id',byInternal.id);
+        if(updateErr){issues.push({row:item.excelRow,reason:`${ar?'تعذر تحديث باركود المالية المركزية':'Could not update Central Finance barcode'}: ${updateErr.message||updateErr.code||'Database error'}`});continue}
+        byInternal.central_finance_barcode=item.centralBarcode;
+        existingCentralKeys.add(centralKey); existingByCentral.set(centralKey,byInternal); updatedExisting++;
+        continue;
+      }
+      if(currentCentral===centralKey){
+        issues.push({row:item.excelRow,reason:`${ar?'الأصل مسجل مسبقًا بالباركودين — تم تخطيه':'Asset already exists with both barcodes — skipped'}: ${item.barcode} / ${item.centralBarcode}`});
+      }else{
+        issues.push({row:item.excelRow,reason:`${ar?'الباركود الداخلي مسجل مسبقًا بباركود مالية مختلف':'Internal barcode already exists with a different Central Finance barcode'}: ${item.barcode}`});
+      }
+      continue;
+    }
+    if(byCentral){
+      issues.push({row:item.excelRow,reason:`${ar?'باركود المالية المركزية مسجل مسبقًا لأصل آخر':'Central Finance barcode already exists for another asset'}: ${item.centralBarcode}`});
       continue;
     }
     pending.push(item);
@@ -429,7 +478,7 @@ export default function Assets({lang,profile}){
    async function insertEntries(entries){
     if(!entries.length)return;
     const payload=entries.map(x=>x.payload);
-    const {data,error}=await supabase.from('assets').insert(payload).select('id,barcode');
+    const {data,error}=await supabase.from('assets').insert(payload).select('id,barcode,central_finance_barcode');
     if(error){
       // Isolate the exact bad row; all other valid rows continue saving.
       if(entries.length>1){
@@ -440,7 +489,7 @@ export default function Assets({lang,profile}){
       }
       const item=entries[0];
       if(error.code==='23505'){
-        issues.push({row:item.excelRow,reason:`${ar?'الباركود موجود مسبقًا — تم تخطيه بدون تكرار':'Barcode already exists — skipped without duplication'}: ${item.barcode}`});
+        issues.push({row:item.excelRow,reason:`${ar?'الباركود موجود مسبقًا — تم تخطيه بدون تكرار':'Barcode already exists — skipped without duplication'}: ${item.barcode}${item.centralBarcode?` / ${item.centralBarcode}`:''}`});
         existingKeys.add(normalizeBarcode(item.barcode));
       }else{
         issues.push({row:item.excelRow,reason:`${ar?'تعذر حفظ هذا الأصل':'Could not save this asset'}: ${error.message||error.code||'Database error'}`});
@@ -449,7 +498,7 @@ export default function Assets({lang,profile}){
     }
     const rows=data||[];
     imported+=rows.length;
-    for(const row of rows) existingKeys.add(normalizeBarcode(row.barcode));
+    for(const row of rows){ existingKeys.add(normalizeBarcode(row.barcode)); existingCentralKeys.add(normalizeBarcode(row.central_finance_barcode)); }
    }
    for(let i=0;i<pending.length;i+=200){
     await insertEntries(pending.slice(i,i+200));
@@ -459,8 +508,8 @@ export default function Assets({lang,profile}){
    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
    const issueLines=issues.slice(0,12).map(x=>`${ar?'صف':'Row'} ${x.row}: ${x.reason}`).join('\n');
    const more=issues.length>12?`\n${ar?'... وملاحظات إضافية':'... and more issues'}: ${issues.length-12}`:'';
-   window.alert(`${t.excelDone}\n\n${ar?'تم الحفظ':'Imported'}: ${imported}\n${ar?'لم يتم الحفظ':'Skipped'}: ${issues.length}${issueLines?`\n\n${issueLines}${more}`:''}`);
-   if(imported) recordAudit({profile,screen:'الأصول',action:'رفع أصول من Excel',actionType:'create',entityType:'asset_bulk_import',entityId:`BULK-${Date.now()}`,details:`${imported} assets imported`});
+   window.alert(`${t.excelDone}\n\n${ar?'تمت إضافة أصول جديدة':'New assets added'}: ${imported}\n${ar?'تم استكمال باركود المالية لأصول موجودة':'Existing assets updated with Central Finance barcode'}: ${updatedExisting}\n${ar?'لم يتم الحفظ/تم التخطي':'Skipped'}: ${issues.length}${issueLines?`\n\n${issueLines}${more}`:''}`);
+   if(imported||updatedExisting) recordAudit({profile,screen:'الأصول',action:'رفع أصول من Excel',actionType:'create',entityType:'asset_bulk_import',entityId:`BULK-${Date.now()}`,details:`${imported} assets imported; ${updatedExisting} existing assets updated with Central Finance barcode`});
   }catch(e){
    console.error('Excel asset import failed',e);
    const msg=String(e?.message||'');
@@ -477,13 +526,14 @@ export default function Assets({lang,profile}){
  }
 
  async function addRequest(form){
-  const a=assets.find(x=>normalizeBarcode(x.barcode)===normalizeBarcode(form.barcode));
+  const a=assets.find(x=>normalizeBarcode(x.barcode)===normalizeBarcode(form.barcode)||normalizeBarcode(x.centralBarcode)===normalizeBarcode(form.barcode));
   const requestCode=`AST-REQ-${Date.now().toString().slice(-9)}`;
   const payload={
    request_code:requestCode,
    request_type:modal,
    asset_id:a?.id||null,
-   barcode:form.barcode,
+   barcode:a?.barcode||form.barcode,
+   central_finance_barcode:a?.centralBarcode||'',
    asset_name_ar:a?.nameAr||form.asset,
    asset_name_en:a?.nameEn||form.asset,
    from_name_ar:form.from,
@@ -551,7 +601,7 @@ export default function Assets({lang,profile}){
   {tab==='register'?<>
    <div className="asset-toolbar asset-toolbar-stacked">
     <div className="asset-filter-row">
-     <div className="invoice-search asset-search-main"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={isAdmin||previewNursery?(ar?'ابحثي باسم الأصل أو الباركود أو الحضانة أو التصنيف...':'Search asset, barcode, nursery, or category...'):(ar?'ابحثي باسم الأصل أو الباركود أو التصنيف...':'Search asset, barcode, or category...')}/></div>
+     <div className="invoice-search asset-search-main"><span>⌕</span><input value={search} onChange={e=>setSearch(e.target.value)} placeholder={isAdmin||previewNursery?(ar?'ابحثي باسم الأصل أو أي باركود أو الحضانة أو التصنيف...':'Search asset, either barcode, nursery, or category...'):(ar?'ابحثي باسم الأصل أو أي باركود أو التصنيف...':'Search asset, either barcode, or category...')}/></div>
      {isAdmin||previewNursery?<select className="asset-filter-select" value={nurseryFilter} onChange={e=>setNurseryFilter(e.target.value)}><option value="">{ar?'كل الحضانات':'All nurseries'}</option>{nurseryFilterOptions.map(n=><option key={n} value={n}>{n}</option>)}</select>:<div className="asset-nursery-fixed-filter"><small>{ar?'الحضانة':'Nursery'}</small><strong>{accountNursery||'—'}</strong></div>}
      <select className="asset-filter-select" value={categoryFilter} onChange={e=>setCategoryFilter(e.target.value)}><option value="">{ar?'كل التصنيفات':'All categories'}</option>{categoryFilterOptions.map(c=><option key={c} value={c}>{c}</option>)}</select>
      <button type="button" className="asset-clear-filters" disabled={!search&&!nurseryFilter&&!categoryFilter} onClick={()=>{setSearch('');setNurseryFilter('');setCategoryFilter('')}}>{ar?'مسح الفلاتر':'Clear filters'}</button>
@@ -562,8 +612,8 @@ export default function Assets({lang,profile}){
      {isAdmin&&!previewNursery&&<><button type="button" className="asset-excel-template-btn" onClick={downloadAssetExcelTemplate}>⇩ {t.excelTemplate}</button><button type="button" className="asset-excel-upload-btn" disabled={excelImporting} onClick={()=>excelInputRef.current?.click()}>{excelImporting?'… '+t.excelReading:'⇧ '+t.excelUpload}</button><input ref={excelInputRef} className="asset-excel-hidden-input" type="file" accept=".xlsx,.xls" onChange={e=>e.target.files?.[0]&&importAssetsExcel(e.target.files[0])}/><button className="primary-action" onClick={()=>setModal('add')}>＋ {t.add}</button></>}
     </div>
    </div>
-   <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button></td><td>{nurseryLabel(a,ar)}</td><td>{ar?a.categoryAr:englishCategory(a.categoryEn||a.categoryAr)}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="5" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>
-  </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:translateAssetName(r.assetEn||r.assetAr)}</td><td>{r.barcode}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{t[r.status]}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
+   <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><span className="asset-barcode-cell central-finance-barcode">{a.centralBarcode||'—'}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button></td><td>{nurseryLabel(a,ar)}</td><td>{ar?a.categoryAr:englishCategory(a.categoryEn||a.categoryAr)}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="6" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>
+  </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:translateAssetName(r.assetEn||r.assetAr)}</td><td>{r.barcode}</td><td>{r.centralBarcode||'—'}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{t[r.status]}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
   {officialDocument&&<AssetOfficialDocument request={officialDocument} ar={ar} onClose={()=>setOfficialDocument(null)} />}
   {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} onClose={()=>setHistoryAsset(null)} />}
   {editingAsset&&<AssetEditModal asset={editingAsset} ar={ar} t={t} nurseries={nurseries} onClose={()=>setEditingAsset(null)} onSave={updateAsset}/>}
@@ -575,11 +625,11 @@ export default function Assets({lang,profile}){
 }
 
 function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
- const [form,setForm]=useState({name:ar?asset.nameAr:assetLabel(asset,false),category:ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr),from:ar?asset.nurseryAr:nurseryLabel(asset,false)});
+ const [form,setForm]=useState({centralBarcode:asset.centralBarcode||'',name:ar?asset.nameAr:assetLabel(asset,false),category:ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr),from:ar?asset.nurseryAr:nurseryLabel(asset,false)});
  return <div className="invoice-overlay" onClick={onClose}><form className="asset-modal" onSubmit={e=>{e.preventDefault();onSave(form)}} onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>SAAMS Assets</small><h2>{t.editAsset}</h2></div><button type="button" onClick={onClose}>×</button></div>
   <div className="asset-form-grid">
-   <label><span>{t.barcode}</span><input value={asset.barcode} readOnly className="readonly-input"/></label>
+   <label><span>{t.barcode}</span><input value={asset.barcode} readOnly className="readonly-input"/></label><label><span>{t.centralBarcode}</span><input required value={form.centralBarcode} onChange={e=>setForm({...form,centralBarcode:e.target.value})}/></label>
    <label><span>{t.assetName}</span><input required autoFocus value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
    <label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label>
    <label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label>
@@ -589,33 +639,33 @@ function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
 }
 
 function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,isAdmin=false}){
- const [form,setForm]=useState({barcode:'',asset:'',from:defaultNursery||'',to:'',reason:'',name:'',category:'',notes:''});
+ const [form,setForm]=useState({barcode:'',centralBarcode:'',asset:'',from:defaultNursery||'',to:'',reason:'',name:'',category:'',notes:''});
  const [lookup,setLookup]=useState(null),[camera,setCamera]=useState(false),[scanMsg,setScanMsg]=useState('');
  const videoRef=useRef(null),streamRef=useRef(null);
- const selected=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode));
+ const selected=form.barcode?assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode)||normalizeBarcode(a.centralBarcode)===normalizeBarcode(form.barcode)):null;
  const transferDestinations=[...nurseries,...(ar?EXTRA_TRANSFER_DESTINATIONS_AR:EXTRA_TRANSFER_DESTINATIONS_EN)];
- const duplicateOnAdd=type==='add'?selected:null;
- function applyAsset(a){if(!a)return;setLookup('found');setForm(f=>({...f,barcode:a.barcode,asset:assetLabel(a,ar),category:ar?a.categoryAr:englishCategory(a.categoryEn||a.categoryAr),from:nurseryLabel(a,ar),to:f.to===nurseryLabel(a,ar)?'':f.to}))}
+ const duplicateOnAdd=type==='add'?assets.find(a=>(form.barcode&&normalizeBarcode(a.barcode)===normalizeBarcode(form.barcode))||(form.centralBarcode&&normalizeBarcode(a.centralBarcode)===normalizeBarcode(form.centralBarcode))):null;
+ function applyAsset(a){if(!a)return;setLookup('found');setForm(f=>({...f,barcode:a.barcode,centralBarcode:a.centralBarcode||'',asset:assetLabel(a,ar),category:ar?a.categoryAr:englishCategory(a.categoryEn||a.categoryAr),from:nurseryLabel(a,ar),to:f.to===nurseryLabel(a,ar)?'':f.to}))}
  function findAsset(){if(selected)applyAsset(selected);else setLookup('missing')}
  function handleRequestBarcode(value){
-  const match=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(value));
+  const match=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(value)||normalizeBarcode(a.centralBarcode)===normalizeBarcode(value));
   if(match){applyAsset(match);return}
   setForm(f=>({...f,barcode:value,asset:'',category:'',from:defaultNursery||f.from}));setLookup(value?'missing':null);
  }
- function chooseRequestAsset(value){const a=assets.find(x=>x.id===value||normalizeBarcode(x.barcode)===normalizeBarcode(value));if(a)applyAsset(a)}
+ function chooseRequestAsset(value){const a=assets.find(x=>x.id===value||normalizeBarcode(x.barcode)===normalizeBarcode(value)||normalizeBarcode(x.centralBarcode)===normalizeBarcode(value));if(a)applyAsset(a)}
  async function decodeImage(file){
-  try{if(!('BarcodeDetector' in window)){setScanMsg(t.cameraUnsupported);return}const detector=new BarcodeDetector({formats:['code_128','code_39','ean_13','ean_8','qr_code']});const bmp=await createImageBitmap(file);const codes=await detector.detect(bmp);if(codes[0]){const value=codes[0].rawValue;setForm(f=>({...f,barcode:value}));const a=assets.find(x=>x.barcode.toLowerCase()===value.toLowerCase());if(a)applyAsset(a);else setLookup('missing')}else setScanMsg(ar?'لم يتم اكتشاف باركود واضح في الصورة.':'No clear barcode was detected in the image.')}catch(e){setScanMsg(t.cameraUnsupported)}
+  try{if(!('BarcodeDetector' in window)){setScanMsg(t.cameraUnsupported);return}const detector=new BarcodeDetector({formats:['code_128','code_39','ean_13','ean_8','qr_code']});const bmp=await createImageBitmap(file);const codes=await detector.detect(bmp);if(codes[0]){const value=codes[0].rawValue;setForm(f=>({...f,barcode:value}));const a=assets.find(x=>normalizeBarcode(x.barcode)===normalizeBarcode(value)||normalizeBarcode(x.centralBarcode)===normalizeBarcode(value));if(a)applyAsset(a);else setLookup('missing')}else setScanMsg(ar?'لم يتم اكتشاف باركود واضح في الصورة.':'No clear barcode was detected in the image.')}catch(e){setScanMsg(t.cameraUnsupported)}
  }
  async function startCamera(){
   if(!navigator.mediaDevices?.getUserMedia||!('BarcodeDetector' in window)){setScanMsg(t.cameraUnsupported);return}
-  try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});streamRef.current=stream;setCamera(true);setTimeout(async()=>{if(videoRef.current)videoRef.current.srcObject=stream;const detector=new BarcodeDetector({formats:['code_128','code_39','ean_13','ean_8','qr_code']});const tick=async()=>{if(!streamRef.current)return;try{const codes=await detector.detect(videoRef.current);if(codes[0]){const value=codes[0].rawValue;setForm(f=>({...f,barcode:value}));const a=assets.find(x=>x.barcode.toLowerCase()===value.toLowerCase());if(a)applyAsset(a);else setLookup('missing');stopCamera();return}}catch{}requestAnimationFrame(tick)};requestAnimationFrame(tick)},150)}catch{setScanMsg(t.cameraUnsupported)}
+  try{const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}}});streamRef.current=stream;setCamera(true);setTimeout(async()=>{if(videoRef.current)videoRef.current.srcObject=stream;const detector=new BarcodeDetector({formats:['code_128','code_39','ean_13','ean_8','qr_code']});const tick=async()=>{if(!streamRef.current)return;try{const codes=await detector.detect(videoRef.current);if(codes[0]){const value=codes[0].rawValue;setForm(f=>({...f,barcode:value}));const a=assets.find(x=>normalizeBarcode(x.barcode)===normalizeBarcode(value)||normalizeBarcode(x.centralBarcode)===normalizeBarcode(value));if(a)applyAsset(a);else setLookup('missing');stopCamera();return}}catch{}requestAnimationFrame(tick)};requestAnimationFrame(tick)},150)}catch{setScanMsg(t.cameraUnsupported)}
  }
  function stopCamera(){streamRef.current?.getTracks().forEach(x=>x.stop());streamRef.current=null;setCamera(false)}
  function submit(e){e.preventDefault();if(type==='add'&&duplicateOnAdd){setLookup('duplicate');return}if(type!=='add'&&!selected)return setLookup('missing');if(type==='transfer'&&!form.to)return;onSave(form)}
  const hint=type==='transfer'?t.transferHint:type==='surplus'?t.surplusHint:type==='disposal'?t.disposalHint:'';
  return createPortal(<div className="invoice-overlay asset-request-overlay" onClick={()=>{stopCamera();onClose()}}><form className="asset-modal" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="drawer-header"><div><small>SAAMS Assets</small><h2>{type==='add'?t.add:t[type]}</h2></div><button type="button" onClick={()=>{stopCamera();onClose()}}>×</button></div>
-  {type==='add'?<div className="asset-form-grid"><label><span>{t.barcode}</span><input required value={form.barcode} onChange={e=>{setForm({...form,barcode:e.target.value});setLookup(null)}}/>{duplicateOnAdd&&<div className="duplicate-asset-warning"><b>⚠ {t.duplicateBarcode}</b><span>{duplicateOnAdd.barcode} · {assetLabel(duplicateOnAdd,ar)} · {t.duplicateBarcodeDetail}: {nurseryLabel(duplicateOnAdd,ar)}</span><small>{t.duplicateBarcodeBlocked}</small></div>}</label><label><span>{t.assetName}</span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label><label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label><label className="wide"><span>{t.notes}</span><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label></div>:<>
-   <p className="request-hint">{hint}</p>{!isAdmin&&<label className="nursery-asset-picker"><span>{ar?'اختاري الأصل من قائمة أصول الحضانة':'Choose from nursery assets'}</span><select value={selected?.id||selected?.barcode||''} onChange={e=>chooseRequestAsset(e.target.value)}><option value="">{ar?'اختاري الأصل...':'Choose asset...'}</option>{assets.map(a=><option key={a.id||a.barcode} value={a.id||a.barcode}>{a.barcode} — {assetLabel(a,ar)}</option>)}</select></label>}<div className="barcode-panel"><label><span>{t.barcode}</span><div className="barcode-input-row"><input required value={form.barcode} onChange={e=>handleRequestBarcode(e.target.value)} placeholder="SEA-000000"/><button type="button" onClick={findAsset}>{t.lookup}</button></div></label><div className="barcode-tools"><button type="button" onClick={startCamera}>▣ {t.scan}</button><label className="upload-barcode">⇧ {t.upload}<input type="file" accept="image/*" capture="environment" onChange={e=>e.target.files[0]&&decodeImage(e.target.files[0])}/></label></div><small>{ar?'يمكنك اختيار الأصل من القائمة أو إدخال كوده مباشرة، وسيتم تعبئة البيانات تلقائيًا.':'Choose an asset from the list or enter its code; details will fill automatically.'}</small>{scanMsg&&<div className="scan-warning">{scanMsg}</div>}{lookup==='found'&&selected&&<div className="asset-found"><b>✓ {t.found}</b><strong>{assetLabel(selected,ar)}</strong><span>{nurseryLabel(selected,ar)} · {selected.barcode}</span></div>}{lookup==='missing'&&form.barcode&&<div className="scan-error">! {t.notFound}</div>}</div>
+  {type==='add'?<div className="asset-form-grid"><label><span>{t.barcode}</span><input required value={form.barcode} onChange={e=>{setForm({...form,barcode:e.target.value});setLookup(null)}}/>{duplicateOnAdd&&<div className="duplicate-asset-warning"><b>⚠ {t.duplicateBarcode}</b><span>{duplicateOnAdd.barcode} · {assetLabel(duplicateOnAdd,ar)} · {t.duplicateBarcodeDetail}: {nurseryLabel(duplicateOnAdd,ar)}</span><small>{t.duplicateBarcodeBlocked}</small></div>}</label><label><span>{t.centralBarcode}</span><input required value={form.centralBarcode} onChange={e=>setForm({...form,centralBarcode:e.target.value})}/></label><label><span>{t.assetName}</span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label><label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label><label className="wide"><span>{t.notes}</span><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label></div>:<>
+   <p className="request-hint">{hint}</p>{!isAdmin&&<label className="nursery-asset-picker"><span>{ar?'اختاري الأصل من قائمة أصول الحضانة':'Choose from nursery assets'}</span><select value={selected?.id||selected?.barcode||''} onChange={e=>chooseRequestAsset(e.target.value)}><option value="">{ar?'اختاري الأصل...':'Choose asset...'}</option>{assets.map(a=><option key={a.id||a.barcode} value={a.id||a.barcode}>{a.barcode}{a.centralBarcode?` / ${a.centralBarcode}`:''} — {assetLabel(a,ar)}</option>)}</select></label>}<div className="barcode-panel"><label><span>{ar?'أي باركود للأصل':'Either Asset Barcode'}</span><div className="barcode-input-row"><input required value={form.barcode} onChange={e=>handleRequestBarcode(e.target.value)} placeholder="SEA-000000"/><button type="button" onClick={findAsset}>{t.lookup}</button></div></label><div className="barcode-tools"><button type="button" onClick={startCamera}>▣ {t.scan}</button><label className="upload-barcode">⇧ {t.upload}<input type="file" accept="image/*" capture="environment" onChange={e=>e.target.files[0]&&decodeImage(e.target.files[0])}/></label></div><small>{ar?'يمكنك اختيار الأصل من القائمة أو إدخال كوده مباشرة، وسيتم تعبئة البيانات تلقائيًا.':'Choose an asset from the list or enter its code; details will fill automatically.'}</small>{scanMsg&&<div className="scan-warning">{scanMsg}</div>}{lookup==='found'&&selected&&<div className="asset-found"><b>✓ {t.found}</b><strong>{assetLabel(selected,ar)}</strong><span>{nurseryLabel(selected,ar)} · {selected.barcode}{selected.centralBarcode?` · ${selected.centralBarcode}`:''}</span></div>}{lookup==='missing'&&form.barcode&&<div className="scan-error">! {t.notFound}</div>}</div>
    {camera&&<div className="camera-box"><video ref={videoRef} autoPlay muted playsInline/><div className="scan-frame"></div><p>{t.cameraHint}</p><button type="button" onClick={stopCamera}>{t.closeCamera}</button></div>}
    <div className="asset-form-grid"><label><span>{t.asset}</span><input readOnly value={form.asset}/></label><label><span>{t.category}</span><input readOnly value={form.category}/></label><label><span>{t.from}</span>{isAdmin?<select required value={form.from} onChange={e=>setForm({...form,from:e.target.value,to:e.target.value===form.to?'':form.to})}><option value="">{ar?'اختاري الحضانة...':'Choose nursery...'}</option>{nurseries.map(n=><option key={n}>{n}</option>)}</select>:<input readOnly value={form.from||defaultNursery||''}/>}</label>{type==='transfer'&&<label><span>{t.to}</span><select required value={form.to} onChange={e=>setForm({...form,to:e.target.value})}><option value="">{ar?'اختاري الحضانة المنقول إليها...':'Choose destination nursery...'}</option>{transferDestinations.filter(n=>n!==form.from).map(n=><option key={n} value={n}>{n}</option>)}</select></label>}<label className="wide"><span>{t.reason}</span><textarea required value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/></label></div>
   </>}
@@ -629,7 +679,7 @@ function RequestDetails({request,ar,t,isAdmin,onClose,onApprove,onReject}){
   <div className="request-detail-badge-row"><span className={`request-type ${request.type}`}>{t[request.type]}</span><span className={`invoice-status ${request.status==='pending'?'review':request.status}`}>{t[request.status]}</span></div>
   <div className="request-detail-grid">
    <div><small>{t.asset}</small><strong>{ar?request.assetAr:translateAssetName(request.assetEn||request.assetAr)}</strong></div>
-   <div><small>{t.barcode}</small><strong>{request.barcode}</strong></div>
+   <div><small>{t.barcode}</small><strong>{request.barcode}</strong></div><div><small>{t.centralBarcode}</small><strong>{request.centralBarcode||'—'}</strong></div>
    <div><small>{t.from}</small><strong>{ar?request.fromAr:request.fromEn}</strong></div>
    {request.type==='transfer'&&<div><small>{t.to}</small><strong>{ar?request.toAr:request.toEn}</strong></div>}
    <div className="wide"><small>{t.reason}</small><strong>{ar?request.reasonAr:request.reasonEn}</strong></div>
@@ -644,7 +694,7 @@ function RejectModal({request,ar,t,onClose,onConfirm}){
  const [reason,setReason]=useState('');
  return <div className="invoice-overlay" onClick={onClose}><form className="asset-modal reject-modal" onSubmit={e=>{e.preventDefault();if(reason.trim())onConfirm(reason.trim())}} onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>{request.id}</small><h2>{t.reject}</h2></div><button type="button" onClick={onClose}>×</button></div>
-  <div className="reject-request-summary"><strong>{ar?request.assetAr:translateAssetName(request.assetEn||request.assetAr)}</strong><span>{request.barcode}</span></div>
+  <div className="reject-request-summary"><strong>{ar?request.assetAr:translateAssetName(request.assetEn||request.assetAr)}</strong><span>{request.barcode}{request.centralBarcode?` / ${request.centralBarcode}`:''}</span></div>
   <label className="reject-reason-label"><span>{t.rejectionReason}</span><textarea required autoFocus value={reason} onChange={e=>setReason(e.target.value)} placeholder={ar?'اكتبي سبب الرفض بشكل واضح ليظهر للحضانة...':'Enter a clear rejection reason for the nursery...'}/></label>
   <div className="asset-modal-actions"><button type="button" className="secondary-action" onClick={onClose}>{t.cancel}</button><button className="reject-confirm-btn" disabled={!reason.trim()}>✕ {t.confirmReject}</button></div>
  </form></div>
@@ -657,7 +707,7 @@ function AssetHistory({asset,ar,onClose}){
  const rows=logs.length?logs.slice().reverse():fallback;
  return <div className="invoice-overlay" onClick={onClose}><aside className="asset-history-modal" onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>{ar?'سجل الأصل':'Asset History'}</small><h2>{asset.barcode}</h2></div><button onClick={onClose}>×</button></div>
-  <div className="asset-history-summary"><div className="asset-card-icon">◇</div><div><strong>{assetLabel(asset,ar)}</strong><span>{nurseryLabel(asset,ar)}</span><small>{ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr)}</small></div></div>
+  <div className="asset-history-summary"><div className="asset-card-icon">◇</div><div><strong>{assetLabel(asset,ar)}</strong><span>{nurseryLabel(asset,ar)}</span><small>{ar?'الباركود الداخلي':'Internal Barcode'}: {asset.barcode} · {ar?'باركود المالية المركزية':'Central Finance Barcode'}: {asset.centralBarcode||'—'}</small><small>{ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr)}</small></div></div>
   <div className="asset-history-note">{ar?'يعرض هذا السجل حركات النقل والفائض والإسقاط فقط.':'This history shows transfer, surplus, and disposal movements only.'}</div>
   <div className="entity-timeline asset-timeline">{rows.map((x,i)=><div key={x.id}><span>{i+1}</span><div><strong>{x.action}</strong><small>{x.date} · {x.time} · {x.user}</small><p>{x.details}</p>{x.reason&&<p className="timeline-reason">{x.reason}</p>}</div></div>)}</div>
  </aside></div>

@@ -6,6 +6,7 @@ create extension if not exists pgcrypto;
 create table if not exists public.assets (
   id uuid primary key default gen_random_uuid(),
   barcode text not null,
+  central_finance_barcode text,
   name_ar text,
   name_en text,
   category_ar text,
@@ -19,6 +20,7 @@ create table if not exists public.assets (
 );
 
 alter table public.assets add column if not exists barcode text;
+alter table public.assets add column if not exists central_finance_barcode text;
 alter table public.assets add column if not exists name_ar text;
 alter table public.assets add column if not exists name_en text;
 alter table public.assets add column if not exists category_ar text;
