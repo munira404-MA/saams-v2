@@ -6,6 +6,7 @@ import { englishPersonName } from '../utils/englishDisplay';
 const icons = {
   dashboard: '⌂',  commandcenter: '◆',  invoices: '▤',
   assets: '◇',
+  transport: '⇄',
   advances: '▥',
   reports: '▦',
   attachments: '▱',
@@ -33,7 +34,7 @@ export default function Layout({
   const [collapsed, setCollapsed] = useState(false);
   const [openGroups, setOpenGroups] = useState({
     home: true,
-    management: ['invoices', 'assets', 'advances', 'reports', 'attachments'].includes(active),
+    management: ['invoices', 'assets', 'transport', 'advances', 'reports', 'attachments'].includes(active),
     system: ['users', 'settings'].includes(active),
   });
 
@@ -64,7 +65,7 @@ export default function Layout({
   }, [mobileMenuOpen]);
 
   useEffect(() => {
-    if (['invoices', 'assets', 'advances', 'reports', 'attachments'].includes(active)) {
+    if (['invoices', 'assets', 'transport', 'advances', 'reports', 'attachments'].includes(active)) {
       setOpenGroups((current) => ({ ...current, management: true }));
     }
     if (['users', 'settings'].includes(active)) {
@@ -76,6 +77,7 @@ export default function Layout({
     ? {
         dashboard: 'الرئيسية',        commandcenter: 'مركز القيادة التنفيذي',        invoices: 'الفواتير',
         assets: 'الأصول',
+        transport: 'مهام النقل',
         advances: 'السلف',
         reports: 'التقارير',
         attachments: 'مركز المرفقات',
@@ -97,6 +99,7 @@ export default function Layout({
     : {
         dashboard: 'Dashboard',        commandcenter: 'Executive Command Center',        invoices: 'Invoices',
         assets: 'Assets',
+        transport: 'Transport Tasks',
         advances: 'Advances',
         reports: 'Reports',
         attachments: 'Attachment Center',
@@ -121,6 +124,7 @@ export default function Layout({
     'commandcenter',
     'invoices',
     'assets',
+    'transport',
     'advances',
     'reports',
     'attachments',
@@ -141,7 +145,7 @@ export default function Layout({
       id: 'management',
       label: labels.managementGroup,
       icon: '▣',
-      items: ['invoices', 'assets', 'advances', 'reports', 'attachments'].filter((item) => items.includes(item)),
+      items: ['invoices', 'assets', 'transport', 'advances', 'reports', 'attachments'].filter((item) => items.includes(item)),
     },
     {
       id: 'system',

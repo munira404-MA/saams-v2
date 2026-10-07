@@ -13,6 +13,7 @@ import Attachments from './pages/Attachments';
 import SplashScreen from './components/SplashScreen';
 import Help from './pages/Help';
 import About from './pages/About';
+import TransportTasks from './pages/TransportTasks';
 import Layout from './components/Layout';
 import { supabase, supabaseConfigured } from './supabase';
 import { getCurrentProfile, signInWithUsername, signOut } from './data/supabaseData';
@@ -139,7 +140,7 @@ export default function App() {
   }
 
   const isNursery = profile?.role === 'nursery';
-  const allAdminPages = ['dashboard', 'commandcenter', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'users', 'settings', 'help', 'about'];
+  const allAdminPages = ['dashboard', 'commandcenter', 'invoices', 'assets', 'transport', 'advances', 'reports', 'attachments', 'users', 'settings', 'help', 'about'];
   const allowedPages = isNursery
     ? ['dashboard', 'invoices', 'assets', 'advances', 'reports', 'attachments', 'settings', 'help', 'about']
     : profile?.role === 'super_admin'
@@ -152,6 +153,7 @@ export default function App() {
     commandcenter: <ExecutiveCommandCenter lang={lang} profile={profile} setActive={setActive} />,
     invoices: <Invoices lang={lang} profile={profile} databaseMode={databaseMode} />,
     assets: <Assets lang={lang} profile={profile} />,
+    transport: <TransportTasks lang={lang} profile={profile} />,
     advances: <Advances lang={lang} profile={profile} databaseMode={databaseMode} />,
     reports: <Reports lang={lang} profile={profile} />,
     attachments: <Attachments lang={lang} profile={profile} />,

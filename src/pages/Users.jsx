@@ -82,6 +82,7 @@ const PAGE_PERMISSIONS = [
   ['commandcenter', 'مركز القيادة التنفيذي', 'Executive Command Center'],
   ['invoices', 'الفواتير', 'Invoices'],
   ['assets', 'الأصول', 'Assets'],
+  ['transport', 'مهام النقل', 'Transport Tasks'],
   ['advances', 'السلف', 'Advances'],
   ['reports', 'التقارير', 'Reports'],
   ['attachments', 'مركز المرفقات', 'Attachment Center'],
@@ -93,7 +94,7 @@ const PAGE_PERMISSIONS = [
 
 const PERMISSION_GROUPS = [
   { id: 'main', icon: '⌂', arLabel: 'الرئيسية', enLabel: 'Main', keys: ['dashboard'] },
-  { id: 'management', icon: '▣', arLabel: 'الإدارة', enLabel: 'Management', keys: ['invoices', 'assets', 'advances', 'reports', 'attachments'] },
+  { id: 'management', icon: '▣', arLabel: 'الإدارة', enLabel: 'Management', keys: ['invoices', 'assets', 'transport', 'advances', 'reports', 'attachments'] },
   { id: 'executive', icon: '♛', arLabel: 'الإدارة التنفيذية', enLabel: 'Executive', keys: ['commandcenter'] },
   { id: 'system', icon: '⚙', arLabel: 'النظام', enLabel: 'System', keys: ['users', 'settings', 'help', 'about'] },
 ];
@@ -105,6 +106,7 @@ const DEFAULT_ADMIN_PERMISSIONS = {
   commandcenter: false,
   invoices: false,
   assets: false,
+  transport: false,
   advances: false,
   reports: false,
   attachments: false,
@@ -272,6 +274,19 @@ export default function Users({ lang, profile, databaseMode = false }) {
     startCreate('nursery');
   }
 
+  function startTransportCreate() {
+    setEditingId(null);
+    setForm({
+      ...emptyForm,
+      role: 'admin',
+      full_name: 'قسم النقل',
+      data_scope: 'permissions',
+      permissions: { ...DEFAULT_ADMIN_PERMISSIONS, dashboard: true, transport: true },
+    });
+    setMessage('');
+    setOpen(true);
+  }
+
   function startEdit(user) {
     setEditingId(user.id);
     setForm({
@@ -405,7 +420,7 @@ export default function Users({ lang, profile, databaseMode = false }) {
         </div>
         <div className="users-heading-actions">
           <button className="secondary-action nursery-quick-action" type="button" onClick={startNurseryCreate}>⌂ {ar ? 'إنشاء حساب حضانة' : 'Create Nursery Account'}</button>
-          <button className="primary-action" type="button" onClick={() => startCreate('admin')}>＋ {ar ? 'إضافة مستخدم' : 'Add User'}</button>
+          <button className="secondary-action" type="button" onClick={startTransportCreate}>⇄ {ar ? 'إنشاء حساب قسم النقل' : 'Create Transport Account'}</button><button className="primary-action" type="button" onClick={() => startCreate('admin')}>＋ {ar ? 'إضافة مستخدم' : 'Add User'}</button>
         </div>
       </header>
 

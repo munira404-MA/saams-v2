@@ -73,7 +73,7 @@ function rebuildAssetsFromAudit(){
 
 function dbAssetToUi(row){
  const n=Array.isArray(row.nurseries)?row.nurseries[0]:row.nurseries;
- return {id:row.id,barcode:row.barcode||'',centralBarcode:row.central_finance_barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||n?.name_en||'',nurseryEn:n?.name_en||n?.name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||''};
+ return {id:row.id,barcode:row.barcode||'',centralBarcode:row.central_finance_barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||row.location_name_ar||row.location_name_en||'',nurseryEn:n?.name_en||row.location_name_en||row.location_name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||''};
 }
 
 async function fetchAllAssetRows(){
@@ -83,13 +83,14 @@ async function fetchAllAssetRows(){
  let supportsCentralBarcode=true;
  while(true){
   let response=await supabase.from('assets')
-   .select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)')
+   .select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,location_type,location_name_ar,location_name_en,status,notes,created_at,nurseries(name_ar,name_en)')
    .order('created_at',{ascending:false})
    .range(from,from+pageSize-1);
-  if(response.error && (response.error.code==='42703'||String(response.error.message||'').includes('central_finance_barcode'))){
-   supportsCentralBarcode=false;
+  if(response.error && response.error.code==='42703'){
+   const missing=String(response.error.message||'');
+   if(missing.includes('central_finance_barcode')) supportsCentralBarcode=false;
    response=await supabase.from('assets')
-    .select('id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)')
+    .select(supportsCentralBarcode?'id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)':'id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)')
     .order('created_at',{ascending:false})
     .range(from,from+pageSize-1);
   }
@@ -122,6 +123,7 @@ function dbRequestToUi(row){
   rejectionReasonAr:row.rejection_reason_ar||row.rejection_reason_en||'',
   rejectionReasonEn:row.rejection_reason_en||row.rejection_reason_ar||'',
   decisionDate:row.decision_at?new Date(row.decision_at).toLocaleDateString('en-GB'):'',
+  transportStatus:row.transport_status||'', pickupAt:row.pickup_at||null, deliveredAt:row.delivered_at||null,
   createdBy:row.created_by||null
  };
 }
@@ -142,6 +144,17 @@ async function fetchAllAssetRequestRows(){
   from+=pageSize;
  }
  return {data:all,error:null};
+}
+
+
+function requestStatusTextFor(r, ar, t){
+ if(r.status==='completed') return ar?'مكتمل — تم التسليم':'Completed — Delivered';
+ if(r.status==='approved'&&r.type==='transfer'){
+  if(r.transportStatus==='in_transit') return ar?'قيد النقل':'In Transit';
+  if(r.transportStatus==='delivered') return ar?'تم التسليم':'Delivered';
+  return ar?'معتمد — بانتظار النقل':'Approved — Awaiting Transport';
+ }
+ return t[r.status]||r.status;
 }
 
 export default function Assets({lang,profile}){
@@ -566,7 +579,7 @@ export default function Assets({lang,profile}){
   if(!req)return;
   const decisionAt=new Date().toISOString();
   try{
-   const query=supabase.from('asset_requests').update({status:'approved',decision_at:decisionAt,decided_by:profile?.id||null}).eq(req.dbId?'id':'request_code',req.dbId||req.id).select('*').single();
+   const query=supabase.from('asset_requests').update({status:'approved',transport_status:req.type==='transfer'?'awaiting_pickup':null,decision_at:decisionAt,decided_by:profile?.id||null}).eq(req.dbId?'id':'request_code',req.dbId||req.id).select('*').single();
    const {data,error}=await query;
    if(error)throw error;
    const updated=dbRequestToUi(data);
@@ -575,6 +588,8 @@ export default function Assets({lang,profile}){
    window.dispatchEvent(new CustomEvent('saams:data-changed',{detail:{entity:'asset_request',action:'approve'}}));
   }catch(err){console.error(err);alert(ar?'تعذر اعتماد الطلب. حاولي مرة أخرى.':'Could not approve request.')}
  }
+ function requestStatusText(r){ return requestStatusTextFor(r,ar,t); }
+
  async function rejectRequest(id,reason){
   const req=requests.find(r=>r.id===id);if(!req)return;
   const decisionAt=new Date().toISOString();
@@ -613,7 +628,7 @@ export default function Assets({lang,profile}){
     </div>
    </div>
    <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><span className="asset-barcode-cell central-finance-barcode">{a.centralBarcode||'—'}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button></td><td>{nurseryLabel(a,ar)}</td><td>{ar?a.categoryAr:englishCategory(a.categoryEn||a.categoryAr)}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="6" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>
-  </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:translateAssetName(r.assetEn||r.assetAr)}</td><td>{r.barcode}</td><td>{r.centralBarcode||'—'}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{t[r.status]}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
+  </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:translateAssetName(r.assetEn||r.assetAr)}</td><td>{r.barcode}</td><td>{r.centralBarcode||'—'}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{requestStatusText(r)}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
   {officialDocument&&<AssetOfficialDocument request={officialDocument} ar={ar} onClose={()=>setOfficialDocument(null)} />}
   {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} onClose={()=>setHistoryAsset(null)} />}
   {editingAsset&&<AssetEditModal asset={editingAsset} ar={ar} t={t} nurseries={nurseries} onClose={()=>setEditingAsset(null)} onSave={updateAsset}/>}
@@ -676,7 +691,7 @@ function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,is
 function RequestDetails({request,ar,t,isAdmin,onClose,onApprove,onReject}){
  return <div className="invoice-overlay" onClick={onClose}><div className="asset-modal request-details-modal" onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>{t.viewRequest}</small><h2>{request.id}</h2></div><button type="button" onClick={onClose}>×</button></div>
-  <div className="request-detail-badge-row"><span className={`request-type ${request.type}`}>{t[request.type]}</span><span className={`invoice-status ${request.status==='pending'?'review':request.status}`}>{t[request.status]}</span></div>
+  <div className="request-detail-badge-row"><span className={`request-type ${request.type}`}>{t[request.type]}</span><span className={`invoice-status ${request.status==='pending'?'review':request.status}`}>{requestStatusTextFor(request,ar,t)}</span></div>
   <div className="request-detail-grid">
    <div><small>{t.asset}</small><strong>{ar?request.assetAr:translateAssetName(request.assetEn||request.assetAr)}</strong></div>
    <div><small>{t.barcode}</small><strong>{request.barcode}</strong></div><div><small>{t.centralBarcode}</small><strong>{request.centralBarcode||'—'}</strong></div>
