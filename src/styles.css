@@ -2992,3 +2992,30 @@ html[lang="en"] .batch-review-message{font-size:10.5px!important}
  html[lang="en"] .asset-modal select,
  html[lang="en"] .asset-modal textarea{font-size:14px!important;min-height:44px}
 }
+
+/* English large-text pass — desktop + dialogs */
+html[lang="en"] body{font-size:17px!important}
+html[lang="en"] .sidebar-nav button{font-size:15px!important;line-height:1.35}
+html[lang="en"] .sidebar-section-title{font-size:14px!important}
+html[lang="en"] .module-heading h1{font-size:38px!important}
+html[lang="en"] .module-heading p{font-size:17px!important}
+html[lang="en"] button,html[lang="en"] input,html[lang="en"] select,html[lang="en"] textarea{font-size:15px!important}
+html[lang="en"] .asset-list-table th,html[lang="en"] .invoice-table th,html[lang="en"] .report-table-wrap th{font-size:14px!important}
+html[lang="en"] .asset-list-table td,html[lang="en"] .invoice-table td,html[lang="en"] .report-table-wrap td{font-size:15px!important;line-height:1.6}
+html[lang="en"] .asset-name-cell{font-size:15px!important;font-weight:900!important}
+html[lang="en"] .asset-barcode-cell{font-size:14px!important}
+html[lang="en"] .asset-filter-summary,html[lang="en"] .asset-pagination-summary,html[lang="en"] .asset-pagination-controls span{font-size:13.5px!important}
+html[lang="en"] .asset-modal{font-size:16px!important}
+html[lang="en"] .asset-modal h2{font-size:28px!important}
+html[lang="en"] .asset-modal label>span{font-size:14px!important}
+html[lang="en"] .asset-modal input,html[lang="en"] .asset-modal select,html[lang="en"] .asset-modal textarea{font-size:16px!important;min-height:48px}
+html[lang="en"] .nursery-asset-picker>span{font-size:14px!important}
+html[lang="en"] .nursery-asset-picker select{font-size:15px!important}
+html[lang="en"] .asset-found strong{font-size:16px!important}
+html[lang="en"] .asset-found span{font-size:13px!important}
+@media(max-width:900px){
+ html[lang="en"] body{font-size:16px!important}
+ html[lang="en"] .module-heading h1{font-size:31px!important}
+ html[lang="en"] .asset-list-table td{font-size:14px!important}
+ html[lang="en"] .asset-modal{font-size:15px!important}
+}

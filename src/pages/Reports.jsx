@@ -1,3 +1,4 @@
+import { translateAssetName } from '../utils/assetTranslations';
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { isSupabaseConfigured, listAdvances, listInvoices, listNurseries } from '../data/supabaseData';
@@ -138,7 +139,7 @@ export default function Reports({lang,profile}){
         setAdvanceRows(flat);
         setAssetRows((assets||[]).map(row=>({
           id:row.id, barcode:row.barcode||'—',
-          name:ar?(row.name_ar||row.name_en||'—'):(row.name_en||row.name_ar||'—'),
+          name:ar?(row.name_ar||row.name_en||'—'):translateAssetName(row.name_en||row.name_ar||'—'),
           nameAr:row.name_ar||'', nameEn:row.name_en||'',
           category:ar?(row.category_ar||row.category_en||'—'):(row.category_en||row.category_ar||'—'),
           categoryAr:row.category_ar||'', categoryEn:row.category_en||'',
@@ -149,7 +150,7 @@ export default function Reports({lang,profile}){
         setAssetRequestRows((assetRequests||[]).map(row=>({
           id:row.id, requestCode:row.request_code||String(row.id||'—'), type:row.request_type||'transfer',
           barcode:row.barcode||'—',
-          asset:ar?(row.asset_name_ar||row.asset_name_en||'—'):(row.asset_name_en||row.asset_name_ar||'—'),
+          asset:ar?(row.asset_name_ar||row.asset_name_en||'—'):translateAssetName(row.asset_name_en||row.asset_name_ar||'—'),
           assetAr:row.asset_name_ar||'', assetEn:row.asset_name_en||'',
           from:ar?(row.from_name_ar||row.from_name_en||'—'):(row.from_name_en||row.from_name_ar||'—'),
           fromAr:row.from_name_ar||'', fromEn:row.from_name_en||'',

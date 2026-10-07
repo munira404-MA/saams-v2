@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import { loadAuditLog } from '../utils/audit';
+import { translateAssetName } from '../utils/assetTranslations';
 
 
 const DEVELOPER_NAME_AR = 'منيرة الأحمد';
@@ -165,7 +166,7 @@ export default function Dashboard({ lang, setActive, profile }) {
           const requestTypeLabel=(type)=>type==='surplus'?t.assetSurplus:type==='disposal'?t.assetDisposal:t.assetTransfer;
           for(const req of requestEvents||[]){
             const type=requestTypeLabel(req.request_type);
-            const asset=(ar?req.asset_name_ar:req.asset_name_en)||req.asset_name_ar||req.asset_name_en||req.barcode||'—';
+            const asset=ar?(req.asset_name_ar||req.asset_name_en||req.barcode||'—'):translateAssetName(req.asset_name_en||req.asset_name_ar||req.barcode||'—');
             let title='',tone='blue';
             if(req.status==='approved'){title=ar?`${t.requestApprovedAlert} ${type}`:`${t.requestApprovedAlert}: ${type}`;tone='green'}
             else if(req.status==='rejected'){title=ar?`${t.requestRejectedAlert} ${type}`:`${t.requestRejectedAlert}: ${type}`;tone='red'}

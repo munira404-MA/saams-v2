@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { supabase } from '../supabase';
 import * as XLSX from 'xlsx';
+import { translateAssetName } from '../utils/assetTranslations';
 
 const ASSETS = [];
 
@@ -30,7 +31,7 @@ const COPY={
  en:{title:'Asset Management',sub:'A unified register for asset transfers, surplus, and disposal requests.',admin:'Administration',nursery:'Nursery',add:'Add Asset',register:'Asset Register',requests:'Asset Requests',transfer:'Transfer Request',surplus:'Surplus Request',disposal:'Disposal Request',barcode:'Barcode Number',asset:'Asset Name',from:'From',to:'To',reason:'Reason',scan:'Scan Barcode',upload:'Upload Barcode Image',manual:'or enter the number manually',lookup:'Find Asset',found:'Asset identified',notFound:'No asset found for this barcode',submit:'Submit Request',cancel:'Cancel',status:'Status',date:'Date',type:'Request Type',pending:'Pending Approval',approved:'Approved',returned:'Returned',rejected:'Rejected',approve:'Approve',reject:'Reject',actions:'Actions',rejectionReason:'Rejection Reason',confirmReject:'Confirm Rejection',previewNursery:'Preview Nursery Requests',exitPreview:'Back to Admin Mode',viewRequest:'View Request',all:'All',category:'Category',location:'Current Location',save:'Save Asset',assetName:'Asset Name',choose:'Choose',notes:'Notes',cameraHint:'Point the camera at the barcode to scan it automatically.',cameraUnsupported:'Barcode scanning is not supported by this browser. Upload an image or enter the number manually.',closeCamera:'Close Camera',requestSent:'Request submitted successfully',assetSaved:'Asset added successfully',adminOnly:'Only administration can add assets',destinationNotNeeded:'Surplus requests do not require a destination.',disposalHint:'Provide a clear disposal reason for administration review.',surplusHint:'Explain why the asset is surplus. The “To” field is not required.',transferHint:'Select the source and destination nurseries and state the transfer reason.',edit:'Edit',delete:'Delete',editAsset:'Edit Asset',deleteConfirm:'Are you sure you want to delete this asset? This action cannot be undone.',assetUpdated:'Asset updated successfully',assetDeleted:'Asset deleted successfully',duplicateBarcode:'This asset is already registered in the system',duplicateBarcodeDetail:'Current location',duplicateBarcodeBlocked:'A new asset cannot be saved with the same barcode',excelTemplate:'Download Excel Template',excelUpload:'Upload Excel',excelReading:'Reading file...',excelBadFile:'Could not read the Excel file. Please use the approved template.',excelMissingHeaders:'Excel columns do not match the approved template.',excelNoRows:'No complete asset rows were found.',excelConfirm:'The file will be validated and only valid assets will be saved. Continue?',excelDone:'Excel asset import completed',excelTemplateMade:'Approved Excel template downloaded',excelParsed:'Excel file read successfully',excelDbError:'Excel was read, but asset data could not be loaded'}
 };
 
-function assetLabel(a,ar){return ar?a.nameAr:a.nameEn}
+function assetLabel(a,ar){if(ar)return a.nameAr;const v=a.nameEn||a.nameAr;return hasArabic(v)?translateAssetName(a.nameAr||v):v}
 function nurseryLabel(a,ar){if(ar)return a.nurseryAr;const value=a.nurseryEn||a.nurseryAr;return hasArabic(value)?englishNursery(a.nurseryAr||value):value}
 function normalizeBarcode(value){return String(value||'').trim().replace(/\s+/g,'').toLowerCase()}
 
@@ -565,7 +566,7 @@ export default function Assets({lang,profile}){
 }
 
 function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
- const [form,setForm]=useState({name:ar?asset.nameAr:(asset.nameEn||asset.nameAr),category:ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr),from:ar?asset.nurseryAr:nurseryLabel(asset,false)});
+ const [form,setForm]=useState({name:ar?asset.nameAr:assetLabel(asset,false),category:ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr),from:ar?asset.nurseryAr:nurseryLabel(asset,false)});
  return <div className="invoice-overlay" onClick={onClose}><form className="asset-modal" onSubmit={e=>{e.preventDefault();onSave(form)}} onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>SAAMS Assets</small><h2>{t.editAsset}</h2></div><button type="button" onClick={onClose}>×</button></div>
   <div className="asset-form-grid">
@@ -647,7 +648,7 @@ function AssetHistory({asset,ar,onClose}){
  const rows=logs.length?logs.slice().reverse():fallback;
  return <div className="invoice-overlay" onClick={onClose}><aside className="asset-history-modal" onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>{ar?'سجل الأصل':'Asset History'}</small><h2>{asset.barcode}</h2></div><button onClick={onClose}>×</button></div>
-  <div className="asset-history-summary"><div className="asset-card-icon">◇</div><div><strong>{ar?asset.nameAr:asset.nameEn}</strong><span>{ar?asset.nurseryAr:asset.nurseryEn}</span><small>{ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr)}</small></div></div>
+  <div className="asset-history-summary"><div className="asset-card-icon">◇</div><div><strong>{assetLabel(asset,ar)}</strong><span>{ar?asset.nurseryAr:asset.nurseryEn}</span><small>{ar?asset.categoryAr:englishCategory(asset.categoryEn||asset.categoryAr)}</small></div></div>
   <div className="asset-history-note">{ar?'يعرض هذا السجل حركات النقل والفائض والإسقاط فقط.':'This history shows transfer, surplus, and disposal movements only.'}</div>
   <div className="entity-timeline asset-timeline">{rows.map((x,i)=><div key={x.id}><span>{i+1}</span><div><strong>{x.action}</strong><small>{x.date} · {x.time} · {x.user}</small><p>{x.details}</p>{x.reason&&<p className="timeline-reason">{x.reason}</p>}</div></div>)}</div>
  </aside></div>
