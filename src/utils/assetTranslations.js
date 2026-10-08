@@ -30,6 +30,28 @@ const PARTS = [
 const AR_LATIN={'ا':'a','أ':'a','إ':'i','آ':'aa','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','ة':'a','و':'w','ؤ':'w','ي':'y','ى':'a','ئ':'y','ء':'','َ':'','ً':'','ُ':'','ٌ':'','ِ':'','ٍ':'','ْ':'','ّ':''};
 function transliterateArabic(v){return String(v||'').split('').map(ch=>AR_LATIN[ch]??ch).join('').replace(/\s+/g,' ').trim()}
 
+
+const EN_TO_AR = Object.fromEntries(Object.entries(EXACT).map(([ar,en]) => [en, ar]));
+Object.assign(EN_TO_AR, {
+  'Kids Table':'طاولة أطفال',
+  'Children Table':'طاولة أطفال',
+  'Office Chair':'كرسي مكتبي',
+  'Storage Cabinet':'خزانة تخزين',
+  'Locker':'خزانة',
+  'Microwave Oven':'فرن ميكروويف',
+  'Air Purifier':'جهاز تنقية الهواء',
+  'Smart TV':'تلفزيون ذكي',
+  'Access Point':'نقطة وصول',
+  'iPad':'آيباد',
+});
+
+export function translateAssetNameArabic(value){
+  const raw=String(value||'').trim();
+  if(!raw) return '';
+  if(/[؀-ۿ]/.test(raw)) return raw;
+  return EN_TO_AR[raw] || raw;
+}
+
 export function translateAssetName(value){
   const raw=String(value||'').trim();
   if(!raw) return '';

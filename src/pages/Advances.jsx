@@ -7,6 +7,7 @@ import {
   toggleAdvanceStatus,
   deleteAdvance as deleteAdvanceDb,
 } from '../data/supabaseData';
+import { toEnglishDisplay, toArabicDisplay } from '../utils/globalI18n';
 
 const SETTINGS_KEY = 'saams-system-settings-v1';
 
@@ -141,7 +142,7 @@ export default function Advances({ lang, profile, databaseMode }) {
 
   const typeLabel = (value) => {
     const configured = advanceTypes.find((type) => type.value === value);
-    if (configured) return ar ? configured.nameAr : (configured.nameEn || configured.nameAr);
+    if (configured) return ar ? toArabicDisplay(configured.nameAr || configured.nameEn) : toEnglishDisplay(configured.nameEn || configured.nameAr);
     if (value === 'monthly') return t.monthly;
     if (value === 'event') return t.event;
     if (value === 'emergency') return ar ? 'سلفة طارئة' : 'Emergency Advance';
@@ -213,7 +214,7 @@ export default function Advances({ lang, profile, databaseMode }) {
     if (!allocations.length) { notify(t.invalid); return false; }
     const next = {
       id: `ADV-2026-${String(advances.length + 9).padStart(3, '0')}`,
-      nameAr: form.name, nameEn: form.name,
+      nameAr: form.name, nameEn: toEnglishDisplay(form.name),
       type: form.type, from: form.from, to: form.to, status,
       allocations: allocations.map((row) => {
         const match = row.nurseryId ? null : dbNurseries.find((nursery) => nursery.name_ar === row.nurseryAr || nursery.name_en === row.nurseryEn);
@@ -325,7 +326,7 @@ export default function Advances({ lang, profile, databaseMode }) {
     <div className="advance-toolbar">
       <div className="invoice-search"><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search} /></div>
       <div className="advance-filters">
-        {[{value:'all',label:t.all}, ...advanceTypes.map(type => ({ value:type.value, label: ar ? type.nameAr : (type.nameEn || type.nameAr) })), {value:'open',label:t.open}, {value:'closed',label:t.closed}].map(item => <button key={item.value} className={filter === item.value ? 'active' : ''} onClick={() => setFilter(item.value)}>{item.label}</button>)}
+        {[{value:'all',label:t.all}, ...advanceTypes.map(type => ({ value:type.value, label: ar ? toArabicDisplay(type.nameAr || type.nameEn) : toEnglishDisplay(type.nameEn || type.nameAr) })), {value:'open',label:t.open}, {value:'closed',label:t.closed}].map(item => <button key={item.value} className={filter === item.value ? 'active' : ''} onClick={() => setFilter(item.value)}>{item.label}</button>)}
       </div>
     </div>
 
@@ -340,7 +341,7 @@ export default function Advances({ lang, profile, databaseMode }) {
         return <article className="advance-card" key={advance.id}>
           <div className="advance-card-top">
             <div className={`advance-type-icon ${advance.type}`}>{advance.type === 'monthly' ? '▥' : advance.type === 'event' ? '☆' : '▣'}</div>
-            <div className="advance-title"><div><span className={`advance-type-badge ${advance.type}`}>{typeLabel(advance.type)}</span><span className={`advance-status ${advance.status}`}>{t[advance.status]}</span></div><h3>{ar ? advance.nameAr : advance.nameEn}</h3><p>{advance.id} · {advance.from} — {advance.to}</p></div>
+            <div className="advance-title"><div><span className={`advance-type-badge ${advance.type}`}>{typeLabel(advance.type)}</span><span className={`advance-status ${advance.status}`}>{t[advance.status]}</span></div><h3>{ar ? toArabicDisplay(advance.nameAr || advance.nameEn) : toEnglishDisplay(advance.nameEn || advance.nameAr)}</h3><p>{advance.id} · {advance.from} — {advance.to}</p></div>
             <div className="advance-card-actions"><button onClick={() => setViewing({ advance, allocation })}>{t.view}</button>{!nurseryMode && <><button className={advance.status === 'open' ? 'close-advance' : 'reopen-advance'} onClick={() => toggleStatus(advance.id)}>{advance.status === 'open' ? t.close : t.reopen}</button><button className="delete-advance" onClick={() => deleteAdvance(advance)}>⌫ {t.deleteAdvance}</button></>}</div>
           </div>
           <div className="advance-balance-grid">
@@ -372,7 +373,7 @@ function CreateAdvanceModal({ ar, t, advanceTypes, nurseries, loading, onClose, 
     <div className="drawer-header"><div><small>SAAMS Advances</small><h2>{t.createTitle}</h2></div><button onClick={onClose}>×</button></div>
     <div className="advance-form-grid">
       <label className="wide"><span>{t.customName}</span><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={t.customNameHint} /></label>
-      <label><span>{t.type}</span><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>{availableTypes.map(type => <option key={type.value} value={type.value}>{ar ? type.nameAr : (type.nameEn || type.nameAr)}</option>)}</select></label>
+      <label><span>{t.type}</span><select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>{availableTypes.map(type => <option key={type.value} value={type.value}>{ar ? toArabicDisplay(type.nameAr || type.nameEn) : toEnglishDisplay(type.nameEn || type.nameAr)}</option>)}</select></label>
       <label><span>{t.fromDate}</span><input type="date" value={form.from} onChange={e => setForm({ ...form, from: e.target.value })} /></label>
       <label><span>{t.toDate}</span><input type="date" value={form.to} onChange={e => setForm({ ...form, to: e.target.value })} /></label>
     </div>
@@ -390,7 +391,7 @@ function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDelete,
   const [selected, setSelected] = useState(allocation || advance.allocations[0]);
   const spent = spentOf(selected), remaining = selected.allocated - spent, usage = selected.allocated ? (spent / selected.allocated) * 100 : 0;
   return <div className="invoice-overlay" onClick={onClose}><aside className="advance-details-drawer" onClick={e => e.stopPropagation()}>
-    <div className="drawer-header"><div><small>{t.details}</small><h2>{ar ? advance.nameAr : advance.nameEn}</h2><p>{advance.id}</p></div><button onClick={onClose}>×</button></div>
+    <div className="drawer-header"><div><small>{t.details}</small><h2>{ar ? toArabicDisplay(advance.nameAr || advance.nameEn) : toEnglishDisplay(advance.nameEn || advance.nameAr)}</h2><p>{advance.id}</p></div><button onClick={onClose}>×</button></div>
     {!nurseryMode && <div className="advance-nursery-section">
       <div className="advance-nursery-section-head">
         <strong>{ar ? 'الحضانات المشمولة' : 'Included nurseries'}</strong>

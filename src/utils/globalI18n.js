@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { translateAssetName } from './assetTranslations';
+import { translateAssetName, translateAssetNameArabic } from './assetTranslations';
 
 const AR_EN = {
   "Selected Nursery' : nurseryName,\n      advanceAr: uploadAdvance || 'فواتير مرفوعة',\n      advanceEn: uploadAdvance || 'Uploaded Invoices',\n      supplierAr: ocr.supplier_name || 'مورد غير محدد',\n      supplierEn: ocr.supplier_name || 'Unknown Supplier',\n      date: ocr.invoice_date || new Date().toLocaleDateString('en-GB'),\n      total: Number(ocr.total_amount) || 0,\n      vat: Number(ocr.vat_amount) || 0,\n      payment: ocr.payment_method === 'card' ? 'card": "cash",
@@ -559,7 +559,52 @@ const AR_EN = {
   "نقل": "Transfer",
   "أو": "OR",
   "صف": "Row",
-  "من": "From"
+  "من": "From",
+  "يناير": "January",
+  "فبراير": "February",
+  "مارس": "March",
+  "أبريل": "April",
+  "ابريل": "April",
+  "مايو": "May",
+  "يونيو": "June",
+  "يوليو": "July",
+  "أغسطس": "August",
+  "اغسطس": "August",
+  "سبتمبر": "September",
+  "أكتوبر": "October",
+  "اكتوبر": "October",
+  "نوفمبر": "November",
+  "ديسمبر": "December",
+  "سلفة يناير": "January Advance",
+  "سلفة فبراير": "February Advance",
+  "سلفة مارس": "March Advance",
+  "سلفة أبريل": "April Advance",
+  "سلفة ابريل": "April Advance",
+  "سلفة مايو": "May Advance",
+  "سلفة يونيو": "June Advance",
+  "سلفة يوليو": "July Advance",
+  "سلفة أغسطس": "August Advance",
+  "سلفة اغسطس": "August Advance",
+  "سلفة سبتمبر": "September Advance",
+  "سلفة أكتوبر": "October Advance",
+  "سلفة اكتوبر": "October Advance",
+  "سلفة نوفمبر": "November Advance",
+  "سلفة ديسمبر": "December Advance",
+  "سلفة صيانة": "Maintenance Advance",
+  "صيانة": "Maintenance",
+  "سلفة أخرى": "Other Advance",
+  "سلفة اخرى": "Other Advance",
+  "أخرى": "Other",
+  "اخرى": "Other",
+  "رفع أصول من Excel": "Assets imported from Excel",
+  "حذف أصل": "Asset deleted",
+  "إضافة أصل": "Asset added",
+  "تعديل أصل": "Asset updated",
+  "أصول تم رفعها": "assets imported",
+  "خزانة تخزين": "Storage Cabinet",
+  "كرسي مكتبي": "Office Chair",
+  "طاولة أطفال": "Kids Table",
+  "خزانة": "Locker",
 };
 const EN_AR = Object.fromEntries(Object.entries(AR_EN).map(([ar,en]) => [en, ar]));
 const AR_RE = /[\u0600-\u06FF]/;
@@ -580,7 +625,9 @@ export function toEnglishDisplay(value){
 }
 export function toArabicDisplay(value){
  const raw=String(value??''); const trimmed=raw.trim(); if(EN_AR[trimmed]) return preserveSpace(raw, EN_AR[trimmed]);
- return replaceKnown(raw, EN_AR);
+ let out=replaceKnown(raw, EN_AR);
+ if(LATIN_RE.test(out)){ const asset=translateAssetNameArabic(out.trim()); if(asset && asset!==out.trim()) out=preserveSpace(out,asset); }
+ return out;
 }
 function translateTextNode(node, lang){ if(!node?.nodeValue || !node.parentElement || SKIP_TAGS.has(node.parentElement.tagName)) return; const current=node.nodeValue; const next=lang==='en'?toEnglishDisplay(current):toArabicDisplay(current); if(next!==current) node.nodeValue=next; }
 function translateElement(el, lang){ if(!(el instanceof Element)) return; if(SKIP_TAGS.has(el.tagName)) return; for(const attr of ['placeholder','title','aria-label']){ if(el.hasAttribute(attr)){ const cur=el.getAttribute(attr)||''; const next=lang==='en'?toEnglishDisplay(cur):toArabicDisplay(cur); if(next!==cur) el.setAttribute(attr,next); }}
