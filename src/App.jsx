@@ -17,6 +17,7 @@ import TransportTasks from './pages/TransportTasks';
 import Layout from './components/Layout';
 import { supabase, supabaseConfigured } from './supabase';
 import { getCurrentProfile, signInWithUsername, signOut } from './data/supabaseData';
+import { useLanguageDomGuard } from './utils/globalI18n';
 
 const PREVIEW_PROFILE_KEY = 'saams-preview-profile';
 
@@ -28,6 +29,7 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [active, setActive] = useState('dashboard');
   const [loginError, setLoginError] = useState('');
+  useLanguageDomGuard(lang);
 
   useEffect(() => {
     let mounted = true;
