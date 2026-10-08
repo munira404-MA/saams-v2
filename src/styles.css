@@ -3111,3 +3111,96 @@ html[lang="en"] .asset-modal textarea{font-size:17px!important;min-height:50px!i
   .settings-table th,.users-table th{font-size:11.5px!important}
   .settings-table td,.users-table td{font-size:12px!important}
 }
+
+/* 2026-10-08 — FINAL global typography unification
+   One visual type scale across every SAAMS screen, matching Assets/Invoices/Advances. */
+:root{
+  --saams-ui-text:16px;
+  --saams-table-head:15.5px;
+  --saams-table-body:16.5px;
+  --saams-small-text:13.5px;
+  --saams-label-text:14.5px;
+}
+body{font-size:18px!important}
+
+/* Navigation / common controls */
+.sidebar-nav button,
+.sidebar-group-button,
+.sidebar-subitem,
+.sidebar-standalone{font-size:16.5px!important;line-height:1.45!important}
+button,input,select,textarea{font-size:16px!important}
+
+/* Every data table in every module uses the same scale */
+main table th,
+.main-content table th,
+.settings-table th,
+.users-table th,
+.production-readiness-table th,
+.invoice-table th,
+.asset-list-table th,
+.report-table-wrap th{font-size:var(--saams-table-head)!important;font-weight:800!important;line-height:1.5!important}
+main table td,
+.main-content table td,
+.settings-table td,
+.users-table td,
+.production-readiness-table td,
+.invoice-table td,
+.asset-list-table td,
+.report-table-wrap td{font-size:var(--saams-table-body)!important;line-height:1.65!important}
+main table td small,
+.main-content table td small,
+.settings-table td small,
+.users-table td small{font-size:13.5px!important;line-height:1.5!important}
+
+/* System > Users / Settings — same size as operational screens */
+.settings-page,.users-page{font-size:var(--saams-ui-text)!important}
+.settings-nav button strong{font-size:16px!important}
+.settings-section-title h2{font-size:22px!important}
+.settings-section-title p,.users-heading p{font-size:16px!important;line-height:1.65!important}
+.settings-form-grid label span,.settings-modal label span,
+.user-form-grid label span,.production-control-grid label span,
+.production-launch-card label>span,.audit-filter-grid label>span{font-size:14.5px!important}
+.settings-form-grid input,.settings-modal input,.settings-modal select,
+.advance-type-add input,.settings-search,.settings-search input,
+.user-form-grid input,.user-form-grid select,
+.production-launch-card input,.production-launch-card select,.production-launch-card textarea,
+.production-control-grid input,.production-control-grid select{font-size:16px!important}
+.settings-summary-grid small,.production-summary-grid small{font-size:14px!important}
+.settings-summary-grid strong,.production-summary-grid strong{font-size:24px!important}
+.settings-status,.settings-row-actions button,.user-role,.user-status,.data-scope-badge,.user-row-actions button{font-size:14px!important}
+.settings-note{font-size:15px!important;line-height:1.65!important}
+.settings-switch-row strong,.production-user-banner strong{font-size:16px!important}
+.settings-switch-row small,.production-user-banner small{font-size:14px!important;line-height:1.55!important}
+.production-user-banner b{font-size:14px!important}
+.user-permissions legend{font-size:16px!important}
+.user-permissions>p{font-size:14px!important}
+
+/* Dashboard activity and all dashboard supporting text */
+.activity-table .activity-head span{font-size:15.5px!important}
+.activity-table .activity-row>span{font-size:16.5px!important;line-height:1.65!important}
+.glass-panel .panel-heading h2,.panel-heading h2{font-size:20px!important}
+.glass-panel .panel-heading button,.panel-heading button{font-size:15px!important}
+.alert-item strong{font-size:15.5px!important}
+.alert-item small{font-size:13.5px!important}
+.quick-action strong{font-size:15px!important}
+
+/* Transport module follows the same text scale too */
+.transport-page{font-size:16px!important}
+.transport-status{font-size:14px!important}
+.transport-task-grid small{font-size:14px!important}
+.transport-task-grid strong{font-size:16px!important}
+.transport-scan-row input,.transport-scan-row button,.transport-toolbar button{font-size:16px!important}
+
+/* Keep the same hierarchy on Arabic and English; only direction/language changes. */
+html[lang="ar"] body,html[lang="en"] body{font-size:18px!important}
+html[lang="ar"] button,html[lang="ar"] input,html[lang="ar"] select,html[lang="ar"] textarea,
+html[lang="en"] button,html[lang="en"] input,html[lang="en"] select,html[lang="en"] textarea{font-size:16px!important}
+
+@media(max-width:900px){
+  :root{--saams-ui-text:15px;--saams-table-head:14.5px;--saams-table-body:15px;--saams-small-text:13px;--saams-label-text:14px}
+  body,html[lang="ar"] body,html[lang="en"] body{font-size:16.5px!important}
+  .sidebar-nav button,.sidebar-group-button,.sidebar-subitem,.sidebar-standalone{font-size:15.5px!important}
+  button,input,select,textarea{font-size:15px!important}
+  .activity-table .activity-head span{font-size:14.5px!important}
+  .activity-table .activity-row>span{font-size:15px!important}
+}
