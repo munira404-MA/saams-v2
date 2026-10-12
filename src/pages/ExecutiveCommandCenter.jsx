@@ -21,13 +21,19 @@ export default function ExecutiveCommandCenter({ lang, profile, setActive }) {
     setError('');
     try {
       const nurseryId = profile?.role === 'nursery' ? profile?.nursery_id : null;
-      const [invoiceRows, advanceRows, assetRows, auditRows, attachmentRows] = await Promise.all([
+      const results = await Promise.allSettled([
         listInvoices(),
         listAdvances(),
         listAllAssets(nurseryId),
         listAuditLogs({ nurseryId, limit: 250 }).catch(() => loadAuditLog()),
         listAttachmentIndex(nurseryId),
       ]);
+      const valueAt = (index, fallback = []) => results[index]?.status === 'fulfilled' ? (results[index].value || fallback) : fallback;
+      const invoiceRows = valueAt(0);
+      const advanceRows = valueAt(1);
+      const assetRows = valueAt(2);
+      const auditRows = valueAt(3);
+      const attachmentRows = valueAt(4);
       const scopedInvoices = nurseryId ? invoiceRows.filter(x => x.nurseryId === nurseryId) : invoiceRows;
       const scopedAdvances = nurseryId
         ? advanceRows.map(a => ({ ...a, allocations: (a.allocations || []).filter(x => x.nurseryId === nurseryId) })).filter(a => a.allocations.length)
@@ -37,6 +43,12 @@ export default function ExecutiveCommandCenter({ lang, profile, setActive }) {
       setAssets(assetRows);
       setLogs(auditRows || []);
       setAttachments(attachmentRows || []);
+
+      const failedCore = results.slice(0, 3).some(r => r.status === 'rejected');
+      if (failedCore) {
+        console.warn('Command center partial sync', results.filter(r => r.status === 'rejected').map(r => r.reason));
+        setError(ar ? 'تم تحميل البيانات المتاحة، وتعذر تحديث جزء من بيانات مركز القيادة.' : 'Available data loaded; one part of the command-center data could not be refreshed.');
+      }
     } catch (e) {
       console.error('Command center live sync failed', e);
       setError(ar ? 'تعذر تحديث بعض بيانات مركز القيادة. أعيدي المحاولة.' : 'Could not refresh some command-center data.');

@@ -3204,3 +3204,192 @@ html[lang="en"] button,html[lang="en"] input,html[lang="en"] select,html[lang="e
   .activity-table .activity-head span{font-size:14.5px!important}
   .activity-table .activity-row>span{font-size:15px!important}
 }
+
+/* 2026-10-08 — English typography lock: same readable scale on EVERY screen.
+   This pass intentionally overrides legacy module-specific tiny English text. */
+html[lang="en"] body{font-size:18px!important}
+html[lang="en"] main,
+html[lang="en"] .main-content{font-size:16px!important}
+html[lang="en"] main p,
+html[lang="en"] .main-content p{font-size:15.5px!important;line-height:1.65!important}
+html[lang="en"] main small,
+html[lang="en"] .main-content small{font-size:13.5px!important;line-height:1.5!important}
+html[lang="en"] main label,
+html[lang="en"] .main-content label{font-size:14.5px!important}
+html[lang="en"] main button,
+html[lang="en"] main input,
+html[lang="en"] main select,
+html[lang="en"] main textarea,
+html[lang="en"] .main-content button,
+html[lang="en"] .main-content input,
+html[lang="en"] .main-content select,
+html[lang="en"] .main-content textarea{font-size:16px!important}
+
+/* Executive Command Center */
+html[lang="en"] .command-center-page{font-size:16px!important}
+html[lang="en"] .command-global-search input{font-size:16px!important}
+html[lang="en"] .command-search-results>button>span{font-size:13.5px!important}
+html[lang="en"] .command-search-results strong{font-size:16px!important}
+html[lang="en"] .command-search-results small{font-size:13.5px!important}
+html[lang="en"] .command-search-results p{font-size:15px!important}
+html[lang="en"] .command-kpi small{font-size:14px!important}
+html[lang="en"] .command-kpi strong{font-size:24px!important}
+html[lang="en"] .command-card-head h2{font-size:20px!important}
+html[lang="en"] .command-card-head p{font-size:14px!important}
+html[lang="en"] .command-card-head button{font-size:15px!important}
+html[lang="en"] .command-bar-label{font-size:15px!important}
+html[lang="en"] .command-donut strong{font-size:26px!important}
+html[lang="en"] .command-donut small{font-size:13.5px!important}
+html[lang="en"] .command-legend span{font-size:14.5px!important}
+html[lang="en"] .command-suppliers strong{font-size:15.5px!important}
+html[lang="en"] .command-suppliers small{font-size:13.5px!important}
+html[lang="en"] .command-recommendations strong{font-size:15.5px!important}
+html[lang="en"] .command-recommendations small{font-size:13.5px!important}
+html[lang="en"] .command-timeline strong{font-size:15.5px!important}
+html[lang="en"] .command-timeline small{font-size:13.5px!important}
+html[lang="en"] .command-timeline time{font-size:13px!important}
+html[lang="en"] .command-empty{font-size:14.5px!important}
+
+/* Users + Settings + launch/readiness */
+html[lang="en"] .users-page,
+html[lang="en"] .settings-page{font-size:16px!important}
+html[lang="en"] .users-table th,
+html[lang="en"] .settings-table th,
+html[lang="en"] .production-readiness-table th{font-size:15.5px!important}
+html[lang="en"] .users-table td,
+html[lang="en"] .settings-table td,
+html[lang="en"] .production-readiness-table td{font-size:16.5px!important;line-height:1.65!important}
+html[lang="en"] .users-table td small,
+html[lang="en"] .settings-table td small,
+html[lang="en"] .production-readiness-table td small{font-size:13.5px!important}
+html[lang="en"] .settings-nav button strong{font-size:16px!important}
+html[lang="en"] .settings-section-title h2{font-size:22px!important}
+html[lang="en"] .settings-section-title p,
+html[lang="en"] .users-heading p{font-size:16px!important}
+html[lang="en"] .production-summary-grid small,
+html[lang="en"] .settings-summary-grid small{font-size:14px!important}
+html[lang="en"] .production-user-banner strong,
+html[lang="en"] .settings-switch-row strong{font-size:16px!important}
+html[lang="en"] .production-user-banner small,
+html[lang="en"] .settings-switch-row small{font-size:14px!important}
+html[lang="en"] .user-role,
+html[lang="en"] .user-status,
+html[lang="en"] .data-scope-badge,
+html[lang="en"] .settings-status{font-size:14px!important}
+
+/* Dashboard / reports / attachments / secondary modules: remove legacy micro-text */
+html[lang="en"] .activity-table .activity-head span{font-size:15.5px!important}
+html[lang="en"] .activity-table .activity-row>span{font-size:16.5px!important;line-height:1.65!important}
+html[lang="en"] .panel-heading h2{font-size:20px!important}
+html[lang="en"] .panel-heading button{font-size:15px!important}
+html[lang="en"] .alert-item strong{font-size:15.5px!important}
+html[lang="en"] .alert-item small{font-size:13.5px!important}
+html[lang="en"] .quick-action strong{font-size:15px!important}
+html[lang="en"] .attachment-file-info small{font-size:13.5px!important}
+html[lang="en"] .attachment-file-info strong{font-size:15.5px!important}
+html[lang="en"] .attachment-file-info span{font-size:13.5px!important}
+html[lang="en"] .attachment-file-actions button{font-size:14.5px!important}
+html[lang="en"] .intelligence-card-head h2{font-size:20px!important}
+html[lang="en"] .intelligence-card-head p{font-size:14px!important}
+html[lang="en"] .intelligence-item strong{font-size:15.5px!important}
+html[lang="en"] .intelligence-item p{font-size:13.5px!important}
+html[lang="en"] .report-intelligence-summary strong{font-size:15.5px!important}
+html[lang="en"] .report-intelligence-summary p{font-size:13.5px!important}
+html[lang="en"] .about-card h3{font-size:19px!important}
+html[lang="en"] .about-hero p,
+html[lang="en"] .service-status-list small,
+html[lang="en"] .about-meta dt,
+html[lang="en"] .about-meta dd,
+html[lang="en"] .version-history small{font-size:13.5px!important}
+html[lang="en"] .service-status-list strong,
+html[lang="en"] .version-history strong{font-size:15.5px!important}
+html[lang="en"] .enterprise-kpi small,
+html[lang="en"] .enterprise-latest small,
+html[lang="en"] .enterprise-latest time{font-size:13.5px!important}
+html[lang="en"] .enterprise-ranking strong,
+html[lang="en"] .enterprise-latest strong{font-size:15.5px!important}
+
+@media(max-width:900px){
+  html[lang="en"] body{font-size:16.5px!important}
+  html[lang="en"] main,html[lang="en"] .main-content{font-size:15px!important}
+  html[lang="en"] main p,html[lang="en"] .main-content p{font-size:14.5px!important}
+  html[lang="en"] main small,html[lang="en"] .main-content small{font-size:13px!important}
+  html[lang="en"] .command-card-head h2{font-size:18px!important}
+  html[lang="en"] .command-kpi strong{font-size:22px!important}
+}
+
+/* 2026-10-08 — Executive Command Center + Help Center final typography normalization.
+   Match the readable scale used by Assets, Invoices and Advances in BOTH languages. */
+html[lang="ar"] .command-center-page,
+html[lang="en"] .command-center-page,
+html[lang="ar"] .help-page,
+html[lang="en"] .help-page{font-size:16px!important}
+
+html[lang="ar"] .command-center-page .module-heading h1,
+html[lang="en"] .command-center-page .module-heading h1,
+html[lang="ar"] .help-page .module-heading h1,
+html[lang="en"] .help-page .module-heading h1{font-size:30px!important;line-height:1.2!important}
+html[lang="ar"] .command-center-page .module-heading p,
+html[lang="en"] .command-center-page .module-heading p,
+html[lang="ar"] .help-page .module-heading p,
+html[lang="en"] .help-page .module-heading p{font-size:16px!important;line-height:1.65!important}
+
+html[lang="ar"] .command-global-search input,
+html[lang="en"] .command-global-search input{font-size:16px!important}
+html[lang="ar"] .command-kpi small,
+html[lang="en"] .command-kpi small{font-size:14.5px!important;line-height:1.45!important}
+html[lang="ar"] .command-kpi strong,
+html[lang="en"] .command-kpi strong{font-size:22px!important}
+html[lang="ar"] .command-card-head h2,
+html[lang="en"] .command-card-head h2{font-size:18px!important;line-height:1.35!important}
+html[lang="ar"] .command-card-head p,
+html[lang="en"] .command-card-head p{font-size:14.5px!important;line-height:1.55!important}
+html[lang="ar"] .command-card-head button,
+html[lang="en"] .command-card-head button{font-size:15.5px!important}
+html[lang="ar"] .command-bar-label,
+html[lang="en"] .command-bar-label,
+html[lang="ar"] .command-legend span,
+html[lang="en"] .command-legend span{font-size:15px!important}
+html[lang="ar"] .command-donut small,
+html[lang="en"] .command-donut small{font-size:14px!important}
+html[lang="ar"] .command-suppliers strong,
+html[lang="en"] .command-suppliers strong,
+html[lang="ar"] .command-recommendations strong,
+html[lang="en"] .command-recommendations strong,
+html[lang="ar"] .command-timeline strong,
+html[lang="en"] .command-timeline strong{font-size:15.5px!important}
+html[lang="ar"] .command-suppliers small,
+html[lang="en"] .command-suppliers small,
+html[lang="ar"] .command-recommendations small,
+html[lang="en"] .command-recommendations small,
+html[lang="ar"] .command-timeline small,
+html[lang="en"] .command-timeline small{font-size:14px!important;line-height:1.5!important}
+html[lang="ar"] .command-timeline time,
+html[lang="en"] .command-timeline time{font-size:13.5px!important}
+html[lang="ar"] .command-empty,
+html[lang="en"] .command-empty{font-size:14.5px!important}
+html[lang="ar"] .command-search-results>button>span,
+html[lang="en"] .command-search-results>button>span{font-size:14px!important}
+html[lang="ar"] .command-search-results strong,
+html[lang="en"] .command-search-results strong{font-size:16px!important}
+html[lang="ar"] .command-search-results small,
+html[lang="en"] .command-search-results small{font-size:14px!important}
+
+html[lang="ar"] .help-guide-grid h2,
+html[lang="en"] .help-guide-grid h2{font-size:17px!important;line-height:1.4!important}
+html[lang="ar"] .help-guide-grid p,
+html[lang="en"] .help-guide-grid p{font-size:15px!important;line-height:1.7!important}
+html[lang="ar"] .help-guide-grid button,
+html[lang="en"] .help-guide-grid button{font-size:16px!important}
+html[lang="ar"] .help-section-heading span,
+html[lang="en"] .help-section-heading span{font-size:14px!important}
+html[lang="ar"] .help-section-heading h2,
+html[lang="en"] .help-section-heading h2{font-size:19px!important}
+html[lang="ar"] .help-faq-list strong,
+html[lang="en"] .help-faq-list strong{font-size:15.5px!important;line-height:1.5!important}
+html[lang="ar"] .help-faq-list p,
+html[lang="en"] .help-faq-list p{font-size:15px!important;line-height:1.75!important}
+html[lang="ar"] .help-support-card h2,
+html[lang="en"] .help-support-card h2{font-size:17px!important}
+html[lang="ar"] .help-support-card p,
+html[lang="en"] .help-support-card p{font-size:15px!important;line-height:1.65!important}
