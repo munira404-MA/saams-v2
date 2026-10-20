@@ -147,7 +147,7 @@ export default function Reports({lang,profile}){
         });
         setAdvanceRows(flat);
         setAssetRows((assets||[]).map(row=>({
-          id:row.id, barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'—',
+          id:row.id, barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'',
           name:ar?(row.name_ar||row.name_en||'—'):translateAssetName(row.name_en,row.name_ar),
           nameAr:row.name_ar||'', nameEn:row.name_en||'',
           category:assetCategoryLabel(row.category_ar,row.category_en,lang)||'—',
@@ -158,7 +158,7 @@ export default function Reports({lang,profile}){
         })));
         setAssetRequestRows((assetRequests||[]).map(row=>({
           id:row.id, requestCode:row.request_code||String(row.id||'—'), type:row.request_type||'transfer',
-          barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'—',
+          barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'',
           asset:ar?(row.asset_name_ar||row.asset_name_en||'—'):translateAssetName(row.asset_name_en,row.asset_name_ar),
           assetAr:row.asset_name_ar||'', assetEn:row.asset_name_en||'',
           from:ar?(row.from_name_ar||row.from_name_en||'—'):(row.from_name_en||row.from_name_ar||'—'),

@@ -171,7 +171,7 @@ export default function TransportTasks({ lang, profile }) {
           <header><div><small>{row.request_code}</small><h3>{requestLabel(row, ar)}</h3></div><span className={`transport-status ${s}`}>{(STATUS[s] || STATUS.awaiting_pickup)[ar ? 'ar' : 'en']}</span></header>
           <div className="transport-task-grid">
             <div><small>{ar ? 'الباركود الداخلي' : 'Internal Barcode'}</small><strong>{row.barcode || '—'}</strong></div>
-            <div><small>{ar ? 'باركود المالية' : 'Central Finance Barcode'}</small><strong>{row.central_finance_barcode || '—'}</strong></div>
+            <div><small>{ar ? 'باركود المالية' : 'Central Finance Barcode'}</small><strong>{row.central_finance_barcode || ''}</strong></div>
             <div><small>{ar ? 'من' : 'From'}</small><strong>{ar ? row.from_name_ar : (row.from_name_en || row.from_name_ar)}</strong></div>
             <div><small>{ar ? 'إلى' : 'To'}</small><strong>{ar ? row.to_name_ar : (row.to_name_en || row.to_name_ar)}</strong></div>
           </div>
