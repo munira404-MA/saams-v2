@@ -33,3 +33,11 @@ test('preserves legitimate English and never romanizes unknown Arabic',()=>{
  assert.equal(translateAssetName('Desk khshby','مكتب خشبي'),'Asset name awaiting translation');
  assert.equal(translateAssetName('  كمبيوتر   محمول  '),'Laptop');
 });
+
+test('SAN207210 and SAN207209 storage cabinets use their Arabic source',()=>{
+ for(const ar of ['خزانة أغراض','خزانة اغراض']){
+  assert.equal(translateAssetName('',ar),'Storage Cabinet');
+  assert.equal(translateAssetName(ar,ar),'Storage Cabinet');
+  assert.equal(translateAssetName('Cabinet aghrad',ar),'Storage Cabinet');
+ }
+});

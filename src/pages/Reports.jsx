@@ -1,3 +1,4 @@
+import { assetCategoryLabel } from '../utils/assetCategories';
 import { translateAssetName } from '../utils/assetTranslations';
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
@@ -149,7 +150,7 @@ export default function Reports({lang,profile}){
           id:row.id, barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'—',
           name:ar?(row.name_ar||row.name_en||'—'):translateAssetName(row.name_en,row.name_ar),
           nameAr:row.name_ar||'', nameEn:row.name_en||'',
-          category:ar?(row.category_ar||row.category_en||'—'):(row.category_en||row.category_ar||'—'),
+          category:assetCategoryLabel(row.category_ar,row.category_en,lang)||'—',
           categoryAr:row.category_ar||'', categoryEn:row.category_en||'',
           nursery:ar?(row.nurseries?.name_ar||row.nurseries?.name_en||'—'):(row.nurseries?.name_en||row.nurseries?.name_ar||'—'),
           nurseryAr:row.nurseries?.name_ar||'', nurseryEn:row.nurseries?.name_en||'',

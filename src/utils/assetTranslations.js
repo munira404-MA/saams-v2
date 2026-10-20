@@ -1,4 +1,5 @@
 const EXACT = {
+  'خزانة أغراض':'Storage Cabinet','خزانة اغراض':'Storage Cabinet',
   'كمبيوتر محمول':'Laptop','حاسوب محمول':'Laptop','سرير مزدوج':'Double Bed',
   'وحدة تكييف سبليت':'Split AC Unit',
   'جهاز مزيل الرجفان الخارجي الآلي':'Automated External Defibrillator (AED)',
