@@ -81,7 +81,7 @@ export async function listInvoices() {
         nurseries(name_ar,name_en),
         advance_allocations(
           id,
-          advances(code,name_ar,name_en)
+          advances(code,name_ar,name_en,status)
         )
       `)
       .order('created_at', { ascending: false })
@@ -98,6 +98,7 @@ export async function listInvoices() {
     nurseryAr: row.nurseries?.name_ar || '',
     nurseryEn: row.nurseries?.name_en || '',
     advanceAllocationId: row.advance_allocation_id,
+    advanceStatus: row.advance_allocations?.advances?.status || null,
     advanceAr: row.advance_allocations?.advances?.name_ar || '',
     advanceEn: row.advance_allocations?.advances?.name_en || '',
     supplierAr: row.supplier_name,
@@ -301,6 +302,12 @@ export async function updateInvoiceStatus(invoice, status, reason = '') {
     : await query.eq('invoice_number', invoice.id).eq('nursery_id', invoice.nurseryId);
   if (error) throw error;
   return now;
+}
+
+export async function deleteInvoice(invoiceDbId) {
+  if (!invoiceDbId) throw new Error('INVOICE_NOT_FOUND');
+  const { error } = await supabase.rpc('delete_saams_invoice', { p_invoice_id: invoiceDbId });
+  if (error) throw error;
 }
 
 export async function getSignedInvoiceUrl(path, expiresIn = 900) {

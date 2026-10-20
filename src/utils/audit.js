@@ -39,6 +39,7 @@ export function recordAudit({
   before = null,
   after = null,
   metadata = {},
+  syncRemote = true,
 }) {
   const now = new Date();
   const row = {
@@ -69,7 +70,7 @@ export function recordAudit({
   // Mirror the same operation to Supabase so Dashboard, Command Center and Settings
   // share one central activity history across browsers/devices. Local storage stays as
   // a fast fallback if the network is temporarily unavailable.
-  writeAuditLog({
+  if (syncRemote) writeAuditLog({
     nurseryId: profile?.nursery_id || metadata?.nurseryId || null,
     screen, action, actionType, entityType, entityId, details, reason, before, after,
   }).then(() => {

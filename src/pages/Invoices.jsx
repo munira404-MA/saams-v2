@@ -1,8 +1,10 @@
 import { recordAudit, loadAuditLog } from '../utils/audit';
+import { canDeleteInvoice } from '../utils/invoiceDeletion';
 import { registerAttachment } from '../utils/attachments';
 import { detectPotentialDuplicates } from '../utils/intelligence';
 import {
   createInvoice as createInvoiceDb,
+  deleteInvoice as deleteInvoiceDb,
   findNurseryByName,
   listInvoices as listInvoicesDb,
   listOpenAdvanceAllocations,
@@ -438,6 +440,10 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [returnTarget, setReturnTarget] = useState(null);
   const [returnReason, setReturnReason] = useState('');
   const [actionMessage, setActionMessage] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const deleteInFlight = useRef(false);
+  const [deleteError, setDeleteError] = useState('');
   const [dbLoading, setDbLoading] = useState(databaseMode);
   const [advanceOptions, setAdvanceOptions] = useState([]);
   const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
@@ -487,7 +493,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
     return () => URL.revokeObjectURL(nextUrl);
   }, [receiptFile]);
 
-  const scopedRows = isNursery ? rows.filter((item) => item.nurseryAr === accountNursery || item.nurseryEn === accountNursery) : rows;
+  const scopedRows = isNursery ? rows.filter((item) => databaseMode
+    ? Boolean(profile?.nursery_id) && item.nurseryId === profile.nursery_id
+    : item.nurseryAr === accountNursery || item.nurseryEn === accountNursery) : rows;
   const nurseries = [...new Set(scopedRows.map((item) => ar ? item.nurseryAr : item.nurseryEn))];
 
   const filtered = useMemo(() => {
@@ -1142,6 +1150,48 @@ export default function Invoices({ lang, profile, databaseMode }) {
     window.setTimeout(() => setActionMessage(''), 3200);
   }
 
+  async function confirmDeleteInvoice() {
+    if (deleteInFlight.current || !deleteTarget) return;
+    if (!databaseMode || !canDeleteInvoice(profile, deleteTarget)) {
+      setDeleteError(ar ? 'ليس لديك صلاحية حذف هذه الفاتورة.' : 'You cannot delete this invoice.');
+      return;
+    }
+    deleteInFlight.current = true;
+    setDeleting(true);
+    setDeleteError('');
+    try {
+      await deleteInvoiceDb(deleteTarget.dbId);
+      // Remove by the database UUID: invoice numbers may repeat across nurseries.
+      setRows((current) => current.filter((item) => item.dbId !== deleteTarget.dbId));
+      setSelected((current) => current?.dbId === deleteTarget.dbId ? null : current);
+      setDeleteTarget(null);
+      // The database already wrote the authoritative audit row atomically.
+      // Keep Settings' existing local activity view in sync without a second insert.
+      try {
+        recordAudit({ profile, screen: 'الفواتير', action: 'حذف فاتورة', actionType: 'delete',
+          entityType: 'invoice', entityId: deleteTarget.dbId, nursery: deleteTarget.nurseryAr,
+          details: `${deleteTarget.id} — ${Number(deleteTarget.total).toFixed(2)} AED`,
+          before: deleteTarget, after: null, syncRemote: false });
+      } catch { /* Local storage cannot undo or misreport a committed deletion. */ }
+      window.dispatchEvent(new Event('saams:invoice-status-changed'));
+      window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'invoices' } }));
+      window.dispatchEvent(new CustomEvent('saams:audit-updated'));
+      showActionMessage(ar ? 'تم حذف الفاتورة وتحديث الرصيد والعدادات.' : 'Invoice deleted. Balance and counters updated.');
+    } catch (error) {
+      const message = String(error?.message || '');
+      setDeleteError(message.includes('INVOICE_DELETE_LOCKED')
+        ? (ar ? 'لا يمكن الحذف: الفاتورة معتمدة أو السلفة غير مفتوحة. الحذف للإدارة فقط.' : 'Approved invoices or invoices in a non-open advance require an administrator.')
+        : message.includes('INVOICE_DELETE_FORBIDDEN')
+          ? (ar ? 'ليس لديك صلاحية حذف هذه الفاتورة.' : 'You cannot delete this invoice.')
+          : message.includes('INVOICE_NOT_FOUND')
+            ? (ar ? 'الفاتورة غير موجودة. حدّثي الصفحة.' : 'Invoice no longer exists. Refresh the page.')
+            : (ar ? 'تعذر حذف الفاتورة. تحققي من الاتصال وتفعيل تحديث قاعدة البيانات ثم حاولي مجددًا.' : 'Deletion failed. Check the connection and database migration, then retry.'));
+    } finally {
+      deleteInFlight.current = false;
+      setDeleting(false);
+    }
+  }
+
   async function approveInvoice(invoice) {
     if (!invoice) return;
     if (!window.confirm(t.approveConfirm)) return;
@@ -1296,7 +1346,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
             </thead>
             <tbody>
               {filtered.map((item) => (
-                <tr key={item.id}>
+                <tr key={item.dbId || item.id}>
                   <td><strong className="invoice-id">{item.id}</strong><small>{item.pages} {t.pages}</small></td>
                   <td><strong>{ar ? item.supplierAr : item.supplierEn}</strong><small>TRN {item.trn.slice(-6)}</small></td>
                   <td>{item.date}</td>
@@ -1309,6 +1359,13 @@ export default function Invoices({ lang, profile, databaseMode }) {
                     <div className="row-actions">
                       <button type="button" onClick={() => setSelected(item)}>{t.view}</button>
                       <button className="view-invoice-row" type="button" onClick={() => openSavedInvoice(item)}>↗ {t.viewInvoice}</button>
+                      {databaseMode && <button className="delete-invoice-button" type="button"
+                        disabled={deleting || !canDeleteInvoice(profile, item)}
+                        title={canDeleteInvoice(profile, item) ? (ar ? 'حذف الفاتورة' : 'Delete invoice') : (ar ? 'الحذف للإدارة فقط بعد اعتماد الفاتورة أو إغلاق السلفة' : 'Only administrators can delete after approval or advance closure')}
+                        onClick={() => { setDeleteError(''); setDeleteTarget(item); }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg>
+                        {ar ? 'حذف' : 'Delete'}
+                      </button>}
                       {!isNursery && item.status === 'review' && <button className="approve-row" type="button" onClick={() => approveInvoice(item)}>{t.approve}</button>}
                     </div>
                   </td>
@@ -1618,6 +1675,32 @@ export default function Invoices({ lang, profile, databaseMode }) {
                   </div>
                 )}
               </section>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="return-invoice-overlay" onClick={() => { if (!deleting) setDeleteTarget(null); }}>
+          <div className="return-invoice-modal" role="alertdialog" aria-modal="true" aria-labelledby="delete-invoice-title" aria-describedby="delete-invoice-description"
+            onClick={(event) => event.stopPropagation()} onKeyDown={(event) => {
+              if (event.key === 'Escape' && !deleting) setDeleteTarget(null);
+              if (event.key === 'Tab') {
+                const buttons = event.currentTarget.querySelectorAll('button:not(:disabled)');
+                const first = buttons[0], last = buttons[buttons.length - 1];
+                if (!first) { event.preventDefault(); return; }
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+                else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+              }
+            }}>
+            <div className="drawer-header"><h2 id="delete-invoice-title">{ar ? 'تأكيد حذف الفاتورة' : 'Confirm invoice deletion'}</h2></div>
+            <p id="delete-invoice-description">{ar ? 'هل أنت متأكد من حذف هذه الفاتورة؟' : 'Are you sure you want to delete this invoice?'}</p>
+            <p><strong>{deleteTarget.id}</strong> — {deleteTarget.supplierAr} — {Number(deleteTarget.total).toFixed(2)} AED</p>
+            <p>{ar ? 'سيتم تحديث الرصيد والعدادات وتسجيل الحذف في سجل العمليات. لا يمكن التراجع عن الحذف من هذه الشاشة.' : 'The balance and counters will update and the deletion will be audited. This screen cannot undo deletion.'}</p>
+            {deleteError && <p className="ocr-error" role="alert">{deleteError}</p>}
+            <div className="return-modal-actions">
+              <button className="secondary-action" type="button" autoFocus disabled={deleting} onClick={() => setDeleteTarget(null)}>{ar ? 'إلغاء' : 'Cancel'}</button>
+              <button className="delete-invoice-button" type="button" disabled={deleting} onClick={confirmDeleteInvoice}>{deleting ? (ar ? 'جارٍ الحذف…' : 'Deleting…') : (ar ? 'حذف الفاتورة' : 'Delete invoice')}</button>
             </div>
           </div>
         </div>

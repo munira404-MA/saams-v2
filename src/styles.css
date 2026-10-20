@@ -3393,3 +3393,10 @@ html[lang="ar"] .help-support-card h2,
 html[lang="en"] .help-support-card h2{font-size:17px!important}
 html[lang="ar"] .help-support-card p,
 html[lang="en"] .help-support-card p{font-size:15px!important;line-height:1.65!important}
+.row-actions .delete-invoice-button, .delete-invoice-button {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  color: #b42318; background: #fff1f0; border: 1px solid #f5b7b1;
+  border-radius: 10px; padding: 9px 12px; font: inherit; font-weight: 700; cursor: pointer;
+}
+.delete-invoice-button:disabled { opacity: .5; cursor: not-allowed; }
+.delete-invoice-button:focus-visible { outline: 3px solid #b42318; outline-offset: 2px; }
