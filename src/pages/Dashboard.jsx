@@ -1,3 +1,4 @@
+import { dashboardAccess, activityPage } from '../utils/dashboardAccess';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import { loadAuditLog } from '../utils/audit';
@@ -67,6 +68,8 @@ function AssetDistribution({ t, rows }) {
 export default function Dashboard({ lang, setActive, profile }) {
   const ar=lang==='ar', t=translations[lang]||translations.ar;
   const isNursery=profile?.role==='nursery';
+  const can=dashboardAccess(profile);
+  const canAssets=can('assets'), canInvoices=can('invoices'), canAdvances=can('advances'), canTransport=can('transport');
   const displayName=ar?(profile?.full_name||'المستخدم'):englishPersonName(profile?.full_name||'User');
   const nurseryName=profile?.nursery || (ar?'الحضانة':'Nursery');
   const [stats,setStats]=useState({assets:0,openAdvances:0,review:0,late:0,approved:0,returned:0,totalInvoices:0});
@@ -92,12 +95,12 @@ export default function Dashboard({ lang, setActive, profile }) {
         };
 
         // Assets: use an exact count so the dashboard is never capped at Supabase's 1,000-row response limit.
-        const assetCount=await exactCount('assets',q=>scopeNursery(q));
+        const assetCount=canAssets?await exactCount('assets',q=>scopeNursery(q)):0;
 
         // Distribution still needs row-level nursery data, so fetch it in safe pages.
         let assetRows=[];
         const ASSET_BATCH=1000;
-        for(let from=0;;from+=ASSET_BATCH){
+        for(let from=0;canAssets;from+=ASSET_BATCH){
           let q=supabase.from('assets').select('nursery_id,nurseries(name_ar,name_en)').range(from,from+ASSET_BATCH-1);
           q=scopeNursery(q);
           const {data,error}=await q;
@@ -108,20 +111,20 @@ export default function Dashboard({ lang, setActive, profile }) {
         }
 
         const lateCutoffIso=new Date(Date.now()-7*24*60*60*1000).toISOString();
-        const totalInvoices=await exactCount('invoices',q=>scopeNursery(q));
-        const review=await exactCount('invoices',q=>scopeNursery(q).eq('status','review'));
-        const approved=await exactCount('invoices',q=>scopeNursery(q).eq('status','approved'));
-        const returned=await exactCount('invoices',q=>scopeNursery(q).in('status',['returned','rejected']));
-        const late=await exactCount('invoices',q=>scopeNursery(q).eq('status','review').lt('created_at',lateCutoffIso));
+        const totalInvoices=canInvoices?await exactCount('invoices',q=>scopeNursery(q)):0;
+        const review=canInvoices?await exactCount('invoices',q=>scopeNursery(q).eq('status','review')):0;
+        const approved=canInvoices?await exactCount('invoices',q=>scopeNursery(q).eq('status','approved')):0;
+        const returned=canInvoices?await exactCount('invoices',q=>scopeNursery(q).in('status',['returned','rejected'])):0;
+        const late=canInvoices?await exactCount('invoices',q=>scopeNursery(q).eq('status','review').lt('created_at',lateCutoffIso)):0;
 
         let openAdvances=0;
-        if(isNursery&&profile?.nursery_id){
+        if(canAdvances&&isNursery&&profile?.nursery_id){
           let q=supabase.from('advance_allocations').select('id,advances!inner(status)',{count:'exact',head:true})
             .eq('nursery_id',profile.nursery_id).eq('advances.status','open');
           const {count,error}=await q;
           if(error) throw error;
           openAdvances=count||0;
-        }else{
+        }else if(canAdvances){
           openAdvances=await exactCount('advances',q=>q.eq('status','open'));
         }
 
@@ -134,18 +137,30 @@ export default function Dashboard({ lang, setActive, profile }) {
         const distribution=[...distMap.entries()].map(([name,count])=>({name,count})).sort((a,b)=>b.count-a.count);
 
         const nextAlerts=[];
+        if(!isNursery&&(canAssets||canTransport)){
+          const {data:requests,error:requestError}=await supabase.from('asset_requests')
+            .select('id,request_code,request_type,asset_name_ar,asset_name_en,status,transport_status,created_at')
+            .in('status',['pending','approved']).order('created_at',{ascending:false}).limit(100);
+          if(requestError)console.warn('Asset alerts load failed',requestError);
+          for(const req of requests||[]){
+            const transport=req.status==='approved'&&req.request_type==='transfer'&&req.transport_status!=='delivered';
+            const target=transport&&canTransport?'transport':canAssets?'assets':null;
+            if(!target||(!transport&&req.status!=='pending'))continue;
+            nextAlerts.push({tone:'blue',target,title:ar?(transport?'مهمة نقل أصل':'طلب أصل بانتظار المراجعة'):(transport?'Asset transport task':'Asset request awaiting review'),sub:ar?(req.asset_name_ar||req.asset_name_en):translateAssetName(req.asset_name_en,req.asset_name_ar),time:req.created_at});
+          }
+        }
         if(isNursery&&profile?.nursery_id){
           const [{data:invoiceEvents,error:invoiceEventsError},{data:requestEvents,error:requestEventsError}]=await Promise.all([
-            supabase.from('invoices')
+            canInvoices?supabase.from('invoices')
               .select('id,invoice_number,status,supplier_name,return_reason,created_at,approved_at,returned_at')
               .eq('nursery_id',profile.nursery_id)
               .order('created_at',{ascending:false})
-              .limit(100),
-            supabase.from('asset_requests')
+              .limit(100):Promise.resolve({data:[]}),
+            canAssets?supabase.from('asset_requests')
               .select('id,request_code,request_type,barcode,asset_name_ar,asset_name_en,status,rejection_reason_ar,rejection_reason_en,created_at,updated_at,decision_at,to_name_ar,to_name_en')
               .eq('created_by',profile?.id||'00000000-0000-0000-0000-000000000000')
               .order('updated_at',{ascending:false})
-              .limit(100)
+              .limit(100):Promise.resolve({data:[]})
           ]);
           // Asset requests table is an optional production upgrade; invoice alerts should still work if it is not ready yet.
           if(invoiceEventsError) console.warn('Dashboard invoice notifications load failed',invoiceEventsError);
@@ -168,7 +183,7 @@ export default function Dashboard({ lang, setActive, profile }) {
           const requestTypeLabel=(type)=>type==='surplus'?t.assetSurplus:type==='disposal'?t.assetDisposal:t.assetTransfer;
           for(const req of requestEvents||[]){
             const type=requestTypeLabel(req.request_type);
-            const asset=ar?(req.asset_name_ar||req.asset_name_en||req.barcode||'—'):translateAssetName(req.asset_name_en||req.asset_name_ar||req.barcode||'—');
+            const asset=ar?(req.asset_name_ar||req.asset_name_en||req.barcode||'—'):translateAssetName(req.asset_name_en,req.asset_name_ar);
             let title='',tone='blue';
             if(req.status==='approved'){title=ar?`${t.requestApprovedAlert} ${type}`:`${t.requestApprovedAlert}: ${type}`;tone='green'}
             else if(req.status==='rejected'){title=ar?`${t.requestRejectedAlert} ${type}`:`${t.requestRejectedAlert}: ${type}`;tone='red'}
@@ -179,12 +194,12 @@ export default function Dashboard({ lang, setActive, profile }) {
           }
           nextAlerts.sort((a,b)=>new Date(b.time||0)-new Date(a.time||0));
         }else{
-          if(late>0) nextAlerts.push({tone:'red',title:ar?`${late} فاتورة متأخرة لأكثر من أسبوع`:`${late} invoice(s) overdue for more than a week`,sub:ar?'بانتظار الاعتماد':'Awaiting approval'});
-          if(returned>0) nextAlerts.push({tone:'orange',title:ar?`${returned} فاتورة معادة/مرفوضة`:`${returned} returned/rejected invoice(s)`,sub:ar?'تحتاج متابعة':'Needs follow-up'});
-          if(openAdvances>0) nextAlerts.push({tone:'blue',title:ar?`${openAdvances} سلفة مفتوحة حالياً`:`${openAdvances} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
+          if(canInvoices&&late>0) nextAlerts.push({tone:'red',title:ar?`${late} فاتورة متأخرة لأكثر من أسبوع`:`${late} invoice(s) overdue for more than a week`,sub:ar?'بانتظار الاعتماد':'Awaiting approval'});
+          if(canInvoices&&returned>0) nextAlerts.push({tone:'orange',title:ar?`${returned} فاتورة معادة/مرفوضة`:`${returned} returned/rejected invoice(s)`,sub:ar?'تحتاج متابعة':'Needs follow-up'});
+          if(canAdvances&&openAdvances>0) nextAlerts.push({tone:'blue',title:ar?`${openAdvances} سلفة مفتوحة حالياً`:`${openAdvances} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
         }
 
-        const auditRows=loadAuditLog().filter(x=>!isNursery||!profile?.nursery||x.nursery===profile.nursery).slice(0,8);
+        const auditRows=loadAuditLog().filter(x=>activityPage(x)&&can(activityPage(x))).filter(x=>!isNursery||!profile?.nursery||x.nursery===profile.nursery).slice(0,8);
         if(alive){
           setStats({assets:assetCount,openAdvances,review,late,approved,returned,totalInvoices});
           setAssetDistribution(distribution);
@@ -207,10 +222,10 @@ export default function Dashboard({ lang, setActive, profile }) {
     const timer=setInterval(loadDashboard,isNursery?10000:30000);
     let liveChannel=null;
     if(isNursery&&profile?.nursery_id){
-      liveChannel=supabase.channel(`nursery-dashboard-${profile.nursery_id}-${profile?.id||'user'}`)
-        .on('postgres_changes',{event:'*',schema:'public',table:'invoices',filter:`nursery_id=eq.${profile.nursery_id}`},loadDashboard)
-        .on('postgres_changes',{event:'*',schema:'public',table:'asset_requests',filter:`created_by=eq.${profile?.id||''}`},loadDashboard)
-        .subscribe();
+      liveChannel=supabase.channel(`dashboard-${profile.nursery_id}-${profile?.id}`);
+      if(canInvoices)liveChannel.on('postgres_changes',{event:'*',schema:'public',table:'invoices',filter:`nursery_id=eq.${profile.nursery_id}`},loadDashboard);
+      if(canAssets)liveChannel.on('postgres_changes',{event:'*',schema:'public',table:'asset_requests',filter:`created_by=eq.${profile?.id}`},loadDashboard);
+      liveChannel.subscribe();
     }
     return()=>{
       alive=false;
@@ -220,31 +235,32 @@ export default function Dashboard({ lang, setActive, profile }) {
       window.removeEventListener('focus',onUpdate);
       document.removeEventListener('visibilitychange',onVisible);
     };
-  },[isNursery,profile?.nursery_id,profile?.nursery,lang]);
+  },[isNursery,profile?.nursery_id,profile?.nursery,profile?.id,profile?.role,JSON.stringify(profile?.permissions),lang]);
 
   const greeting=ar?`${t.greeting} ${displayName}`:`${t.greeting}, ${displayName}`;
   const intro=isNursery?(ar?`ملخص بيانات ${nurseryName} فقط`:`Summary for ${nurseryName} only`):t.intro;
   const cards=useMemo(()=>[
-    {label:t.totalAssets,value:stats.assets,suffix:t.asset,icon:'◇',tone:'violet',note:ar?'من البيانات الفعلية':'Live data'},
-    {label:t.openAdvances,value:stats.openAdvances,suffix:t.advance,icon:'▣',tone:'blue',note:ar?'السلف المفتوحة فعلياً':'Currently open'},
-    {label:t.pendingInvoices,value:stats.review,suffix:t.invoice,icon:'▤',tone:'green',note:t.awaitingReview},
-    {label:t.lateInvoices,value:stats.late,suffix:t.invoice,icon:'◷',tone:'orange',note:ar?'لا توجد بيانات تجريبية':'No demo data'},
-  ],[stats,t,ar]);
+    {page:'assets',label:t.totalAssets,value:stats.assets,suffix:t.asset,icon:'◇',tone:'violet',note:ar?'من البيانات الفعلية':'Live data'},
+    {page:'advances',label:t.openAdvances,value:stats.openAdvances,suffix:t.advance,icon:'▣',tone:'blue',note:ar?'السلف المفتوحة فعلياً':'Currently open'},
+    {page:'invoices',label:t.pendingInvoices,value:stats.review,suffix:t.invoice,icon:'▤',tone:'green',note:t.awaitingReview},
+    {page:'invoices',label:t.lateInvoices,value:stats.late,suffix:t.invoice,icon:'◷',tone:'orange',note:ar?'لا توجد بيانات تجريبية':'No demo data'},
+  ].filter(card=>can(card.page)),[stats,t,ar,canAssets,canInvoices,canAdvances]);
   const today=new Intl.DateTimeFormat(ar?'ar-AE':'en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
-  const visibleAlerts=isNursery&&!showAllAlerts?alerts.slice(0,5):alerts;
+  const permittedAlerts=alerts.filter(a=>a.target?can(a.target):(a.tone==='blue'?canAdvances:canInvoices));
+  const visibleAlerts=isNursery&&!showAllAlerts?permittedAlerts.slice(0,5):permittedAlerts;
 
   return <div className="glass-dashboard">
     <section className="dashboard-hero"><div><span className="eyebrow">SAAMS Official 3.2</span><h1>{greeting} <span className="wave">👋</span></h1><p>{intro}</p></div><div className="dashboard-filters"><button type="button">☷ {t.filter}</button><button type="button">▣ {today}</button></div></section>
     {loading&&<div className="dashboard-live-note">{t.loading}</div>}{error&&<div className="dashboard-live-note error">{error}</div>}
-    <section className="stat-grid">{cards.map((c,i)=><article className={`stat-card ${c.tone}`} key={c.label} style={{animationDelay:`${i*70}ms`}}><div className="stat-icon">{c.icon}</div><span>{c.label}</span><strong><AnimatedNumber value={c.value}/></strong><em>{c.suffix}</em><footer>{c.note}</footer></article>)}</section>
+    <section className="stat-grid" style={{gridTemplateColumns:`repeat(${Math.max(cards.length,1)},minmax(0,1fr))`}}>{cards.map((c,i)=><article className={`stat-card ${c.tone}`} key={c.label} style={{animationDelay:`${i*70}ms`}}><div className="stat-icon">{c.icon}</div><span>{c.label}</span><strong><AnimatedNumber value={c.value}/></strong><em>{c.suffix}</em><footer>{c.note}</footer></article>)}</section>
     <section className="dashboard-grid dashboard-grid-top">
-      <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2>{alerts.length>5&&<button type="button" onClick={()=>setShowAllAlerts(v=>!v)}>{showAllAlerts?t.showLess:t.viewAll}</button>}</div><div className="alerts-list">{visibleAlerts.length?visibleAlerts.map((a,i)=><div className={`live-alert ${a.tone} ${a.target?'clickable':''}`} key={`${a.title}-${i}`} role={a.target?'button':undefined} tabIndex={a.target?0:undefined} onClick={()=>a.target&&setActive(a.target)} onKeyDown={(e)=>{if(a.target&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setActive(a.target)}}}><b>{a.tone==='green'?'✓':a.tone==='red'?'!':a.tone==='orange'?'↩':'•'}</b><div><strong>{a.title}</strong><small>{a.sub}{a.target?` • ${t.tapForDetails}`:''}</small></div></div>):<div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div>}</div></article>
-      <article className="glass-panel chart-panel"><div className="panel-heading"><h2>{isNursery?(ar?`أصول ${nurseryName}`:`${nurseryName} Assets`):t.assetByNursery}</h2><button type="button">{t.thisMonth}⌄</button></div><AssetDistribution t={t} rows={assetDistribution}/></article>
-      <article className="glass-panel status-panel"><div className="panel-heading"><h2>{t.invoiceStatus}</h2><button type="button">{t.thisMonth}⌄</button></div><StatusDonut t={t} counts={{approved:stats.approved,review:stats.review,returned:stats.returned,late:stats.late}}/><p className="panel-total">{t.totalInvoices}: {stats.totalInvoices}</p></article>
+      <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2>{permittedAlerts.length>5&&<button type="button" onClick={()=>setShowAllAlerts(v=>!v)}>{showAllAlerts?t.showLess:t.viewAll}</button>}</div><div className="alerts-list">{visibleAlerts.length?visibleAlerts.map((a,i)=><div className={`live-alert ${a.tone} ${a.target?'clickable':''}`} key={`${a.title}-${i}`} role={a.target?'button':undefined} tabIndex={a.target?0:undefined} onClick={()=>a.target&&setActive(a.target)} onKeyDown={(e)=>{if(a.target&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setActive(a.target)}}}><b>{a.tone==='green'?'✓':a.tone==='red'?'!':a.tone==='orange'?'↩':'•'}</b><div><strong>{a.title}</strong><small>{a.sub}{a.target?` • ${t.tapForDetails}`:''}</small></div></div>):<div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div>}</div></article>
+      {canAssets&&<article className="glass-panel chart-panel"><div className="panel-heading"><h2>{isNursery?(ar?`أصول ${nurseryName}`:`${nurseryName} Assets`):t.assetByNursery}</h2><button type="button">{t.thisMonth}⌄</button></div><AssetDistribution t={t} rows={assetDistribution}/></article>}
+      {canInvoices&&<article className="glass-panel status-panel"><div className="panel-heading"><h2>{t.invoiceStatus}</h2><button type="button">{t.thisMonth}⌄</button></div><StatusDonut t={t} counts={{approved:stats.approved,review:stats.review,returned:stats.returned,late:stats.late}}/><p className="panel-total">{t.totalInvoices}: {stats.totalInvoices}</p></article>}
     </section>
     <section className="dashboard-grid dashboard-grid-bottom">
-      <article className="glass-panel quick-panel"><div className="panel-heading"><h2>ϟ {t.quickActions}</h2></div><div className="quick-grid">{(isNursery?[[ '▤',t.addInvoice,'green','invoices'],['⇄',t.transferAsset,'orange','assets'],['▣',t.openAdvances,'blue','advances'],['▥',t.report,'violet','reports']]:[['◇',t.addAsset,'teal','assets'],['▤',t.addInvoice,'green','invoices'],['▣',t.addAdvance,'blue','advances'],['⇄',t.transferAsset,'orange','assets'],['♙',t.addUser,'sky','users'],['▥',t.report,'violet','reports']]).map(([icon,label,tone,target])=><button className={`quick-action ${tone}`} type="button" key={label} onClick={()=>setActive(target)}><span>{icon}</span><strong>{label}</strong></button>)}</div></article>
-      <article className="glass-panel activity-panel"><div className="panel-heading"><h2>◷ {t.todayActivity}</h2><button type="button">{t.viewAll}</button></div><div className="activity-table"><div className="activity-row activity-head"><span>{t.activity}</span><span>{t.details}</span><span>{t.user}</span><span>{t.time}</span></div>{activities.length?activities.map(x=><div className="activity-row" key={x.id}><span>{ar?toArabicDisplay(x.action):englishActivityText(x.action)}</span><span>{ar?toArabicDisplay(x.details||x.screen||'—'):englishActivityText(x.details||x.screen||'—')}</span><span>{ar?toArabicDisplay(x.user||'—'):englishPersonName(x.user||'—')}</span><span>{ar?toArabicDisplay(x.time||'—'):englishTime(x.time||'—')}</span></div>):<div className="dashboard-empty-state activity-empty"><span>{t.noActivity}</span></div>}</div></article>
+      <article className="glass-panel quick-panel"><div className="panel-heading"><h2>ϟ {t.quickActions}</h2></div><div className="quick-grid">{(isNursery?[[ '▤',t.addInvoice,'green','invoices'],['⇄',t.transferAsset,'orange','assets'],['▣',t.openAdvances,'blue','advances'],['▥',t.report,'violet','reports']]:[['◇',t.addAsset,'teal','assets'],['▤',t.addInvoice,'green','invoices'],['▣',t.addAdvance,'blue','advances'],['⇄',t.transferAsset,'orange','assets'],['♙',t.addUser,'sky','users'],['▥',t.report,'violet','reports']]).filter(([, , ,target])=>can(target)).concat(canTransport?[[ '⇄',ar?'مهام النقل':'Transport Tasks','orange','transport']]:[]).map(([icon,label,tone,target])=><button className={`quick-action ${tone}`} type="button" key={label} onClick={()=>setActive(target)}><span>{icon}</span><strong>{label}</strong></button>)}</div></article>
+      <article className="glass-panel activity-panel"><div className="panel-heading"><h2>◷ {t.todayActivity}</h2><button type="button">{t.viewAll}</button></div><div className="activity-table"><div className="activity-row activity-head"><span>{t.activity}</span><span>{t.details}</span><span>{t.user}</span><span>{t.time}</span></div>{activities.filter(x=>activityPage(x)&&can(activityPage(x))).length?activities.filter(x=>activityPage(x)&&can(activityPage(x))).map(x=><div className="activity-row" key={x.id}><span>{ar?toArabicDisplay(x.action):englishActivityText(x.action)}</span><span>{ar?toArabicDisplay(x.details||x.screen||'—'):englishActivityText(x.details||x.screen||'—')}</span><span>{ar?toArabicDisplay(x.user||'—'):englishPersonName(x.user||'—')}</span><span>{ar?toArabicDisplay(x.time||'—'):englishTime(x.time||'—')}</span></div>):<div className="dashboard-empty-state activity-empty"><span>{t.noActivity}</span></div>}</div></article>
     </section>
     <footer className="dashboard-footer">
       <span>SAAMS Official 3.2</span>

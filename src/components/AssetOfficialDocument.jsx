@@ -1,3 +1,4 @@
+import { translateAssetName } from '../utils/assetTranslations';
 export default function AssetOfficialDocument({ request, ar, onClose }) {
   const isTransfer = request.type === 'transfer';
   const isSurplus = request.type === 'surplus';
@@ -40,7 +41,7 @@ export default function AssetOfficialDocument({ request, ar, onClose }) {
           <section className="official-document-body">
             <h2>{ar?'بيانات الأصل':'Asset Details'}</h2>
             <div className="official-document-grid">
-              <div><span>{ar?'اسم الأصل':'Asset Name'}</span><strong>{ar?request.assetAr:request.assetEn}</strong></div>
+              <div><span>{ar?'اسم الأصل':'Asset Name'}</span><strong>{ar?request.assetAr:translateAssetName(request.assetEn,request.assetAr)}</strong></div>
               <div><span>{ar?'الباركود الداخلي':'Internal Barcode'}</span><strong>{request.barcode}</strong></div><div><span>{ar?'باركود المالية المركزية':'Central Finance Barcode'}</span><strong>{request.centralBarcode||'—'}</strong></div>
               <div><span>{ar?'من':'From'}</span><strong>{ar?request.fromAr:request.fromEn}</strong></div>
               {isTransfer&&<div><span>{ar?'إلى':'To'}</span><strong>{ar?request.toAr:request.toEn}</strong></div>}

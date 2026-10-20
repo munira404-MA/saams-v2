@@ -619,7 +619,7 @@ export function toEnglishDisplay(value){
  const raw=String(value??''); if(!AR_RE.test(raw)) return raw;
  const trimmed=raw.trim(); if(AR_EN[trimmed]) return preserveSpace(raw, AR_EN[trimmed]);
  let out=replaceKnown(raw, AR_EN);
- if(AR_RE.test(out)){ const asset=translateAssetName(out.trim()); if(asset && !AR_RE.test(asset)) out=preserveSpace(out,asset); }
+ if(AR_RE.test(out)){ const asset=translateAssetName(out.trim()); if(asset && asset!=='Asset name awaiting translation' && !AR_RE.test(asset)) out=preserveSpace(out,asset); }
  if(AR_RE.test(out)) out=transliterateArabic(out);
  return out;
 }

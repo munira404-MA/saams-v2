@@ -1,4 +1,9 @@
 const EXACT = {
+  'كمبيوتر محمول':'Laptop','حاسوب محمول':'Laptop','سرير مزدوج':'Double Bed',
+  'وحدة تكييف سبليت':'Split AC Unit',
+  'جهاز مزيل الرجفان الخارجي الآلي':'Automated External Defibrillator (AED)',
+  'جهاز مزيل الرجفان الخارجي الالي':'Automated External Defibrillator (AED)',
+  'مبدل شبكة':'Network Switch','مبدل الشبكة':'Network Switch',
   'فرن ميكروويف':'Microwave Oven','ميكروويف':'Microwave Oven','مقعد متحرك':'Wheelchair','كرسي متحرك':'Wheelchair',
   'آيباد':'iPad','ايباد':'iPad','جهاز تنقية الهواء':'Air Purifier','منقي هواء':'Air Purifier','كرسي زائر':'Visitor Chair',
   'تلفزيون ذكي':'Smart TV','نقطة وصول':'Access Point','كرسي مكتبي':'Office Chair','وحدة تكييف سبلت':'Split AC Unit','مكيف سبلت':'Split AC Unit',
@@ -52,13 +57,30 @@ export function translateAssetNameArabic(value){
   return EN_TO_AR[raw] || raw;
 }
 
-export function translateAssetName(value){
-  const raw=String(value||'').trim();
-  if(!raw) return '';
-  if(!/[\u0600-\u06FF]/.test(raw)) return raw;
-  if(EXACT[raw]) return EXACT[raw];
-  let out=raw;
-  for(const [ar,en] of PARTS){ out=out.split(ar).join(en); }
-  out=out.replace(/\bواحد\b/g,'1').replace(/\bاثنين\b/g,'2').replace(/\bثلاثة\b/g,'3');
-  return /[\u0600-\u06FF]/.test(out) ? transliterateArabic(out) : out;
+const normalize = value => String(value||'').normalize('NFKC').replace(/[ًٌٍَُِّْـ]/g,'').replace(/[أإآ]/g,'ا').replace(/\s+/g,' ').trim();
+const reviewed = new Map(Object.entries(EXACT).map(([ar,en])=>[normalize(ar),en]));
+const legacy = new Map();
+for(const [ar,en] of Object.entries(EXACT)) {
+  legacy.set(transliterateArabic(ar).toLowerCase(),en);
+  let mixed=ar;
+  for(const [part,translation] of PARTS)mixed=mixed.split(part).join(translation);
+  legacy.set(transliterateArabic(mixed).toLowerCase(),en);
+}
+Object.entries({'Computer mhmwl':'Laptop','Bed mzdwj':'Double Bed','whda tkyyf sblyt':'Split AC Unit','jhaz mzyl alrjfan alkharjy alaaly':'Automated External Defibrillator (AED)','mbdl shbka':'Network Switch'}).forEach(([key,value])=>legacy.set(key.toLowerCase(),value));
+
+// Arabic remains the source of truth for reviewed translations. Never invent
+// English by romanizing unmatched Arabic; flag names needing catalogue review.
+export function translateAssetName(value, arabicSource=''){
+  const raw=String(value||'').trim(), source=String(arabicSource||'').trim();
+  if(!raw&&!source)return '';
+  const legacyName=legacy.get(raw.toLowerCase());
+  let mixedSource=source;
+  for(const [ar,en] of PARTS)mixedSource=mixedSource.split(ar).join(en);
+  const generatedFromSource=/[\u0600-\u06FF]/.test(source)&&[source,mixedSource].some(text=>transliterateArabic(text).toLowerCase()===raw.toLowerCase());
+  if(raw&&!/[\u0600-\u06FF]/.test(raw)&&!legacyName&&!generatedFromSource&&!/(?:mhmwl|mzdwj|tkyyf|sblyt|mzyl|alrjfan|shbka|whda)/i.test(raw))return raw;
+  const known=reviewed.get(normalize(source))||reviewed.get(normalize(raw))||legacy.get(raw.toLowerCase());
+  if(known)return known;
+  let out=source||raw;
+  for(const [ar,en] of [...PARTS].sort((a,b)=>b[0].length-a[0].length))out=out.split(ar).join(en);
+  return /[\u0600-\u06FF]/.test(out)?'Asset name awaiting translation':out;
 }

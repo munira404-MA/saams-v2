@@ -1,3 +1,4 @@
+import { translateAssetName } from '../utils/assetTranslations';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { loadAuditLog } from '../utils/audit';
 import { buildRecommendations } from '../utils/intelligence';
@@ -113,7 +114,7 @@ export default function ExecutiveCommandCenter({ lang, profile, setActive }) {
     const q = search.trim().toLowerCase();
     if (!q) return [];
     const invoiceResults = invoices.filter(r=>[r.id,r.invoiceNumber,r.supplierAr,r.supplierEn,r.nurseryAr,r.nurseryEn,r.nursery].join(' ').toLowerCase().includes(q)).slice(0,4).map(r=>({type:ar?'فاتورة':'Invoice',title:r.id||r.invoiceNumber,subtitle:`${r.supplierAr||r.supplierEn||'—'} · ${r.nurseryAr||r.nurseryEn||r.nursery||'—'}`,target:'invoices'}));
-    const assetResults = assets.filter(r=>[r.barcode,r.nameAr,r.nameEn,r.nurseryAr,r.nurseryEn,r.categoryAr,r.categoryEn].join(' ').toLowerCase().includes(q)).slice(0,4).map(r=>({type:ar?'أصل':'Asset',title:r.barcode||r.id,subtitle:`${r.nameAr||r.nameEn||'—'} · ${r.nurseryAr||r.nurseryEn||'—'}`,target:'assets'}));
+    const assetResults = assets.filter(r=>[r.barcode,r.nameAr,r.nameEn,r.nurseryAr,r.nurseryEn,r.categoryAr,r.categoryEn].join(' ').toLowerCase().includes(q)).slice(0,4).map(r=>({type:ar?'أصل':'Asset',title:r.barcode||r.id,subtitle:`${ar?(r.nameAr||r.nameEn||'—'):translateAssetName(r.nameEn,r.nameAr)} · ${r.nurseryAr||r.nurseryEn||'—'}`,target:'assets'}));
     const advanceResults = advances.filter(r=>[r.id,r.nameAr,r.nameEn].join(' ').toLowerCase().includes(q)).slice(0,3).map(r=>({type:ar?'سلفة':'Advance',title:r.nameAr||r.nameEn||r.id,subtitle:r.status||'—',target:'advances'}));
     const attachmentResults = attachments.filter(r=>[r.name,r.entityId,r.nursery,r.supplier].join(' ').toLowerCase().includes(q)).slice(0,3).map(r=>({type:ar?'مرفق':'Attachment',title:r.name,subtitle:`${r.entityId} · ${r.nursery||'—'}`,target:'attachments'}));
     return [...invoiceResults,...assetResults,...advanceResults,...attachmentResults].slice(0,12);

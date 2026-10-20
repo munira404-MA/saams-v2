@@ -1,3 +1,4 @@
+import { translateAssetName } from '../utils/assetTranslations';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 
@@ -12,7 +13,7 @@ function norm(value) {
 }
 
 function requestLabel(row, ar) {
-  return ar ? (row.asset_name_ar || row.asset_name_en || '') : (row.asset_name_en || row.asset_name_ar || '');
+  return ar ? (row.asset_name_ar || row.asset_name_en || '') : translateAssetName(row.asset_name_en,row.asset_name_ar);
 }
 
 export default function TransportTasks({ lang, profile }) {

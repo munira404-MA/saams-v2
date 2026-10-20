@@ -47,7 +47,7 @@ export function englishActivityText(value) {
   for (const [ar, en] of DETAILS_REPLACEMENTS) out = out.split(ar).join(en);
   // Asset names are often stored directly in activity details. Translate known names first.
   const translatedAsset = translateAssetName(out);
-  return translatedAsset || out;
+  return translatedAsset && translatedAsset!=='Asset name awaiting translation' ? translatedAsset : out;
 }
 
 export function englishTime(value) {
