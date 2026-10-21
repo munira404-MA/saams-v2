@@ -1,3 +1,4 @@
+import { personalProfileFields } from '../utils/profileFields';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import { listNurseries, findNurseryByName } from '../data/supabaseData';
@@ -117,6 +118,9 @@ const DEFAULT_ADMIN_PERMISSIONS = {
 };
 
 const emptyForm = {
+  contact_email: '',
+  job_title_ar: '',
+  job_title_en: '',
   full_name: '',
   username: '',
   password: '',
@@ -164,7 +168,7 @@ function formatLastLogin(value, ar) {
   }
 }
 
-export default function Users({ lang, profile, databaseMode = false }) {
+export default function Users({ lang, profile, databaseMode = false, onProfileUpdate }) {
   const ar = lang === 'ar';
   const [users, setUsers] = useState(loadUsers);
   const [nurseryRecords, setNurseryRecords] = useState(DEFAULT_NURSERIES.map((name, index) => ({ id: null, name_ar: name, name_en: '', order: index + 1 })));
@@ -291,6 +295,7 @@ export default function Users({ lang, profile, databaseMode = false }) {
     setEditingId(user.id);
     setForm({
       ...user,
+      ...personalProfileFields(user),
       password: '',
       permissions: { ...DEFAULT_ADMIN_PERMISSIONS, ...(user.permissions || {}) },
       data_scope: user.role === 'nursery' ? 'nursery_only' : user.role === 'super_admin' ? 'all' : 'permissions',
@@ -354,6 +359,8 @@ export default function Users({ lang, profile, databaseMode = false }) {
       if (databaseMode) {
         const result = await adminApi({ action: editingId ? 'update' : 'create', id: editingId || undefined, user: payload });
         setUsers(result.users || []);
+        const current=(result.users||[]).find(user=>user.id===profile?.id);
+        if(current)onProfileUpdate?.({...profile,...current});
       } else {
         const localPayload = {
           ...payload,
@@ -364,6 +371,7 @@ export default function Users({ lang, profile, databaseMode = false }) {
         if (editingId) persist(users.map((u) => u.id === editingId ? { ...u, ...localPayload } : u));
         else persist([...users, { ...localPayload, id: `USR-${String(Date.now()).slice(-6)}` }]);
       }
+      if(!databaseMode&&editingId===profile?.id)onProfileUpdate?.({...profile,...payload});
       setOpen(false);
     } catch (error) {
       setMessage(friendlyAccountError(error, ar));
@@ -475,6 +483,9 @@ export default function Users({ lang, profile, databaseMode = false }) {
           <div className="user-form-grid">
             {form.role === 'nursery' && <label className="wide"><span>{ar ? 'الحضانة' : 'Nursery'}</span><select value={form.nursery} onChange={(e) => chooseNursery(e.target.value)} required><option value="">{ar ? 'اختاري الحضانة' : 'Select nursery'}</option>{nurseryRecords.map((n) => <option key={n.id || n.name_ar} value={n.name_ar} disabled={!editingId && nurseryAccountNames.has(n.name_ar)}>{n.name_ar}{!editingId && nurseryAccountNames.has(n.name_ar) ? (ar ? ' — لديها حساب' : ' — account exists') : ''}</option>)}</select></label>}
             <label><span>{ar ? 'الاسم الكامل / اسم الحساب' : 'Full name / Account name'}</span><input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required /></label>
+            <label><span>{ar?'البريد الإلكتروني للتواصل':'Contact Email'}</span><input type="email" maxLength={254} value={form.contact_email||''} onChange={e=>setForm({...form,contact_email:e.target.value})}/></label>
+            <label><span>{ar?'المسمى الوظيفي بالعربي':'Job Title (Arabic)'}</span><input maxLength={200} value={form.job_title_ar||''} onChange={e=>setForm({...form,job_title_ar:e.target.value})}/></label>
+            <label><span>{ar?'المسمى الوظيفي بالإنجليزي':'Job Title (English)'}</span><input maxLength={200} value={form.job_title_en||''} onChange={e=>setForm({...form,job_title_en:e.target.value})}/></label>
             <label><span>{ar ? 'اسم المستخدم' : 'Username'}</span><input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9._-]/g, '') })} required /><small className="field-hint">{ar ? 'أحرف إنجليزية وأرقام فقط' : 'English letters and numbers only'}</small></label>
             <label><span>{editingId ? (ar ? 'كلمة مرور جديدة (اختياري)' : 'New password (optional)') : (ar ? 'كلمة المرور المؤقتة' : 'Temporary password')}</span><input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required={!editingId} /></label>
             <label><span>{ar ? 'نوع الحساب' : 'Account type'}</span><select value={form.role} onChange={(e) => {

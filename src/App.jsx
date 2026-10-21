@@ -161,8 +161,8 @@ export default function App() {
     attachments: <Attachments lang={lang} profile={profile} />,
     help: <Help lang={lang} setActive={setActive} />,
     about: <About lang={lang} />,
-    users: <Users lang={lang} profile={profile} databaseMode={databaseMode} />,
-    settings: <Settings lang={lang} profile={profile} onProfileUpdate={handleProfileUpdate} databaseMode={databaseMode} />,
+    users: <Users lang={lang} profile={profile} databaseMode={databaseMode} onProfileUpdate={handleProfileUpdate} />,
+    settings: <Settings key={profile.id} lang={lang} profile={profile} onProfileUpdate={handleProfileUpdate} databaseMode={databaseMode} />,
   };
 
   return (

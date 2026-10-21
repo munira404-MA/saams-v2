@@ -1,3 +1,6 @@
+import { supabase } from '../supabase';
+import { personalProfileFields, withoutSharedProfile } from '../utils/profileFields';
+import { getCurrentProfile } from '../data/supabaseData';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { actionTone, loadAuditLog, recordAudit, saveAuditLog } from '../utils/audit';
@@ -70,11 +73,6 @@ const DEFAULT_SETTINGS = {
     assetDisposal: true,
     advanceLowBalance: true,
     assetAdded: false,
-  },
-  profile: {
-    titleAr: 'رئيس وحدة الأصول',
-    titleEn: 'Head of Assets Unit',
-    email: 'munira404@gmail.com',
   },
 };
 
@@ -175,7 +173,7 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
   const ar = lang === 'ar';
   const t = labels[lang] || labels.ar;
   const [activeTab, setActiveTab] = useState('profile');
-  const [settings, setSettings] = useState(() => readJson(SETTINGS_KEY, DEFAULT_SETTINGS));
+  const [settings, setSettings] = useState(() => withoutSharedProfile(readJson(SETTINGS_KEY, DEFAULT_SETTINGS)));
   const [production, setProduction] = useState(() => readJson(PRODUCTION_KEY, DEFAULT_PRODUCTION));
   const [nurseries, setNurseries] = useState(() => readJson(NURSERIES_KEY, DEFAULT_NURSERIES));
   const [users, setUsers] = useState(loadUsers);
@@ -190,6 +188,20 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
   const [typeName, setTypeName] = useState('');
   const [serverStatus, setServerStatus] = useState({ loading: true, serverReachable: false, supabaseServerUrl: false, supabaseAnonKey: false, supabaseServiceRoleKey: false, accountManagementReady: false });
   const restoreRef = useRef(null);
+
+  useEffect(() => {
+    if(!databaseMode)return;
+    let alive=true;
+    const refresh=async()=>{
+      try{
+        const current=await getCurrentProfile();
+        if(alive&&current?.id===profile?.id)onProfileUpdate?.(current);
+      }catch{ /* Keep the current account values; never substitute shared settings. */ }
+    };
+    refresh();
+    window.addEventListener('focus',refresh);
+    return ()=>{alive=false;window.removeEventListener('focus',refresh)};
+  },[databaseMode,profile?.id]);
 
   useEffect(() => {
     const refresh = () => setAudit(loadAuditLog());
@@ -227,6 +239,7 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
   }, []);
 
   const isSuperAdmin = profile?.role === 'super_admin';
+  const contact=personalProfileFields(profile);
 
   const navItems = [
     ['profile', t.profile],
@@ -243,21 +256,29 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
     ] : []),
   ];
 
-  function persistAll(showMessage = true) {
+  async function persistAll(showMessage = true) {
     let nextUsers = users;
     let nextProfile = profile;
-    if (newPassword.trim()) {
+    if (databaseMode && newPassword.trim()) {
+      const {error}=await supabase.auth.updateUser({password:newPassword.trim()});
+      if(error){setMessage(ar?'تعذر تغيير كلمة المرور: '+error.message:'Could not change password: '+error.message);return}
+      setNewPassword('');
+    }
+    if (!databaseMode && newPassword.trim()) {
       nextUsers = users.map((user) => user.id === profile?.id ? { ...user, password: newPassword.trim() } : user);
       nextProfile = { ...profile, password: newPassword.trim() };
       setUsers(nextUsers);
+      writeJson(USERS_STORAGE_KEY,nextUsers);
       setNewPassword('');
       onProfileUpdate?.(nextProfile);
     }
-    writeJson(SETTINGS_KEY, settings);
+    if(isSuperAdmin){
+    writeJson(SETTINGS_KEY, withoutSharedProfile(settings));
     window.dispatchEvent(new CustomEvent('saams:settings-updated', { detail: { section: 'all' } }));
     writeJson(PRODUCTION_KEY, production);
     writeJson(NURSERIES_KEY, nurseries);
-    writeJson(USERS_STORAGE_KEY, nextUsers);
+    if(!databaseMode)writeJson(USERS_STORAGE_KEY, nextUsers);
+    }
     recordAudit({profile,screen:'الإعدادات',action:'تحديث الإعدادات',actionType:'update',entityType:'settings',details:'تم حفظ إعدادات النظام'});
     setAudit(loadAuditLog());
     if (showMessage) {
@@ -301,12 +322,12 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
     try {
       const parsed = JSON.parse(await file.text());
       if (!parsed.settings || !Array.isArray(parsed.nurseries) || !Array.isArray(parsed.users)) throw new Error('invalid');
-      setSettings(parsed.settings);
+      setSettings(withoutSharedProfile(parsed.settings));
       if (parsed.production) { setProduction(parsed.production); writeJson(PRODUCTION_KEY, parsed.production); }
       setNurseries(parsed.nurseries);
       setUsers(parsed.users);
       setAudit(Array.isArray(parsed.audit) ? parsed.audit : audit);
-      writeJson(SETTINGS_KEY, parsed.settings);
+      writeJson(SETTINGS_KEY, withoutSharedProfile(parsed.settings));
       writeJson(NURSERIES_KEY, parsed.nurseries);
       writeJson(USERS_STORAGE_KEY, parsed.users);
       if (Array.isArray(parsed.audit)) saveAuditLog(parsed.audit);
@@ -505,17 +526,18 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
           {activeTab === 'profile' && (
             <article className="settings-card">
               <div className="settings-section-title"><span className="settings-section-icon">◉</span><div><h2>{t.profile}</h2><p>{ar ? 'بيانات الحساب المستخدم حاليًا.' : 'Current account information.'}</p></div></div>
+              <p className="settings-note">{ar?'يحدد مدير النظام البريد الإلكتروني والمسمى الوظيفي لكل حساب من شاشة المستخدمين.':'The system administrator manages each account’s email and job title in Users.'}</p>
               <div className="profile-settings-grid">
                 <div className="profile-avatar-large">{(profile?.full_name || 'م').charAt(0)}</div>
                 <div className="settings-form-grid">
                   <label><span>{ar ? 'الاسم' : 'Name'}</span><input value={profile?.full_name || ''} readOnly /></label>
                   <label><span>{ar ? 'اسم المستخدم' : 'Username'}</span><input value={profile?.username || ''} readOnly /></label>
-                  <label><span>{ar ? 'المسمى الوظيفي' : 'Job Title'}</span><input value={ar ? settings.profile.titleAr : settings.profile.titleEn} onChange={(e) => setSettings({...settings, profile:{...settings.profile, [ar?'titleAr':'titleEn']:e.target.value}})} /></label>
-                  <label><span>{ar ? 'البريد الإلكتروني' : 'Email'}</span><input type="email" value={settings.profile.email} onChange={(e) => setSettings({...settings, profile:{...settings.profile, email:e.target.value}})} /></label>
+                  <label><span>{ar ? 'المسمى الوظيفي' : 'Job Title'}</span><input value={ar ? contact.job_title_ar : contact.job_title_en||contact.job_title_ar} readOnly /></label>
+                  <label><span>{ar ? 'البريد الإلكتروني' : 'Email'}</span><input type="email" value={contact.contact_email} readOnly /></label>
                   <label className="settings-wide">
                     <span>{ar ? 'كلمة المرور الحالية' : 'Current Password'}</span>
                     <div className="settings-password-input">
-                      <input type={showCurrentPassword ? 'text' : 'password'} value={profile?.password || ''} readOnly />
+                      <input type={showCurrentPassword ? 'text' : 'password'} value={databaseMode?'':(profile?.password || '')} readOnly />
                       <button type="button" onClick={() => setShowCurrentPassword((value) => !value)}>{showCurrentPassword ? '◉' : '◎'}</button>
                     </div>
                   </label>

@@ -1,3 +1,4 @@
+import { profileContactPayload } from '../src/utils/profileFields.js';
 import { createClient } from '@supabase/supabase-js';
 import { supabaseClientOptions } from './_supabase-network.js';
 
@@ -66,7 +67,7 @@ async function requireSuperAdmin(req) {
 async function listUsers(adminClient) {
   const { data: profiles, error } = await adminClient
     .from('profiles')
-    .select('id,username,full_name,role,nursery_id,permissions,active,created_at,nurseries(name_ar,name_en)')
+    .select('id,username,full_name,contact_email,job_title_ar,job_title_en,role,nursery_id,permissions,active,created_at,nurseries(name_ar,name_en)')
     .order('created_at', { ascending: true });
   if (error) throw error;
 
@@ -79,6 +80,9 @@ async function listUsers(adminClient) {
       id: row.id,
       username: row.username || '',
       full_name: row.full_name || '',
+      contact_email: row.contact_email || '',
+      job_title_ar: row.job_title_ar || '',
+      job_title_en: row.job_title_en || '',
       role: row.role,
       nursery_id: row.nursery_id,
       nursery: row.nurseries?.name_ar || '',
@@ -141,6 +145,7 @@ export default async function handler(req, res) {
     }
 
     if (action === 'create') {
+      const contact=profileContactPayload(user);
       const username = normalizeUsername(user?.username);
       if (!username || !user?.password || !user?.full_name || !user?.role) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -162,6 +167,7 @@ export default async function handler(req, res) {
 
       const { error: profileError } = await writeClient.from('profiles').insert({
         id: created.user.id,
+        ...contact,
         username,
         full_name: user.full_name,
         role: user.role,
@@ -180,6 +186,7 @@ export default async function handler(req, res) {
       if (!id || !user) return res.status(400).json({ error: 'Missing user id' });
       const username = normalizeUsername(user.username);
       const updates = {
+        ...profileContactPayload(user,true),
         username,
         full_name: user.full_name,
         role: user.role,
@@ -220,6 +227,7 @@ export default async function handler(req, res) {
 
     return res.status(400).json({ error: 'Unsupported action' });
   } catch (error) {
+    if(['INVALID_CONTACT_EMAIL','PROFILE_FIELD_TOO_LONG'].includes(error?.message))return res.status(400).json({error:error.message,code:error.message});
     return res.status(500).json({ error: error?.message || 'Unexpected server error' });
   }
 }

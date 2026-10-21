@@ -27,7 +27,10 @@ export async function getCurrentProfile() {
     nursery_en: data.nurseries?.name_en || '',
     permissions: data.permissions || {},
     active: data.active,
-    email: authData.user.email,
+    email: data.contact_email || '',
+    contact_email: data.contact_email || '',
+    job_title_ar: data.job_title_ar || '',
+    job_title_en: data.job_title_en || '',
   };
 }
 
