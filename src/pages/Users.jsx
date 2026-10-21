@@ -1,5 +1,5 @@
 import { requestAdminUsers } from '../utils/adminUsersClient';
-import { personalProfileFields } from '../utils/profileFields';
+import { personalProfileFields, profileContactPayload } from '../utils/profileFields';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
 import { listNurseries, findNurseryByName } from '../data/supabaseData';
@@ -321,6 +321,7 @@ export default function Users({ lang, profile, databaseMode = false, onProfileUp
 
       const payload = {
         ...form,
+        ...profileContactPayload(form),
         username,
         nursery_id: form.role === 'nursery' ? nurseryId : null,
         nursery: form.role === 'nursery' ? form.nursery : '',
@@ -456,8 +457,10 @@ export default function Users({ lang, profile, databaseMode = false, onProfileUp
             {form.role === 'nursery' && <label className="wide"><span>{ar ? 'الحضانة' : 'Nursery'}</span><select value={form.nursery} onChange={(e) => chooseNursery(e.target.value)} required><option value="">{ar ? 'اختاري الحضانة' : 'Select nursery'}</option>{nurseryRecords.map((n) => <option key={n.id || n.name_ar} value={n.name_ar} disabled={!editingId && nurseryAccountNames.has(n.name_ar)}>{n.name_ar}{!editingId && nurseryAccountNames.has(n.name_ar) ? (ar ? ' — لديها حساب' : ' — account exists') : ''}</option>)}</select></label>}
             <label><span>{ar ? 'الاسم الكامل / اسم الحساب' : 'Full name / Account name'}</span><input value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} required /></label>
             <label><span>{ar?'البريد الإلكتروني للتواصل':'Contact Email'}</span><input type="email" maxLength={254} value={form.contact_email||''} onChange={e=>setForm({...form,contact_email:e.target.value})}/></label>
+            {form.role!=='nursery'&&<>
             <label><span>{ar?'المسمى الوظيفي بالعربي':'Job Title (Arabic)'}</span><input maxLength={200} value={form.job_title_ar||''} onChange={e=>setForm({...form,job_title_ar:e.target.value})}/></label>
             <label><span>{ar?'المسمى الوظيفي بالإنجليزي':'Job Title (English)'}</span><input maxLength={200} value={form.job_title_en||''} onChange={e=>setForm({...form,job_title_en:e.target.value})}/></label>
+            </>}
             <label><span>{ar ? 'اسم المستخدم' : 'Username'}</span><input value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value.replace(/[^a-zA-Z0-9._-]/g, '') })} required /><small className="field-hint">{ar ? 'أحرف إنجليزية وأرقام فقط' : 'English letters and numbers only'}</small></label>
             <label><span>{editingId ? (ar ? 'كلمة مرور جديدة (اختياري)' : 'New password (optional)') : (ar ? 'كلمة المرور المؤقتة' : 'Temporary password')}</span><input type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required={!editingId} /></label>
             <label><span>{ar ? 'نوع الحساب' : 'Account type'}</span><select value={form.role} onChange={(e) => {

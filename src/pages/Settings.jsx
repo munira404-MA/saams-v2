@@ -546,7 +546,7 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
                 <div className="settings-form-grid">
                   <label><span>{ar ? 'الاسم' : 'Name'}</span><input value={profile?.full_name || ''} readOnly /></label>
                   <label><span>{ar ? 'اسم المستخدم' : 'Username'}</span><input value={profile?.username || ''} readOnly /></label>
-                  <label><span>{ar ? 'المسمى الوظيفي' : 'Job Title'}</span><input value={ar ? contact.job_title_ar : contact.job_title_en||contact.job_title_ar} readOnly /></label>
+                  {profile?.role!=='nursery'&&<label><span>{ar ? 'المسمى الوظيفي' : 'Job Title'}</span><input value={ar ? contact.job_title_ar : contact.job_title_en||contact.job_title_ar} readOnly /></label>}
                   <label><span>{ar ? 'البريد الإلكتروني' : 'Email'}</span><input type="email" value={contact.contact_email} readOnly /></label>
                   <label className="settings-wide">
                     <span>{ar ? 'كلمة المرور الحالية' : 'Current Password'}</span>

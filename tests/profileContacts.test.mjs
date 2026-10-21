@@ -18,6 +18,14 @@ test('contact fields accept blanks and validate email and title limits',()=>{
  assert.throws(()=>profileContactPayload({job_title_ar:'a'.repeat(201)}),/PROFILE_FIELD_TOO_LONG/);
 });
 
+test('nursery accounts keep contact email but do not store or display job titles',()=>{
+ const nursery={role:'nursery',contact_email:'nursery@example.com',job_title_ar:'مسمى قديم',job_title_en:'Old Title'};
+ assert.deepEqual(profileContactPayload(nursery,true),{contact_email:'nursery@example.com',job_title_ar:null,job_title_en:null});
+ assert.equal(personalProfileFields(nursery).job_title_ar,'');
+ assert.equal(personalProfileFields(nursery).contact_email,'nursery@example.com');
+ assert.equal(profileContactPayload({role:'admin',job_title_ar:'مسؤول الأصول'}).job_title_ar,'مسؤول الأصول');
+});
+
 test('authenticated profile uses its own database fields and ignores synthetic Auth email',async()=>{
  const source=readFileSync(new URL('../src/data/supabaseData.js',import.meta.url),'utf8');
  const code=source.slice(source.indexOf('export async function getCurrentProfile'),source.indexOf('export async function signInWithUsername')).replace('export ','');
