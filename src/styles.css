@@ -3460,3 +3460,23 @@ html[lang="en"] .sidebar-subitem { font-size: 17px !important; line-height: 1.5;
   html .notification-panel { position: fixed; top: 88px; inset-inline: 12px; width: auto; max-height: calc(100dvh - 106px); }
   html .notification-panel-list > button { padding: 12px 14px; }
 }
+
+/* Account identity in the header, readable in Arabic and English. */
+html[lang] .topbar-user strong { font-size: 20px !important; line-height: 1.4; }
+html[lang] .topbar-user small {
+  display: block !important;
+  font-size: 16px !important;
+  line-height: 1.5;
+  color: #46627a;
+  margin-top: 3px;
+}
+@media (max-width: 600px) {
+  html[lang] .topbar-user strong { font-size: 17px !important; }
+  html[lang] .topbar-user small {
+    font-size: 14px !important;
+    max-width: 145px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
