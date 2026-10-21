@@ -1,3 +1,4 @@
+import { requestAdminUsers } from '../utils/adminUsersClient';
 import { personalProfileFields } from '../utils/profileFields';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
@@ -37,6 +38,7 @@ export function loadUsers() {
 
 function saveUsers(users) {
   localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+  window.dispatchEvent(new CustomEvent('saams:users-updated'));
 }
 
 const DEFAULT_NURSERIES = [
@@ -170,7 +172,7 @@ function formatLastLogin(value, ar) {
 
 export default function Users({ lang, profile, databaseMode = false, onProfileUpdate }) {
   const ar = lang === 'ar';
-  const [users, setUsers] = useState(loadUsers);
+  const [users, setUsers] = useState(()=>databaseMode?[]:loadUsers());
   const [nurseryRecords, setNurseryRecords] = useState(DEFAULT_NURSERIES.map((name, index) => ({ id: null, name_ar: name, name_en: '', order: index + 1 })));
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
@@ -181,38 +183,8 @@ export default function Users({ lang, profile, databaseMode = false, onProfileUp
   const [loadingUsers, setLoadingUsers] = useState(false);
 
   async function adminApi(payload) {
-    // Always refresh the Supabase session before privileged account operations so
-    // the API receives a current access token rather than a stale cached token.
-    let session = null;
-    const refreshed = await supabase.auth.refreshSession();
-    if (!refreshed.error && refreshed.data?.session) session = refreshed.data.session;
-    if (!session) {
-      const current = await supabase.auth.getSession();
-      session = current.data?.session || null;
-    }
-    const token = session?.access_token;
-    if (!token) {
-      const error = new Error('Invalid session');
-      error.code = 'INVALID_SESSION';
-      throw error;
-    }
-
-    const response = await fetch('/api/admin-users', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'Cache-Control': 'no-store',
-      },
-      body: JSON.stringify(payload),
-    });
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      const error = new Error(result.error || 'REQUEST_FAILED');
-      error.code = result.code || '';
-      error.details = result;
-      throw error;
-    }
+    const result=await requestAdminUsers(supabase,payload);
+    if(payload.action!=='list')window.dispatchEvent(new CustomEvent('saams:users-updated'));
     return result;
   }
 

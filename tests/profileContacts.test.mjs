@@ -36,7 +36,7 @@ function apiHarness(role='super_admin'){
  const writes=[],authWrites=[];
  const profileRows=[{id:'mohamed',username:'mohamed',contact_email:'mohamed@example.com',job_title_ar:'مسؤول الأصول'}];
  const admin={from:()=>{
-  const q={select(){return this},eq(){return this},order:async()=>({data:profileRows}),single:async()=>({data:{role,active:true,username:'caller'}}),insert(value){writes.push(value);return this},update(value){writes.push(value);return this},then(resolve){return Promise.resolve({error:null}).then(resolve)}};return q;
+  const q={select(){return this},eq(){return this},order(){return this},range:async(from,to)=>({data:profileRows.slice(from,to+1)}),single:async()=>({data:{role,active:true,username:'caller'}}),insert(value){writes.push(value);return this},update(value){writes.push(value);return this},then(resolve){return Promise.resolve({error:null}).then(resolve)}};return q;
  },auth:{admin:{listUsers:async()=>({data:{users:[]}}),createUser:async payload=>{authWrites.push(payload);return {data:{user:{id:'new'}},error:null}},updateUserById:async(id,payload)=>{authWrites.push(payload);return {error:null}}}}};
  const user={auth:{getUser:async()=>({data:{user:{id:'caller'}}})}};
  const handler=new Function('createClient','supabaseClientOptions','profileContactPayload','process',apiSource+';return handler')((url,key)=>key==='anon'?user:admin,()=>({}),profileContactPayload,{env:{SUPABASE_URL:'https://example.test',SUPABASE_ANON_KEY:'anon',SUPABASE_SERVICE_ROLE_KEY:'service'}});

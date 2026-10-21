@@ -1,3 +1,4 @@
+import { requestAdminUsers, watchUserDirectory } from '../utils/adminUsersClient';
 import { supabase } from '../supabase';
 import { personalProfileFields, withoutSharedProfile } from '../utils/profileFields';
 import { getCurrentProfile } from '../data/supabaseData';
@@ -176,7 +177,10 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
   const [settings, setSettings] = useState(() => withoutSharedProfile(readJson(SETTINGS_KEY, DEFAULT_SETTINGS)));
   const [production, setProduction] = useState(() => readJson(PRODUCTION_KEY, DEFAULT_PRODUCTION));
   const [nurseries, setNurseries] = useState(() => readJson(NURSERIES_KEY, DEFAULT_NURSERIES));
-  const [users, setUsers] = useState(loadUsers);
+  const [users, setUsers] = useState(()=>databaseMode?[]:loadUsers());
+  const [usersLoading,setUsersLoading]=useState(false);
+  const [usersError,setUsersError]=useState('');
+  const [usersLastUpdated,setUsersLastUpdated]=useState(null);
   const [audit, setAudit] = useState(() => loadAuditLog());
   const [message, setMessage] = useState('');
   const [search, setSearch] = useState('');
@@ -240,6 +244,16 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
 
   const isSuperAdmin = profile?.role === 'super_admin';
   const contact=personalProfileFields(profile);
+
+  useEffect(()=>{
+    if(!isSuperAdmin)return;
+    return watchUserDirectory({
+      load:async signal=>databaseMode?(await requestAdminUsers(supabase,{action:'list'},{signal})).users||[]:loadUsers(),
+      onData:rows=>{setUsers(rows);setUsersError('');setUsersLastUpdated(new Date())},
+      onError:()=>setUsersError(ar?'تعذر تحديث المستخدمين. حاولي مجددًا؛ البيانات الظاهرة قد تكون قديمة.':'Could not refresh users. Try again; displayed data may be out of date.'),
+      onLoading:setUsersLoading,events:window,visibility:document,
+    });
+  },[databaseMode,profile?.id,isSuperAdmin,activeTab,ar]);
 
   const navItems = [
     ['profile', t.profile],
@@ -553,15 +567,19 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
                 <span className="settings-section-icon">♙</span>
                 <div><h2>{t.users}</h2><p>{ar ? 'الإضافة والتعديل الكامل متاحان من شاشة المستخدمين.' : 'Full management is available from the Users screen.'}</p></div>
               </div>
+              <div className="production-actions-bar">
+                <p role="status">{usersLoading?(ar?'جاري تحديث المستخدمين...':'Refreshing users...'):usersLastUpdated?(ar?'آخر تحديث: ':'Last updated: ')+usersLastUpdated.toLocaleTimeString(ar?'ar-AE':'en-AE'):''}</p>
+              </div>
+              {usersError&&<p role="alert" className="settings-note">{usersError}</p>}
               <div className="settings-summary-grid">
-                <div><small>{ar?'إجمالي المستخدمين':'Total Users'}</small><strong>{users.length}</strong></div>
-                <div><small>{ar?'الحسابات النشطة':'Active Accounts'}</small><strong>{users.filter(u=>u.active).length}</strong></div>
-                <div><small>{ar?'حسابات الحضانات':'Nursery Accounts'}</small><strong>{users.filter(u=>u.role==='nursery').length}</strong></div>
+                <div><small>{ar?'إجمالي المستخدمين':'Total Users'}</small><strong>{databaseMode&&!usersLastUpdated?'—':users.length}</strong></div>
+                <div><small>{ar?'الحسابات النشطة':'Active Accounts'}</small><strong>{databaseMode&&!usersLastUpdated?'—':users.filter(u=>u.active!==false).length}</strong></div>
+                <div><small>{ar?'حسابات الحضانات':'Nursery Accounts'}</small><strong>{databaseMode&&!usersLastUpdated?'—':users.filter(u=>u.role==='nursery').length}</strong></div>
               </div>
               <div className="settings-table-wrap">
                 <table className="settings-table">
                   <thead><tr><th>{ar?'الاسم':'Name'}</th><th>{ar?'اسم المستخدم':'Username'}</th><th>{ar?'الصلاحية':'Role'}</th><th>{ar?'الحضانة':'Nursery'}</th><th>{ar?'الحالة':'Status'}</th></tr></thead>
-                  <tbody>{users.slice(0,8).map((u)=><tr key={u.id}><td>{u.full_name}</td><td>{u.username}</td><td>{u.role==='super_admin'?(ar?'مدير النظام':'System Admin'):u.role==='nursery'?(ar?'حضانة':'Nursery'):(ar?'موظف إدارة':'Administration')}</td><td>{u.nursery||'—'}</td><td><span className={`settings-status ${u.active?'active':'inactive'}`}>{u.active?(ar?'نشط':'Active'):(ar?'موقوف':'Disabled')}</span></td></tr>)}</tbody>
+                  <tbody>{users.map((u)=><tr key={u.id}><td>{u.full_name}</td><td>{u.username}</td><td>{u.role==='super_admin'?(ar?'مدير النظام':'System Admin'):u.role==='nursery'?(ar?'حضانة':'Nursery'):(ar?'موظف إدارة':'Administration')}</td><td>{u.nursery||'—'}</td><td><span className={`settings-status ${u.active!==false?'active':'inactive'}`}>{u.active!==false?(ar?'نشط':'Active'):(ar?'موقوف':'Disabled')}</span></td></tr>)}</tbody>
                 </table>
               </div>
               <p className="settings-note">{ar?'لإضافة مستخدم أو تعديل كلمة المرور استخدمي شاشة «المستخدمون» من القائمة الرئيسية.':'Use the Users screen to add accounts or reset passwords.'}</p>

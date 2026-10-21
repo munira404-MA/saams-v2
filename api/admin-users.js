@@ -65,11 +65,17 @@ async function requireSuperAdmin(req) {
 }
 
 async function listUsers(adminClient) {
-  const { data: profiles, error } = await adminClient
+  const profiles=[];
+  const pageSize=500;
+  for(let from=0;;from+=pageSize){
+  const { data: batch, error } = await adminClient
     .from('profiles')
     .select('id,username,full_name,contact_email,job_title_ar,job_title_en,role,nursery_id,permissions,active,created_at,nurseries(name_ar,name_en)')
-    .order('created_at', { ascending: true });
+    .order('id', { ascending: true }).range(from,from+pageSize-1);
   if (error) throw error;
+  profiles.push(...(batch||[]));
+  if((batch||[]).length<pageSize)break;
+  }
 
   const { data: authPage } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const authLookup = new Map((authPage?.users || []).map((u) => [u.id, u]));
