@@ -1,5 +1,6 @@
 import { requestAdminUsers, watchUserDirectory } from '../utils/adminUsersClient';
-import { supabase } from '../supabase';
+import { supabase, createPasswordVerifier } from '../supabase';
+import { changeOwnPassword, validatePasswordChange } from '../utils/changePassword';
 import { personalProfileFields, withoutSharedProfile } from '../utils/profileFields';
 import { getCurrentProfile } from '../data/supabaseData';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -188,6 +189,10 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
   const [selectedAudit, setSelectedAudit] = useState(null);
   const [nurseryModal, setNurseryModal] = useState(null);
   const [newPassword, setNewPassword] = useState('');
+  const [currentPassword,setCurrentPassword]=useState('');
+  const [passwordConfirmation,setPasswordConfirmation]=useState('');
+  const [saving,setSaving]=useState(false);
+  const savingRef=useRef(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [typeName, setTypeName] = useState('');
   const [serverStatus, setServerStatus] = useState({ loading: true, serverReachable: false, supabaseServerUrl: false, supabaseAnonKey: false, supabaseServiceRoleKey: false, accountManagementReady: false });
@@ -271,20 +276,25 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
   ];
 
   async function persistAll(showMessage = true) {
+    if(savingRef.current)return;
+    savingRef.current=true;setSaving(true);setMessage('');
+    try{
     let nextUsers = users;
     let nextProfile = profile;
-    if (databaseMode && newPassword.trim()) {
-      const {error}=await supabase.auth.updateUser({password:newPassword.trim()});
-      if(error){setMessage(ar?'تعذر تغيير كلمة المرور: '+error.message:'Could not change password: '+error.message);return}
-      setNewPassword('');
-    }
-    if (!databaseMode && newPassword.trim()) {
-      nextUsers = users.map((user) => user.id === profile?.id ? { ...user, password: newPassword.trim() } : user);
-      nextProfile = { ...profile, password: newPassword.trim() };
-      setUsers(nextUsers);
-      writeJson(USERS_STORAGE_KEY,nextUsers);
-      setNewPassword('');
-      onProfileUpdate?.(nextProfile);
+    const changingPassword=Boolean(currentPassword||newPassword||passwordConfirmation);
+    if(changingPassword){
+      validatePasswordChange(currentPassword,newPassword,passwordConfirmation);
+      if(databaseMode){
+        await changeOwnPassword({client:supabase,verifier:createPasswordVerifier(),profileId:profile?.id,currentPassword,newPassword,confirmation:passwordConfirmation});
+      }else{
+        const storedUsers=loadUsers();
+        const current=storedUsers.find(user=>user.id===profile?.id);
+        if(!current||current.password!==currentPassword)throw new Error('CURRENT_PASSWORD_INCORRECT');
+        nextUsers=storedUsers.map(user=>user.id===profile?.id?{...user,password:newPassword}:user);
+        nextProfile={...profile,password:newPassword};
+        setUsers(nextUsers);writeJson(USERS_STORAGE_KEY,nextUsers);onProfileUpdate?.(nextProfile);
+      }
+      setCurrentPassword('');setNewPassword('');setPasswordConfirmation('');setShowCurrentPassword(false);
     }
     if(isSuperAdmin){
     writeJson(SETTINGS_KEY, withoutSharedProfile(settings));
@@ -296,9 +306,22 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
     recordAudit({profile,screen:'الإعدادات',action:'تحديث الإعدادات',actionType:'update',entityType:'settings',details:'تم حفظ إعدادات النظام'});
     setAudit(loadAuditLog());
     if (showMessage) {
-      setMessage(t.saved);
+      setMessage(changingPassword?(ar?'تم تغيير كلمة المرور بنجاح.':'Password changed successfully.'):t.saved);
       window.setTimeout(() => setMessage(''), 2600);
     }
+    }catch(error){
+      const messages={
+        PASSWORD_FIELDS_REQUIRED:ar?'اكتبي كلمة المرور الحالية والجديدة وتأكيدها.':'Enter your current password, new password and confirmation.',
+        PASSWORD_MISMATCH:ar?'تأكيد كلمة المرور لا يطابق الجديدة.':'Password confirmation does not match.',
+        PASSWORD_TOO_SHORT:ar?'كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل.':'The new password must be at least 8 characters.',
+        PASSWORD_UNCHANGED:ar?'اختاري كلمة مرور مختلفة عن الحالية.':'Choose a different password.',
+        CURRENT_PASSWORD_INCORRECT:ar?'كلمة المرور الحالية غير صحيحة.':'The current password is incorrect.',
+        PASSWORD_SESSION_CHANGED:ar?'تغيرت جلسة الحساب. سجلي الدخول مجددًا.':'Your account session changed. Sign in again.',
+        PASSWORD_VERIFICATION_FAILED:ar?'تعذر التحقق من كلمة المرور الحالية. حاولي مجددًا.':'Could not verify the current password. Try again.',
+        PASSWORD_UPDATE_FAILED:ar?'تعذر حفظ كلمة المرور الجديدة. قد لا تستوفي سياسة كلمة المرور أو تحتاج الجلسة لإعادة التحقق.':'Could not update the password. Check the password policy or sign in again.',
+      };
+      setMessage(messages[error.message]||(ar?'تعذر الحفظ. حاولي مجددًا.':'Could not save. Try again.'));
+    }finally{savingRef.current=false;setSaving(false)}
   }
 
   function resetDefaults() {
@@ -479,7 +502,7 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
         </div>
         <div className="settings-header-actions">
           <button className="secondary-action" type="button" onClick={resetDefaults}>↺ {t.reset}</button>
-          <button className="primary-action" type="button" onClick={() => persistAll(true)}>✓ {t.saveAll}</button>
+          <button className="primary-action" type="button" disabled={saving} onClick={() => persistAll(true)}>✓ {t.saveAll}</button>
         </div>
       </header>
 
@@ -551,11 +574,13 @@ export default function Settings({ lang, profile, onProfileUpdate, databaseMode 
                   <label className="settings-wide">
                     <span>{ar ? 'كلمة المرور الحالية' : 'Current Password'}</span>
                     <div className="settings-password-input">
-                      <input type={showCurrentPassword ? 'text' : 'password'} value={databaseMode?'':(profile?.password || '')} readOnly />
-                      <button type="button" onClick={() => setShowCurrentPassword((value) => !value)}>{showCurrentPassword ? '◉' : '◎'}</button>
+                      <input type={showCurrentPassword ? 'text' : 'password'} value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)} autoComplete="current-password" disabled={saving} />
+                      <button type="button" aria-label={ar?'إظهار أو إخفاء كلمات المرور':'Show or hide passwords'} onClick={() => setShowCurrentPassword((value) => !value)}>{showCurrentPassword ? '◉' : '◎'}</button>
                     </div>
                   </label>
-                  <label className="settings-wide"><span>{ar ? 'تغيير كلمة المرور' : 'Change Password'}</span><input type="text" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={ar ? 'اكتبي كلمة المرور الجديدة ثم اضغطي حفظ' : 'Enter a new password, then save'} /></label>
+                  <label className="settings-wide"><span>{ar ? 'تغيير كلمة المرور' : 'Change Password'}</span><input type={showCurrentPassword?'text':'password'} autoComplete="new-password" disabled={saving} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder={ar ? 'اكتبي كلمة المرور الجديدة ثم اضغطي حفظ' : 'Enter a new password, then save'} /></label>
+                  <label className="settings-wide"><span>{ar?'تأكيد كلمة المرور الجديدة':'Confirm New Password'}</span><input type={showCurrentPassword?'text':'password'} autoComplete="new-password" disabled={saving} value={passwordConfirmation} onChange={e=>setPasswordConfirmation(e.target.value)}/></label>
+                  <button type="button" className="primary-action" disabled={saving} onClick={()=>persistAll(true)}>{saving?(ar?'جاري الحفظ...':'Saving...'):(ar?'حفظ التغييرات':'Save Changes')}</button>
                 </div>
               </div>
             </article>

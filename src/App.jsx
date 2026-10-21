@@ -33,6 +33,7 @@ export default function App() {
 
   useEffect(() => {
     let mounted = true;
+    let authRefreshTimer;
     async function restoreSession() {
       if (!supabaseConfigured) {
         try {
@@ -55,21 +56,25 @@ export default function App() {
       }
     }
     restoreSession();
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!mounted || !supabaseConfigured) return;
+      clearTimeout(authRefreshTimer);
       if (!session) {
         setProfile(null);
         return;
       }
-      try {
+      // Auth callbacks run under the Auth client lock. Read the profile after
+      // the callback returns so password updates cannot wait on that same lock.
+      authRefreshTimer=setTimeout(async()=>{try {
         const next = await getCurrentProfile();
-        if (mounted) setProfile(next);
+        if (mounted&&next?.id===session.user.id) setProfile(next);
       } catch (error) {
         console.error(error);
-      }
+      }},0);
     });
     return () => {
       mounted = false;
+      clearTimeout(authRefreshTimer);
       authListener?.subscription?.unsubscribe();
     };
   }, []);

@@ -5,6 +5,12 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabaseConfigured = Boolean(url && key);
 
+export function createPasswordVerifier(){
+  return createClient(url||'https://placeholder.supabase.co',key||'placeholder-anon-key',{
+    auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
+  });
+}
+
 export const supabase = createClient(
   url || 'https://placeholder.supabase.co',
   key || 'placeholder-anon-key',
