@@ -3400,3 +3400,63 @@ html[lang="en"] .help-support-card p{font-size:15px!important;line-height:1.65!i
 }
 .delete-invoice-button:disabled { opacity: .5; cursor: not-allowed; }
 .delete-invoice-button:focus-visible { outline: 3px solid #b42318; outline-offset: 2px; }
+
+/* Readable notification text in both languages, including long audit details. */
+html .notification-panel {
+  width: min(480px, calc(100vw - 32px));
+  max-height: calc(100dvh - 125px);
+  display: flex;
+  flex-direction: column;
+}
+html .notification-panel-head { padding: 14px 18px; flex-shrink: 0; }
+html .notification-panel-head strong { font-size: 19px; line-height: 1.5; }
+html .notification-panel-head button { width: 40px; height: 40px; font-size: 26px; }
+html .notification-panel-list { max-height: 480px; min-height: 0; overflow-y: auto; }
+html .notification-panel-list > button {
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 5px 10px;
+  padding: 15px 18px;
+}
+html .notification-panel-list > button > div { min-width: 0; overflow-wrap: anywhere; }
+html .notification-panel-list strong { font-size: 17px; line-height: 1.65; }
+html .notification-panel-list small { font-size: 15px; line-height: 1.75; color: #476078; }
+html .notification-panel-list time { grid-column: 2; font-size: 13px; line-height: 1.5; color: #526b80; }
+html .notification-panel-list p { font-size: 16px; line-height: 1.7; }
+html .notification-view-all { font-size: 16px; line-height: 1.5; padding: 14px; flex-shrink: 0; }
+
+/* English System screens: override the older compact field and hint sizes. */
+html[lang="en"] .settings-page,
+html[lang="en"] .users-page { font-size: 18px !important; }
+html[lang="en"] .settings-section-title h2 { font-size: 24px !important; }
+html[lang="en"] .settings-section-title p,
+html[lang="en"] .users-heading p,
+html[lang="en"] .settings-note { font-size: 17px !important; line-height: 1.7 !important; }
+html[lang="en"] .settings-nav button { min-height: 52px; height: auto; white-space: normal; }
+html[lang="en"] .settings-nav button strong { font-size: 18px !important; line-height: 1.5; }
+html[lang="en"] .settings-form-grid label > span,
+html[lang="en"] .settings-modal label > span,
+html[lang="en"] .user-form-grid label > span { font-size: 16px !important; line-height: 1.5; }
+html[lang="en"] .settings-form-grid input,
+html[lang="en"] .settings-form-grid select,
+html[lang="en"] .settings-modal input,
+html[lang="en"] .settings-modal select,
+html[lang="en"] .user-form-grid input,
+html[lang="en"] .user-form-grid select { font-size: 18px !important; min-height: 48px; }
+html[lang="en"] .settings-form-grid input::placeholder { font-size: 16px; }
+html[lang="en"] .settings-table th,
+html[lang="en"] .users-table th { font-size: 16.5px !important; }
+html[lang="en"] .settings-table td,
+html[lang="en"] .users-table td { font-size: 18px !important; line-height: 1.7 !important; }
+html[lang="en"] .settings-summary-grid small,
+html[lang="en"] .settings-switch-row small,
+html[lang="en"] .users-page .field-hint { font-size: 16px !important; line-height: 1.6 !important; }
+html[lang="en"] .settings-status,
+html[lang="en"] .user-role,
+html[lang="en"] .user-status { font-size: 16px !important; }
+html[lang="en"] .sidebar-group-button,
+html[lang="en"] .sidebar-subitem { font-size: 17px !important; line-height: 1.5; min-height: 46px; height: auto; }
+
+@media (max-width: 600px) {
+  html .notification-panel { position: fixed; top: 88px; inset-inline: 12px; width: auto; max-height: calc(100dvh - 106px); }
+  html .notification-panel-list > button { padding: 12px 14px; }
+}
