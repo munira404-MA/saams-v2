@@ -62,37 +62,41 @@ function rebuildAssetsFromAudit(){
 
 function dbAssetToUi(row){
  const n=Array.isArray(row.nurseries)?row.nurseries[0]:row.nurseries;
- return {id:row.id,barcode:row.barcode||'',centralBarcode:row.central_finance_barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||row.location_name_ar||row.location_name_en||'',nurseryEn:n?.name_en||row.location_name_en||row.location_name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||'',createdAt:row.created_at||''};
+ return {id:row.id,barcode:row.barcode||'',centralBarcode:row.central_finance_barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||row.location_name_ar||row.location_name_en||'',nurseryEn:n?.name_en||row.location_name_en||row.location_name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||'',createdAt:row.created_at||'',isNewAsset:row.is_new_asset===true};
 }
 const NEW_ASSET_DAYS=30;
-function isNewAsset(a){if(!a?.createdAt)return false;const t=new Date(a.createdAt).getTime();return Number.isFinite(t)&&Date.now()-t<=NEW_ASSET_DAYS*24*60*60*1000}
+// «جديد» only for assets the authorised employee marked as a NEW acquisition when adding them.
+function isNewAsset(a){if(!a?.isNewAsset||!a?.createdAt)return false;const t=new Date(a.createdAt).getTime();return Number.isFinite(t)&&Date.now()-t<=NEW_ASSET_DAYS*24*60*60*1000}
 
 async function fetchAllAssetRows(){
  const pageSize=1000;
  let from=0;
  let all=[];
- let supportsCentralBarcode=true;
+ let supportsCentralBarcode=true, supportsNewFlag=true, supportsLocation=true;
+ const columns=()=>['id','barcode',supportsCentralBarcode&&'central_finance_barcode','name_ar','name_en','category_ar','category_en','nursery_id',supportsLocation&&'location_type,location_name_ar,location_name_en','status','notes','created_at',supportsNewFlag&&'is_new_asset','nurseries(name_ar,name_en)'].filter(Boolean).join(',');
  while(true){
-  let response=await supabase.from('assets')
-   .select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,location_type,location_name_ar,location_name_en,status,notes,created_at,nurseries(name_ar,name_en)')
-   .order('created_at',{ascending:false})
-   .range(from,from+pageSize-1);
-  if(response.error && response.error.code==='42703'){
+  let response;
+  for(let attempt=0;attempt<4;attempt++){
+   response=await supabase.from('assets').select(columns()).order('created_at',{ascending:false}).range(from,from+pageSize-1);
+   if(!response.error||response.error.code!=='42703')break;
    const missing=String(response.error.message||'');
-   if(missing.includes('central_finance_barcode')) supportsCentralBarcode=false;
-   response=await supabase.from('assets')
-    .select(supportsCentralBarcode?'id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)':'id,barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)')
-    .order('created_at',{ascending:false})
-    .range(from,from+pageSize-1);
+   if(missing.includes('is_new_asset')&&supportsNewFlag) supportsNewFlag=false;
+   else if(missing.includes('central_finance_barcode')&&supportsCentralBarcode) supportsCentralBarcode=false;
+   else if(missing.includes('location_')&&supportsLocation) supportsLocation=false;
+   else if(supportsNewFlag) supportsNewFlag=false;
+   else if(supportsLocation) supportsLocation=false;
+   else break;
   }
-  if(response.error)return {data:null,error:response.error,supportsCentralBarcode};
-  const rows=(response.data||[]).map(r=>supportsCentralBarcode?r:{...r,central_finance_barcode:null});
+  if(response.error)return {data:null,error:response.error,supportsCentralBarcode,supportsNewFlag};
+  const rows=(response.data||[]).map(r=>({...r,central_finance_barcode:supportsCentralBarcode?r.central_finance_barcode:null,is_new_asset:supportsNewFlag?r.is_new_asset:false}));
   all=all.concat(rows);
   if(rows.length<pageSize)break;
   from+=pageSize;
  }
- return {data:all,error:null,supportsCentralBarcode};
+ return {data:all,error:null,supportsCentralBarcode,supportsNewFlag};
 }
+
+function assetSelectAfterWrite(withNewFlag){return `id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,${withNewFlag?'is_new_asset,':''}nurseries(name_ar,name_en)`}
 
 function dbRequestToUi(row){
  return {
@@ -165,6 +169,8 @@ export default function Assets({lang,profile}){
  const [assets,setAssets]=useState(ASSETS);
  const [assetsLoading,setAssetsLoading]=useState(true);
  const [assetsDbReady,setAssetsDbReady]=useState(false);
+ const [newFlagReady,setNewFlagReady]=useState(false);
+ const [importQuestion,setImportQuestion]=useState(null);
  const [requests,setRequests]=useState([]);
  const [requestsDbReady,setRequestsDbReady]=useState(false);
  const [search,setSearch]=useState('');
@@ -178,7 +184,7 @@ export default function Assets({lang,profile}){
  useEffect(()=>{let alive=true;(async()=>{
   const auditFallback=rebuildAssetsFromAudit();
   try{
-   const {data,error}=await fetchAllAssetRows();
+   const {data,error,supportsNewFlag:fetchFlag}=await fetchAllAssetRows();
    if(error) throw error;
    let rows=data||[];
 
@@ -205,7 +211,7 @@ export default function Assets({lang,profile}){
       }
     }
    }
-   if(alive){setAssets(rows.map(dbAssetToUi));setAssetsDbReady(true)}
+   if(alive){setAssets(rows.map(dbAssetToUi));setAssetsDbReady(true);setNewFlagReady(data!==null&&fetchFlag!==false)}
   }catch(e){
     console.warn('Assets database unavailable',e);
     if(alive){setAssets(auditFallback);setAssetsDbReady(false);notify(ar?'تعذر الاتصال بجدول الأصول. لن يتم اعتبار أي إضافة محفوظة حتى يتم إصلاح الاتصال.':'Assets database is unavailable. New assets will not be treated as saved until the connection is fixed.')}
@@ -262,6 +268,8 @@ export default function Assets({lang,profile}){
   const barcode=String(form.barcode||'').trim();
   const centralBarcode=String(form.centralBarcode||'').trim();
   if(!barcode){notify(ar?'الباركود الداخلي إلزامي':'Internal Barcode is required');return false}
+  if(form.isNew!=='yes'&&form.isNew!=='no'){notify(ar?'حددي: هل هذا أصل جديد؟':'Please answer: is this a new asset?');return false}
+  if(form.isNew==='yes'&&!newFlagReady){notify(ar?'لتسجيل «أصل جديد» شغلي ملف 18_NEW_ASSET_FLAG.sql في Supabase أولاً.':'Run 18_NEW_ASSET_FLAG.sql in Supabase first to record new assets.');return false}
   const duplicate=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(barcode)||(centralBarcode&&normalizeBarcode(a.centralBarcode)===normalizeBarcode(centralBarcode)));
   if(duplicate){notify(`${t.duplicateBarcode}: ${duplicate.barcode}${duplicate.centralBarcode?` / ${duplicate.centralBarcode}`:''} — ${nurseryLabel(duplicate,ar)}`);return false}
   const next={barcode,centralBarcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category,status:'active',notes:form.notes||''};
@@ -270,10 +278,10 @@ export default function Assets({lang,profile}){
   if(nurseryErr){notify(ar?'تعذر التحقق من الحضانة':'Could not verify the nursery');return false}
   const nurseryId=nurseryRows?.[0]?.id||null;
   if(!nurseryId){notify(ar?'تعذر حفظ الأصل: لم يتم العثور على الحضانة المحددة في قاعدة البيانات':'Could not save the asset: selected nursery was not found');return false}
-  const {data,error}=await supabase.from('assets').insert({barcode,central_finance_barcode:centralBarcode||null,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,status:'active',notes:form.notes||'',created_by:profile?.id||null}).select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').single();
+  const {data,error}=await supabase.from('assets').insert({barcode,central_finance_barcode:centralBarcode||null,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,status:'active',notes:form.notes||'',created_by:profile?.id||null,...(newFlagReady?{is_new_asset:form.isNew==='yes'}:{})}).select(assetSelectAfterWrite(newFlagReady)).single();
   if(error){if(error.code==='23505'){notify(`${t.duplicateBarcode}: ${barcode}`);return false}console.error('Asset insert failed',error);notify(ar?`تعذر حفظ الأصل في قاعدة البيانات: ${error.message||'خطأ غير معروف'}`:`Could not save the asset: ${error.message||'Unknown error'}`);return false}
   const saved=dbAssetToUi(data);setAssets(x=>[saved,...x]);next.id=saved.id;next.nurseryId=saved.nurseryId;
-  setModal(null);notify(t.assetSaved);recordAudit({profile,screen:'الأصول',action:'إضافة أصل',actionType:'create',entityType:'asset',entityId:next.barcode,nursery:next.nurseryAr,details:next.nameAr,after:next});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));return true;
+  setModal(null);notify(t.assetSaved);recordAudit({profile,screen:'الأصول',action:form.isNew==='yes'?'إضافة أصل جديد':'إضافة أصل',actionType:'create',entityType:'asset',entityId:next.barcode,nursery:next.nurseryAr,details:next.nameAr,after:next});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));return true;
  }
  async function updateAsset(form){
   if(!editingAsset)return;
@@ -283,8 +291,8 @@ export default function Assets({lang,profile}){
   const before=editingAsset; let updated={...editingAsset,centralBarcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category};
   if(assetsDbReady){
    const {data:nurseryRows}=await supabase.from('nurseries').select('id,name_ar,name_en').or(`name_ar.eq.${form.from},name_en.eq.${form.from}`).limit(1); const nurseryId=nurseryRows?.[0]?.id||null;
-   let q=supabase.from('assets').update({central_finance_barcode:centralBarcode||null,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,updated_at:new Date().toISOString()}); q=editingAsset.id?q.eq('id',editingAsset.id):q.eq('barcode',editingAsset.barcode);
-   const {data,error}=await q.select('id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,nurseries(name_ar,name_en)').single(); if(error){notify(ar?'تعذر تحديث الأصل':'Could not update the asset');return} updated=dbAssetToUi(data);
+   let q=supabase.from('assets').update({central_finance_barcode:centralBarcode||null,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,...(newFlagReady?{is_new_asset:!!form.isNew}:{}),updated_at:new Date().toISOString()}); q=editingAsset.id?q.eq('id',editingAsset.id):q.eq('barcode',editingAsset.barcode);
+   const {data,error}=await q.select(assetSelectAfterWrite(newFlagReady)).single(); if(error){notify(ar?'تعذر تحديث الأصل':'Could not update the asset');return} updated=dbAssetToUi(data);
   }
   setAssets(x=>x.map(a=>(editingAsset.id&&a.id===editingAsset.id)||(!editingAsset.id&&a.barcode===editingAsset.barcode)?updated:a));setEditingAsset(null);notify(t.assetUpdated);recordAudit({profile,screen:'الأصول',action:'تعديل أصل',actionType:'update',entityType:'asset',entityId:updated.barcode,nursery:updated.nurseryAr,details:updated.nameAr,before,after:updated});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
  }
@@ -410,7 +418,10 @@ export default function Assets({lang,profile}){
     notes:iNotes>=0?String(r[iNotes]||'').trim():''
    })).filter(r=>r.barcode||r.centralBarcode||r.name||r.category||r.nursery||r.notes);
    if(!sourceRows.length){notify(t.excelNoRows);return}
-   if(!window.confirm(`${t.excelConfirm}\n\n${ar?'عدد الصفوف في الملف':'Rows in file'}: ${sourceRows.length}`))return;
+   const importKind=await new Promise(resolve=>setImportQuestion({count:sourceRows.length,resolve}));
+   setImportQuestion(null);
+   if(!importKind)return;
+   if(importKind==='new'&&!newFlagReady){notify(ar?'لتسجيل «أصول جديدة» شغلي ملف 18_NEW_ASSET_FLAG.sql في Supabase أولاً.':'Run 18_NEW_ASSET_FLAG.sql in Supabase first to record new assets.');return}
 
    const {data:nurseryRows,error:nurseryErr}=await supabase.from('nurseries').select('id,name_ar,name_en').eq('active',true);
    if(nurseryErr) throw new Error(`DB_NURSERIES:${nurseryErr.message||nurseryErr.code||'error'}`);
@@ -430,7 +441,7 @@ export default function Assets({lang,profile}){
     const nurseryId=nurseryMap.get(normalizedNursery)||nurseryMap.get(r.nursery);
     if(!nurseryId){issues.push({row:r.excelRow,reason:`${ar?'الحضانة غير فعالة/غير موجودة بالقائمة الرسمية وتحتاج مراجعة':'Nursery is not active/in the official list and needs review'}: ${r.nursery}`});continue}
     seen.add(key); if(centralKey)seenCentral.add(centralKey);
-    valid.push({excelRow:r.excelRow,barcode:r.barcode,centralBarcode:r.centralBarcode,payload:{barcode:r.barcode,central_finance_barcode:r.centralBarcode||null,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null}});
+    valid.push({excelRow:r.excelRow,barcode:r.barcode,centralBarcode:r.centralBarcode,payload:{barcode:r.barcode,central_finance_barcode:r.centralBarcode||null,name_ar:r.name,name_en:r.name,category_ar:r.category,category_en:r.category,nursery_id:nurseryId,status:'active',notes:r.notes,created_by:profile?.id||null,...(newFlagReady?{is_new_asset:importKind==='new'}:{})}});
    }
    let imported=0;
    // Production-safe Excel import:
@@ -514,7 +525,7 @@ export default function Assets({lang,profile}){
    const issueLines=issues.slice(0,12).map(x=>`${ar?'صف':'Row'} ${x.row}: ${x.reason}`).join('\n');
    const more=issues.length>12?`\n${ar?'... وملاحظات إضافية':'... and more issues'}: ${issues.length-12}`:'';
    window.alert(`${t.excelDone}\n\n${ar?'تمت إضافة أصول جديدة':'New assets added'}: ${imported}\n${ar?'تم استكمال باركود المالية لأصول موجودة':'Existing assets updated with Central Finance barcode'}: ${updatedExisting}\n${ar?'لم يتم الحفظ/تم التخطي':'Skipped'}: ${issues.length}${issueLines?`\n\n${issueLines}${more}`:''}`);
-   if(imported||updatedExisting) recordAudit({profile,screen:'الأصول',action:'رفع أصول من Excel',actionType:'create',entityType:'asset_bulk_import',entityId:`BULK-${Date.now()}`,details:`${imported} assets imported; ${updatedExisting} existing assets updated with Central Finance barcode`});
+   if(imported||updatedExisting) recordAudit({profile,screen:'الأصول',action:importKind==='new'?'رفع أصول جديدة من Excel':'رفع أصول من Excel',actionType:'create',entityType:'asset_bulk_import',entityId:`BULK-${Date.now()}`,details:`${imported} assets imported; ${updatedExisting} existing assets updated with Central Finance barcode`});
   }catch(e){
    console.error('Excel asset import failed',e);
    const msg=String(e?.message||'');
@@ -643,12 +654,13 @@ export default function Assets({lang,profile}){
   {modal&&<AssetModal type={modal} ar={ar} defaultNursery={accountNursery} t={t} assets={isAdmin&&!previewNursery?assets:scopedAssets} nurseries={nurseries} isAdmin={isAdmin&&!previewNursery} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
   {viewing&&<RequestDetails request={viewing} ar={ar} t={t} isAdmin={isAdmin} onClose={()=>setViewing(null)} onApprove={()=>approveRequest(viewing.id)} onReject={()=>setRejecting(viewing)}/>}
   {rejecting&&<RejectModal request={rejecting} ar={ar} t={t} onClose={()=>setRejecting(null)} onConfirm={reason=>rejectRequest(rejecting.id,reason)}/>}
+  {importQuestion&&<NewAssetQuestion ar={ar} count={importQuestion.count} onAnswer={importQuestion.resolve}/>}
   {toast&&<div className="asset-toast">✓ {toast}</div>}
  </section>
 }
 
 function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
- const [form,setForm]=useState({centralBarcode:asset.centralBarcode||'',name:ar?asset.nameAr:assetLabel(asset,false),category:categoryLabel(asset,ar),from:ar?asset.nurseryAr:nurseryLabel(asset,false)});
+ const [form,setForm]=useState({centralBarcode:asset.centralBarcode||'',name:ar?asset.nameAr:assetLabel(asset,false),category:categoryLabel(asset,ar),from:ar?asset.nurseryAr:nurseryLabel(asset,false),isNew:!!asset.isNewAsset});
  return <div className="invoice-overlay" onClick={onClose}><form className="asset-modal" onSubmit={e=>{e.preventDefault();onSave(form)}} onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>SAAMS Assets</small><h2>{t.editAsset}</h2></div><button type="button" onClick={onClose}>×</button></div>
   <div className="asset-form-grid">
@@ -656,13 +668,14 @@ function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
    <label><span>{t.assetName}</span><input required autoFocus value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
    <label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label>
    <label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label>
+   <label className="wide new-asset-toggle"><input type="checkbox" checked={form.isNew} onChange={e=>setForm({...form,isNew:e.target.checked})}/><span>{ar?'أصل جديد (يُحتسب في تقارير الأصول الجديدة ويظهر للحضانة كأصل جديد)':'New asset (counted in new-asset reports and shown to the nursery as new)'}</span></label>
   </div>
   <div className="asset-modal-actions"><button type="button" className="secondary-action" onClick={onClose}>{t.cancel}</button><button className="primary-action">✓ {t.edit}</button></div>
  </form></div>
 }
 
 function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,isAdmin=false}){
- const [form,setForm]=useState({barcode:'',centralBarcode:'',asset:'',from:defaultNursery||'',to:'',reason:'',name:'',category:'',notes:''});
+ const [form,setForm]=useState({barcode:'',centralBarcode:'',asset:'',from:defaultNursery||'',to:'',reason:'',name:'',category:'',notes:'',isNew:''});
  const [lookup,setLookup]=useState(null),[camera,setCamera]=useState(false),[scanMsg,setScanMsg]=useState('');
  const [pickCategory,setPickCategory]=useState('');
  const requestCategories=useMemo(()=>{const counts=new Map();for(const a of assets){const c=categoryLabel(a,ar)||(ar?'بدون تصنيف':'Uncategorized');counts.set(c,(counts.get(c)||0)+1)}return [...counts.entries()].sort((x,y)=>x[0].localeCompare(y[0],ar?'ar':'en'))},[assets,ar]);
@@ -690,7 +703,7 @@ function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,is
  function submit(e){e.preventDefault();if(type==='add'&&duplicateOnAdd){setLookup('duplicate');return}if(type!=='add'&&!selected)return setLookup('missing');if(type==='transfer'&&!form.to)return;onSave(form)}
  const hint=type==='transfer'?t.transferHint:type==='surplus'?t.surplusHint:type==='disposal'?t.disposalHint:'';
  return createPortal(<div className="invoice-overlay asset-request-overlay" onClick={()=>{stopCamera();onClose()}}><form className="asset-modal" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="drawer-header"><div><small>SAAMS Assets</small><h2>{type==='add'?t.add:t[type]}</h2></div><button type="button" onClick={()=>{stopCamera();onClose()}}>×</button></div>
-  {type==='add'?<div className="asset-form-grid"><label><span>{t.barcode}</span><input required value={form.barcode} onChange={e=>{setForm({...form,barcode:e.target.value});setLookup(null)}}/>{duplicateOnAdd&&<div className="duplicate-asset-warning"><b>⚠ {t.duplicateBarcode}</b><span>{duplicateOnAdd.barcode} · {assetLabel(duplicateOnAdd,ar)} · {t.duplicateBarcodeDetail}: {nurseryLabel(duplicateOnAdd,ar)}</span><small>{t.duplicateBarcodeBlocked}</small></div>}</label><label><span>{t.centralBarcode}</span><input value={form.centralBarcode} onChange={e=>setForm({...form,centralBarcode:e.target.value})}/></label><label><span>{t.assetName}</span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label><label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label><label className="wide"><span>{t.notes}</span><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label></div>:<>
+  {type==='add'?<div className="asset-form-grid"><label><span>{t.barcode}</span><input required value={form.barcode} onChange={e=>{setForm({...form,barcode:e.target.value});setLookup(null)}}/>{duplicateOnAdd&&<div className="duplicate-asset-warning"><b>⚠ {t.duplicateBarcode}</b><span>{duplicateOnAdd.barcode} · {assetLabel(duplicateOnAdd,ar)} · {t.duplicateBarcodeDetail}: {nurseryLabel(duplicateOnAdd,ar)}</span><small>{t.duplicateBarcodeBlocked}</small></div>}</label><label><span>{t.centralBarcode}</span><input value={form.centralBarcode} onChange={e=>setForm({...form,centralBarcode:e.target.value})}/></label><label><span>{t.assetName}</span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label><label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label><fieldset className="wide new-asset-question"><legend>{ar?'هل هذا أصل جديد؟':'Is this a new asset?'} <b>*</b></legend><label className={form.isNew==='yes'?'active':''}><input type="radio" name="isNew" value="yes" required checked={form.isNew==='yes'} onChange={()=>setForm({...form,isNew:'yes'})}/><span><strong>{ar?'نعم، أصل جديد':'Yes, new asset'}</strong><small>{ar?'شراء أو استلام جديد — يظهر للحضانة كأصل جديد ويُحتسب في التقارير':'Newly purchased or received — shown to the nursery as new and counted in reports'}</small></span></label><label className={form.isNew==='no'?'active':''}><input type="radio" name="isNew" value="no" checked={form.isNew==='no'} onChange={()=>setForm({...form,isNew:'no'})}/><span><strong>{ar?'لا، أصل موجود مسبقًا':'No, existing asset'}</strong><small>{ar?'تسجيل أصل موجود في الحضانة من قبل':'Registering an asset that already existed'}</small></span></label></fieldset><label className="wide"><span>{t.notes}</span><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label></div>:<>
    <p className="request-hint">{hint}</p><div className="request-asset-pickers"><label className="nursery-asset-picker request-category-picker"><span>{ar?'١. اختاري التصنيف':'1. Choose category'}</span><select value={pickCategory} onChange={e=>setPickCategory(e.target.value)}><option value="">{ar?`كل التصنيفات (${assets.length})`:`All categories (${assets.length})`}</option>{requestCategories.map(([c,n])=><option key={c} value={c}>{c} ({n})</option>)}</select></label><label className="nursery-asset-picker"><span>{ar?(isAdmin?'٢. اختاري الأصل':'٢. اختاري الأصل من أصول الحضانة'):(isAdmin?'2. Choose asset':'2. Choose from nursery assets')}</span><select value={selected?.id||selected?.barcode||''} onChange={e=>chooseRequestAsset(e.target.value)}><option value="">{ar?`اختاري الأصل... (${pickerAssets.length})`:`Choose asset... (${pickerAssets.length})`}</option>{pickerAssets.map(a=><option key={a.id||a.barcode} value={a.id||a.barcode}>{assetLabel(a,ar)} — {a.barcode}{a.centralBarcode?` / ${a.centralBarcode}`:''}{isAdmin?` — ${nurseryLabel(a,ar)}`:''}</option>)}</select></label></div><div className="barcode-panel"><label><span>{ar?'أي باركود للأصل':'Either Asset Barcode'}</span><div className="barcode-input-row"><input required value={form.barcode} onChange={e=>handleRequestBarcode(e.target.value)} placeholder="SEA-000000"/><button type="button" onClick={findAsset}>{t.lookup}</button></div></label><div className="barcode-tools"><button type="button" onClick={startCamera}>▣ {t.scan}</button><label className="upload-barcode">⇧ {t.upload}<input type="file" accept="image/*" capture="environment" onChange={e=>e.target.files[0]&&decodeImage(e.target.files[0])}/></label></div><small>{ar?'يمكنك اختيار الأصل من القائمة أو إدخال كوده مباشرة، وسيتم تعبئة البيانات تلقائيًا.':'Choose an asset from the list or enter its code; details will fill automatically.'}</small>{scanMsg&&<div className="scan-warning">{scanMsg}</div>}{lookup==='found'&&selected&&<div className="asset-found"><b>✓ {t.found}</b><strong>{assetLabel(selected,ar)}</strong><span>{nurseryLabel(selected,ar)} · {selected.barcode}{selected.centralBarcode?` · ${selected.centralBarcode}`:''}</span></div>}{lookup==='missing'&&form.barcode&&<div className="scan-error">! {t.notFound}</div>}</div>
    {camera&&<div className="camera-box"><video ref={videoRef} autoPlay muted playsInline/><div className="scan-frame"></div><p>{t.cameraHint}</p><button type="button" onClick={stopCamera}>{t.closeCamera}</button></div>}
    <div className="asset-form-grid"><label><span>{t.asset}</span><input readOnly value={form.asset}/></label><label><span>{t.category}</span><input readOnly value={form.category}/></label><label><span>{t.from}</span>{isAdmin?<select required value={form.from} onChange={e=>setForm({...form,from:e.target.value,to:e.target.value===form.to?'':form.to})}><option value="">{ar?'اختاري الحضانة...':'Choose nursery...'}</option>{nurseries.map(n=><option key={n}>{n}</option>)}</select>:<input readOnly value={form.from||defaultNursery||''}/>}</label>{type==='transfer'&&<label><span>{t.to}</span><select required value={form.to} onChange={e=>setForm({...form,to:e.target.value})}><option value="">{ar?'اختاري الحضانة المنقول إليها...':'Choose destination nursery...'}</option>{transferDestinations.filter(n=>n!==form.from).map(n=><option key={n} value={n}>{n}</option>)}</select></label>}<label className="wide"><span>{t.reason}</span><textarea required value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/></label></div>
@@ -737,4 +750,16 @@ function AssetHistory({asset,ar,onClose}){
   <div className="asset-history-note">{ar?'يعرض هذا السجل حركات النقل والفائض والإسقاط فقط.':'This history shows transfer, surplus, and disposal movements only.'}</div>
   <div className="entity-timeline asset-timeline">{rows.map((x,i)=><div key={x.id}><span>{i+1}</span><div><strong>{x.action}</strong><small>{x.date} · {x.time} · {x.user}</small><p>{x.details}</p>{x.reason&&<p className="timeline-reason">{x.reason}</p>}</div></div>)}</div>
  </aside></div>
+}
+
+function NewAssetQuestion({ar,count,onAnswer}){
+ return createPortal(<div className="invoice-overlay"><div className="asset-modal new-asset-import-question" role="dialog" aria-modal="true">
+  <div className="drawer-header"><div><small>{ar?'رفع أصول من Excel':'Excel asset import'}</small><h2>{ar?'هل الأصول في هذا الملف أصول جديدة؟':'Are the assets in this file new?'}</h2></div><button type="button" onClick={()=>onAnswer(null)}>×</button></div>
+  <p className="request-hint">{ar?`عدد الصفوف في الملف: ${count}. سيتم فحص الملف وحفظ الأصول الصحيحة فقط.`:`Rows in file: ${count}. Only valid assets will be saved.`}</p>
+  <div className="new-asset-import-choices">
+   <button type="button" className="primary-action" onClick={()=>onAnswer('new')}><strong>{ar?'نعم، أصول جديدة':'Yes, new assets'}</strong><small>{ar?'شراء أو استلام جديد — تظهر للحضانة كأصول جديدة وتُحتسب في التقارير':'Newly purchased/received — shown as new and counted in reports'}</small></button>
+   <button type="button" className="secondary-action" onClick={()=>onAnswer('existing')}><strong>{ar?'لا، أصول موجودة مسبقًا':'No, existing assets'}</strong><small>{ar?'تسجيل أصول موجودة في الحضانات من قبل (لا تُحتسب جديدة)':'Registering assets that already existed (not counted as new)'}</small></button>
+  </div>
+  <div className="asset-modal-actions"><button type="button" className="secondary-action" onClick={()=>onAnswer(null)}>{ar?'إلغاء الرفع':'Cancel import'}</button></div>
+ </div></div>,document.body);
 }

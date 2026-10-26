@@ -98,7 +98,7 @@ export default function Dashboard({ lang, setActive, profile }) {
         // Assets: use an exact count so the dashboard is never capped at Supabase's 1,000-row response limit.
         const assetCount=canAssets?await exactCount('assets',q=>scopeNursery(q)):0;
         const monthStart=new Date();monthStart.setDate(1);monthStart.setHours(0,0,0,0);
-        const newAssetsMonth=canAssets?await exactCount('assets',q=>scopeNursery(q).gte('created_at',monthStart.toISOString())).catch(()=>0):0;
+        const newAssetsMonth=canAssets?await exactCount('assets',q=>scopeNursery(q).eq('is_new_asset',true).gte('created_at',monthStart.toISOString())).catch(()=>0):0;
 
         // Distribution still needs row-level nursery data, so fetch it in safe pages.
         let assetRows=[];
@@ -221,7 +221,7 @@ export default function Dashboard({ lang, setActive, profile }) {
             // Assets the administration added to this nursery in the last 30 days, grouped per day.
             const since=new Date(Date.now()-30*24*60*60*1000).toISOString();
             const {data:newAssets,error:newAssetsError}=await supabase.from('assets')
-              .select('id,barcode,name_ar,name_en,created_at').eq('nursery_id',profile.nursery_id).gte('created_at',since)
+              .select('id,barcode,name_ar,name_en,created_at').eq('nursery_id',profile.nursery_id).eq('is_new_asset',true).gte('created_at',since)
               .order('created_at',{ascending:false}).limit(500);
             if(newAssetsError) console.warn('New asset alerts unavailable',newAssetsError);
             const byDay=new Map();

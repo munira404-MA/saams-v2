@@ -3550,3 +3550,28 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
   .report-status,.request-type,.asset-new-badge{-webkit-print-color-adjust:exact;print-color-adjust:exact;font-size:8px!important;padding:1px 6px!important}
   .comprehensive-hero,.comprehensive-sections article{break-inside:avoid}
 }
+
+/* V13 — «هل هذا أصل جديد؟» */
+.new-asset-question{border:1px solid #cfe3ea;border-radius:14px;padding:12px;margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.new-asset-question legend{padding:0 6px;font-weight:900;color:#17344f;font-size:15px}
+.new-asset-question legend b{color:#d94b5d}
+.new-asset-question label{display:flex;gap:10px;align-items:flex-start;border:1px solid #dbe7ee;border-radius:12px;padding:10px 12px;cursor:pointer;background:#fff}
+.new-asset-question label.active{border-color:#0ba49c;background:#effbf9;box-shadow:0 0 0 2px rgba(11,164,156,.12)}
+.new-asset-question input{margin-top:4px;accent-color:#0ba49c}
+.new-asset-question strong{display:block;font-size:14px;color:#17344f}
+.new-asset-question small{display:block;font-size:12px;color:#6b8296;margin-top:2px;line-height:1.5}
+.new-asset-toggle{display:flex!important;align-items:center;gap:10px;cursor:pointer}
+.new-asset-toggle input{width:18px;height:18px;accent-color:#0ba49c}
+.new-asset-import-question{max-width:620px}
+.new-asset-import-choices{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:8px 0 4px}
+.new-asset-import-choices button{display:grid;gap:6px;text-align:start;padding:14px 16px;min-height:96px;border-radius:14px;cursor:pointer;height:auto}
+.new-asset-import-choices button strong{font-size:15px}
+.new-asset-import-choices button small{font-size:12px;line-height:1.5;opacity:.9;font-weight:600}
+@media(max-width:700px){.new-asset-question,.new-asset-import-choices{grid-template-columns:1fr}}
+.asset-form-grid .new-asset-question,.asset-form-grid .new-asset-toggle{grid-column:1/-1}
+.asset-form-grid .new-asset-question label{flex-direction:row;align-items:flex-start}
+.asset-form-grid .new-asset-question label>span{display:block;flex:1}
+.asset-form-grid .new-asset-question label{display:flex!important;gap:10px}
+.asset-form-grid .new-asset-question input[type=radio]{width:18px!important;height:18px!important;min-height:0!important;flex:0 0 18px;padding:0!important;margin-top:3px}
+.asset-form-grid .new-asset-question label>span{min-width:0}
+.asset-form-grid .new-asset-question label>span strong{margin:0}
