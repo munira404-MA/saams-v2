@@ -99,7 +99,7 @@ export default function Attachments({ lang, profile }) {
   }
 
   return <section className="attachments-page">
-    <div className="module-heading"><div><span className="eyebrow">SAAMS Official 3.2</span><h1>{ar?'مركز المرفقات':'Attachment Center'}</h1><p>{ar?'مركز حي مرتبط مباشرة بمرفقات الفواتير المحفوظة في Supabase Storage.':'A live center linked directly to invoice files saved in Supabase Storage.'}</p></div><div className="command-center-actions"><button className="secondary-action" onClick={refresh}>↻ {ar?'تحديث':'Refresh'}</button><button className="primary-action" onClick={downloadAll} disabled={!filtered.length}>⇩ {ar?'تنزيل النتائج ZIP':'Download Results ZIP'}</button></div></div>
+    <div className="module-heading"><div><span className="eyebrow">SAAMS Official 3.3</span><h1>{ar?'مركز المرفقات':'Attachment Center'}</h1><p>{ar?'مركز حي مرتبط مباشرة بمرفقات الفواتير المحفوظة في Supabase Storage.':'A live center linked directly to invoice files saved in Supabase Storage.'}</p></div><div className="command-center-actions"><button className="secondary-action" onClick={refresh}>↻ {ar?'تحديث':'Refresh'}</button><button className="primary-action" onClick={downloadAll} disabled={!filtered.length}>⇩ {ar?'تنزيل النتائج ZIP':'Download Results ZIP'}</button></div></div>
     {loading&&<div className="dashboard-live-note">{ar?'جاري مزامنة المرفقات...':'Syncing attachments...'}</div>}{error&&<div className="dashboard-live-note error">{error}</div>}
     <div className="attachment-center-stats">
       <article><small>{ar?'إجمالي الملفات':'Total Files'}</small><strong>{filtered.length}</strong></article>

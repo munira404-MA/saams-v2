@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import SmartAssistant from './SmartAssistant';
 import { loadAuditLog } from '../utils/audit';
+import { loadActivityFeed, isToday, activityActor, activityTime } from '../utils/activityFeed';
 import { englishPersonName } from '../utils/englishDisplay';
 
 const icons = {
@@ -54,10 +55,26 @@ export default function Layout({
   }, []);
 
   useEffect(() => {
-    const refresh = () => setAuditRows(loadAuditLog());
-    window.addEventListener('saams:audit-updated', refresh);
-    return () => window.removeEventListener('saams:audit-updated', refresh);
-  }, []);
+    let alive = true;
+    // Shared activity: a nursery sees its own actions plus administration actions about it
+    // (approvals, rejections, new assets, incoming transfers) from any device.
+    const refresh = async () => {
+      const feed = await loadActivityFeed(profile, { limit: 40 });
+      if (alive) setAuditRows(feed.rows);
+    };
+    refresh();
+    const timer = setInterval(refresh, 30000);
+    const onChange = () => setTimeout(refresh, 800);
+    window.addEventListener('saams:audit-updated', onChange);
+    window.addEventListener('saams:data-updated', onChange);
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      window.removeEventListener('saams:audit-updated', onChange);
+      window.removeEventListener('saams:data-updated', onChange);
+    };
+  }, [profile?.id, profile?.role, profile?.nursery_id]);
+  const todayRows = auditRows.filter(isToday);
 
   useEffect(() => {
     document.body.classList.toggle('mobile-menu-is-open', mobileMenuOpen);
@@ -206,7 +223,7 @@ export default function Layout({
               ? 'نظام إدارة الأصول والسلف والعمليات المالية'
               : 'Assets, Advances & Financial Operations Management System'}
           </p>
-          <small>{ar ? 'الإصدار 3.2' : 'Version 3.2'}</small>
+          <small>{ar ? 'الإصدار 3.3' : 'Version 3.3'}</small>
         </div>
 
         <div className="sidebar-profile-card">
@@ -364,7 +381,7 @@ export default function Layout({
             </div>
             <div className="topbar-release-brand">
               <strong>SAAMS Enterprise</strong>
-              <small>{ar ? 'الإصدار الرسمي 3.2.1' : 'Official Release 3.2.1'}</small>
+              <small>{ar ? 'الإصدار الرسمي 3.3' : 'Official Release 3.3'}</small>
             </div>
           </div>
 
@@ -381,8 +398,8 @@ export default function Layout({
                 onClick={() => setNotificationsOpen((value) => !value)}
               >
                 ♧
-                {auditRows.length > 0 && (
-                  <span className="notification-dot">{Math.min(auditRows.length, 9)}</span>
+                {todayRows.length > 0 && (
+                  <span className="notification-dot">{todayRows.length > 9 ? '9+' : todayRows.length}</span>
                 )}
               </button>
 
@@ -413,9 +430,9 @@ export default function Layout({
                         <span>•</span>
                         <div>
                           <strong>{row.action}</strong>
-                          <small>{row.user} · {row.details || row.entityId}</small>
+                          <small>{activityActor(row, profile, ar)} · {row.details || row.entityId}</small>
                         </div>
-                        <time>{row.time}</time>
+                        <time>{isToday(row) ? activityTime(row, ar) : (row.createdAt ? new Date(row.createdAt).toLocaleDateString(ar ? 'ar-AE' : 'en-GB', { day: 'numeric', month: 'short' }) : row.time)}</time>
                       </button>
                     ))}
                     {!auditRows.length && (
@@ -427,10 +444,10 @@ export default function Layout({
                     className="notification-view-all"
                     onClick={() => {
                       setNotificationsOpen(false);
-                      setActive('settings');
+                      setActive(profile?.role === 'nursery' ? 'dashboard' : 'settings');
                     }}
                   >
-                    {ar ? 'عرض سجل العمليات' : 'View Audit Log'}
+                    {profile?.role === 'nursery' ? (ar ? 'عرض كل النشاطات في الرئيسية' : 'View all activity on Home') : (ar ? 'عرض سجل العمليات' : 'View Audit Log')}
                   </button>
                 </div>
               )}

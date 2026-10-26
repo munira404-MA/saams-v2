@@ -443,12 +443,34 @@ export async function deleteAdvance(advance) {
   if (error) throw error;
 }
 
+let nurseryIdCache = null;
+async function nurseryIdByName(name) {
+  const key = String(name || '').trim();
+  if (!key) return null;
+  if (!nurseryIdCache) {
+    const { data, error } = await supabase.from('nurseries').select('id,name_ar,name_en');
+    if (error) return null;
+    nurseryIdCache = new Map();
+    for (const row of data || []) {
+      if (row.name_ar) nurseryIdCache.set(String(row.name_ar).trim(), row.id);
+      if (row.name_en) nurseryIdCache.set(String(row.name_en).trim(), row.id);
+    }
+  }
+  return nurseryIdCache.get(key) || null;
+}
+
 export async function writeAuditLog(payload) {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) return;
+  // Tag the row with the nursery the action is ABOUT (not only the actor's nursery),
+  // so an approval/rejection/new asset by the administration appears in that nursery's activity.
+  const nurseryId = payload.nurseryId
+    || await nurseryIdByName(payload.nurseryName).catch(() => null)
+    || payload.fallbackNurseryId
+    || null;
   const { error } = await supabase.from('audit_logs').insert({
     user_id: userData.user.id,
-    nursery_id: payload.nurseryId || null,
+    nursery_id: nurseryId,
     screen: payload.screen,
     action: payload.action,
     action_type: payload.actionType,

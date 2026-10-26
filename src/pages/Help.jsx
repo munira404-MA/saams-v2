@@ -92,7 +92,7 @@ export default function Help({ lang, setActive }) {
     <section className="help-page official-info-page">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">SAAMS Enterprise Official Release 3.2</span>
+          <span className="eyebrow">SAAMS Enterprise Official Release 3.3</span>
           <h1>{ar ? 'مركز المساعدة' : 'Help Center'}</h1>
           <p>{ar ? 'دليل مختصر لاستخدام الشاشات والإجراءات الأساسية في المنظومة.' : 'A concise guide to the system screens and essential procedures.'}</p>
         </div>

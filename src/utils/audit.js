@@ -71,7 +71,10 @@ export function recordAudit({
   // share one central activity history across browsers/devices. Local storage stays as
   // a fast fallback if the network is temporarily unavailable.
   if (syncRemote) writeAuditLog({
-    nurseryId: profile?.nursery_id || metadata?.nurseryId || null,
+    nurseryId: metadata?.nurseryId || null,
+    nurseryName: nursery || '',
+    // Rows addressed to ANOTHER nursery (incoming transfer) must never fall back to the actor's nursery.
+    fallbackNurseryId: metadata?.strictNursery ? null : (profile?.nursery_id || null),
     screen, action, actionType, entityType, entityId, details, reason, before, after,
   }).then(() => {
     window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'audit_logs' } }));

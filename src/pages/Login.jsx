@@ -64,7 +64,7 @@ export default function Login({ lang, setLang, onLogin, busy, error, databaseMod
             <img src="/academy-logo.png" alt={ar ? 'أكاديمية الشارقة للتعليم' : 'Sharjah Education Academy'} className="login-logo academy-logo" />
           </div>
           <div className="brand-copy">
-            <span className="brand-kicker">{ar ? 'الإصدار 3.2' : 'SAAMS Enterprise · Version 3.2'}</span>
+            <span className="brand-kicker">{ar ? 'الإصدار 3.3' : 'SAAMS Enterprise · Version 3.3'}</span>
             <h2>{ar ? 'منظومة الأصول والسلف الذكية' : 'SAAMS Enterprise'}</h2>
             <p>{ar ? 'نظام إدارة الأصول والسلف والعمليات المالية' : 'Assets, Advances & Financial Operations Management System'}</p>
           </div>

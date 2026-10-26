@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { translateAssetName, translateAssetNameArabic } from './assetTranslations';
+import { translateAssetName, translateAssetNameArabic } from './assetTranslations.js';
 
 const AR_EN = {
   "Selected Nursery' : nurseryName,\n      advanceAr: uploadAdvance || 'فواتير مرفوعة',\n      advanceEn: uploadAdvance || 'Uploaded Invoices',\n      supplierAr: ocr.supplier_name || 'مورد غير محدد',\n      supplierEn: ocr.supplier_name || 'Unknown Supplier',\n      date: ocr.invoice_date || new Date().toLocaleDateString('en-GB'),\n      total: Number(ocr.total_amount) || 0,\n      vat: Number(ocr.vat_amount) || 0,\n      payment: ocr.payment_method === 'card' ? 'card": "cash",
@@ -210,7 +210,6 @@ const AR_EN = {
   "معتمد — بانتظار النقل": "Approved — Awaiting Transport",
   "إجمالي الصرف المعتمد": "Approved Spending",
   "إنشاء حساب قسم النقل": "Create Transport Account",
-  "الإصدار الرسمي 3.2.1": "Official Release 3.2.1",
   "الإصدار الرسمي الأول": "First official release",
   "العودة لتسجيل الدخول": "Back to sign in",
   "بيانات إلزامية ناقصة": "Missing required data",
@@ -234,7 +233,7 @@ const AR_EN = {
   "كلمة المرور الحالية": "Current Password",
   "كلمة المرور المؤقتة": "Temporary password",
   "من البيانات الفعلية": "Live data",
-  "الإصدار الرسمي 3.2": "Official Release · Version 3.2",
+  "الإصدار الرسمي 3.3": "Official Release · Version 3.3",
   "الاستلام / التنفيذ": "Receipt / Execution",
   "الحضانات التجريبية": "Pilot Nurseries",
   "تشغيل تجريبي محدود": "Limited Pilot",
@@ -379,6 +378,7 @@ const AR_EN = {
   "كل التصنيفات": "All categories",
   "مفعلة دائمًا": "Always enabled",
   "منيرة الأحمد": "Munira Alahmed",
+  "منيرة عبدالله الأحمد": "Munira Abdullah Alahmed",
   "منيرة الاحمد": "Munira Alahmed",
   "واجهة النظام": "Web Application",
   "وضع المعاينة": "Preview mode",
@@ -388,7 +388,7 @@ const AR_EN = {
   "إعداد الطلب": "Prepared By",
   "إيصال الخصم": "Debit / card receipt",
   "اسم الحضانة": "Nursery Name",
-  "الإصدار 3.2": "SAAMS Enterprise · Version 3.2",
+  "الإصدار 3.3": "SAAMS Enterprise · Version 3.3",
   "الحضانة فقط": "Nursery only",
   "الدعم الفني": "Technical Support",
   "بعد العملية": "After",
@@ -612,9 +612,24 @@ const LATIN_RE = /[A-Za-z]/;
 const SKIP_TAGS = new Set(['SCRIPT','STYLE','NOSCRIPT','TEXTAREA']);
 const AR_LATIN={'ا':'a','أ':'a','إ':'i','آ':'aa','ب':'b','ت':'t','ث':'th','ج':'j','ح':'h','خ':'kh','د':'d','ذ':'dh','ر':'r','ز':'z','س':'s','ش':'sh','ص':'s','ض':'d','ط':'t','ظ':'z','ع':'a','غ':'gh','ف':'f','ق':'q','ك':'k','ل':'l','م':'m','ن':'n','ه':'h','ة':'a','و':'w','ؤ':'w','ي':'y','ى':'a','ئ':'y','ء':'','َ':'','ً':'','ُ':'','ٌ':'','ِ':'','ٍ':'','ْ':'','ّ':''};
 
-function transliterateArabic(v){ return String(v||'').split('').map(ch=>AR_LATIN[ch]??ch).join('').replace(/\s+/g,' ').trim(); }
+function transliterateArabic(v){ return String(v||'').replace(/[\u0600-\u06FF]+/g,word=>{const latin=word.split('').map(ch=>AR_LATIN[ch]??ch).join('');return latin.charAt(0).toUpperCase()+latin.slice(1)}).replace(/\s+/g,' ').trim(); }
 function preserveSpace(original, translated){ const lead=(original.match(/^\s*/)||[''])[0], tail=(original.match(/\s*$/)||[''])[0]; return lead + translated.trim() + tail; }
-function replaceKnown(value, map){ let out=String(value||''); const entries=Object.entries(map).sort((a,b)=>b[0].length-a[0].length); for(const [from,to] of entries){ if(from && out.includes(from)) out=out.split(from).join(to); } return out; }
+// Short single Arabic words (من، إلى، نقل، عرض، صف...) must match as whole words only.
+// Otherwise names are corrupted, e.g. «منيرة» → «Fromyra» and «المنصوري» → «alFromswry».
+const AR_WORD_CHAR='\\u0600-\\u06FF';
+const replaceCache=new WeakMap();
+function compiledEntries(map){
+ let entries=replaceCache.get(map);
+ if(entries) return entries;
+ entries=Object.entries(map).filter(([from])=>from).sort((a,b)=>b[0].length-a[0].length).map(([from,to])=>{
+  const wholeWord=AR_RE.test(from)&&!/\s/.test(from)&&from.length<=4;
+  const pattern=wholeWord?new RegExp(`(?<![${AR_WORD_CHAR}])${from.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?![${AR_WORD_CHAR}])`,'g'):null;
+  return [from,to,pattern];
+ });
+ replaceCache.set(map,entries);
+ return entries;
+}
+function replaceKnown(value, map){ let out=String(value||''); for(const [from,to,pattern] of compiledEntries(map)){ if(!out.includes(from)) continue; out=pattern?out.replace(pattern,()=>to):out.split(from).join(to); } return out; }
 export function toEnglishDisplay(value){
  const raw=String(value??''); if(!AR_RE.test(raw)) return raw;
  const trimmed=raw.trim(); if(AR_EN[trimmed]) return preserveSpace(raw, AR_EN[trimmed]);

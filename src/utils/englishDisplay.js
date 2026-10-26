@@ -2,6 +2,8 @@ import { translateAssetName } from './assetTranslations';
 
 const PERSON_NAMES = {
   'منيرة الأحمد': 'Munira Alahmed',
+  'منيرة عبدالله الأحمد': 'Munira Abdullah Alahmed',
+  'منيرة عبد الله الأحمد': 'Munira Abdullah Alahmed',
   'منيرة احمد': 'Munira Alahmed',
   'منيرة الاحمد': 'Munira Alahmed',
 };

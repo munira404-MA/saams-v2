@@ -131,7 +131,7 @@ export default function ExecutiveCommandCenter({ lang, profile, setActive }) {
 
   return <section className="command-center-page">
     <div className="module-heading command-center-heading">
-      <div><span className="eyebrow">SAAMS Enterprise Official Release 3.2</span><h1>{ar?'مركز القيادة التنفيذي':'Executive Command Center'}</h1><p>{ar?'واجهة حية مرتبطة مباشرة بالأصول والفواتير والسلف والمرفقات والتقارير.':'A live executive view connected directly to assets, invoices, advances, attachments, and reports.'}</p></div>
+      <div><span className="eyebrow">SAAMS Enterprise Official Release 3.3</span><h1>{ar?'مركز القيادة التنفيذي':'Executive Command Center'}</h1><p>{ar?'واجهة حية مرتبطة مباشرة بالأصول والفواتير والسلف والمرفقات والتقارير.':'A live executive view connected directly to assets, invoices, advances, attachments, and reports.'}</p></div>
       <div className="command-center-actions"><button className="secondary-action" onClick={refresh}>↻ {ar?'تحديث الآن':'Refresh'}</button><button className="secondary-action" onClick={()=>setActive('attachments')}>▥ {ar?'مركز المرفقات':'Attachments'}</button><button className="primary-action" onClick={()=>setActive('reports')}>{ar?'فتح التقرير الشامل':'Open Comprehensive Report'}</button></div>
     </div>
     {loading&&<div className="dashboard-live-note">{ar?'جاري مزامنة بيانات النظام...':'Syncing live system data...'}</div>}
