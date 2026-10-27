@@ -1091,8 +1091,8 @@ export default function Invoices({ lang, profile, databaseMode }) {
           messageAr = 'انتهت جلسة الدخول. سجلي خروجًا ثم دخولًا مرة أخرى قبل حفظ الفاتورة.';
           messageEn = 'Your session has expired. Sign out and back in before saving the invoice.';
         } else if (code.includes('DUPLICATE_INVOICE') || code.includes('23505')) {
-          messageAr = `هذه الفاتورة محفوظة مسبقًا لنفس الحضانة والمورد ورقم الفاتورة (${ocr.invoice_number || ''}). لن يتم حفظ نسخة مكررة.`;
-          messageEn = `This invoice is already saved for the same nursery, supplier, and invoice number (${ocr.invoice_number || ''}). A duplicate copy was not saved.`;
+          messageAr = `هذه الفاتورة موجودة مسبقًا: نفس المورد ونفس رقم الفاتورة (${ocr.invoice_number || ''}) ونفس التاريخ ونفس المبلغ. لن يتم حفظ نسخة مكررة.`;
+          messageEn = `This invoice already exists: same supplier, invoice number (${ocr.invoice_number || ''}), date and amount. A duplicate copy was not saved.`;
         } else if (code.includes('row-level security') || code.includes('42501')) {
           messageAr = 'رفضت قاعدة البيانات الحفظ بسبب صلاحيات الحضانة. يرجى مراجعة سياسات RLS.';
           messageEn = 'The database rejected the save because of nursery access policies. Review RLS policies.';

@@ -1,3 +1,4 @@
+import { isSameInvoice } from './invoiceDuplicates.js';
 import { loadAuditLog } from './audit';
 
 export const INTELLIGENCE_KEY = 'saams-intelligence-state-v1';
@@ -57,21 +58,15 @@ export function detectPotentialDuplicates(rows = getInvoiceRows()) {
     for (let j = i + 1; j < rows.length; j += 1) {
       const a = rows[i];
       const b = rows[j];
-      const supplierA = String(a.supplierAr || a.supplierEn || a.supplier || '').trim().toLowerCase();
-      const supplierB = String(b.supplierAr || b.supplierEn || b.supplier || '').trim().toLowerCase();
-      const totalA = Number(a.total || a.amount || 0);
-      const totalB = Number(b.total || b.amount || 0);
-      const dateA = String(a.date || a.invoiceDate || '').trim();
-      const dateB = String(b.date || b.invoiceDate || '').trim();
-      const numberA = String(a.invoiceNumber || a.number || a.id || '').trim().toLowerCase();
-      const numberB = String(b.invoiceNumber || b.number || b.id || '').trim().toLowerCase();
-
-      let score = 0;
-      const reasons = [];
-      if (supplierA && supplierA === supplierB) { score += 35; reasons.push('نفس المورد'); }
-      if (totalA > 0 && totalA === totalB) { score += 35; reasons.push('نفس المبلغ'); }
-      if (dateA && dateA === dateB) { score += 20; reasons.push('نفس التاريخ'); }
-      if (numberA && numberA === numberB) { score += 50; reasons.push('نفس رقم الفاتورة'); }
+      // Same rule as saving: supplier + invoice number + date + amount must ALL match.
+      const pair = (row) => ({
+        supplier: row.supplierAr || row.supplierEn || row.supplier,
+        number: row.invoiceNumber || row.number || row.id,
+        date: row.date || row.invoiceDate,
+        total: row.total || row.amount,
+      });
+      const score = isSameInvoice(pair(a), pair(b)) ? 100 : 0;
+      const reasons = score ? ['نفس المورد', 'نفس رقم الفاتورة', 'نفس التاريخ', 'نفس المبلغ'] : [];
 
       if (score >= 70) {
         candidates.push({

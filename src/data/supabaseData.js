@@ -1,4 +1,5 @@
 import { supabase } from '../supabase';
+import { isSameInvoice } from '../utils/invoiceDuplicates';
 
 export function isSupabaseConfigured() {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -212,17 +213,24 @@ export async function createInvoice(payload, invoiceFile, receiptFile) {
   const normalizedInvoiceNumber = String(payload.id || '').trim();
   const normalizedSupplier = String(payload.supplierAr || payload.supplierEn || '').trim();
 
-  // Prevent duplicate inserts before PostgreSQL's unique constraint fires.
-  // The database still remains the final guard, but the UI receives a clear controlled error.
+  // Duplicate = same supplier + invoice number + invoice date + total amount (all four).
+  // Same supplier or same date alone is allowed. The database index (20_INVOICE_DUPLICATE_RULE.sql)
+  // is the final guard; this check gives the user a clear message first.
   if (normalizedInvoiceNumber && normalizedSupplier) {
-    const { data: existingInvoice, error: duplicateCheckError } = await supabase
+    const invoiceDate = normalizeDate(payload.date);
+    const total = Number(payload.total || 0);
+    let candidates = supabase
       .from('invoices')
-      .select('id,invoice_number,supplier_name')
-      .eq('nursery_id', resolvedNurseryId)
-      .eq('supplier_name', normalizedSupplier)
-      .eq('invoice_number', normalizedInvoiceNumber)
-      .maybeSingle();
+      .select('id,invoice_number,supplier_name,invoice_date,total_amount')
+      .eq('total_amount', total)
+      .limit(200);
+    candidates = invoiceDate ? candidates.eq('invoice_date', invoiceDate) : candidates.is('invoice_date', null);
+    const { data: sameDateAndAmount, error: duplicateCheckError } = await candidates;
     if (duplicateCheckError) throw duplicateCheckError;
+    const incoming = { supplier: normalizedSupplier, number: normalizedInvoiceNumber, date: invoiceDate, total };
+    const existingInvoice = (sameDateAndAmount || []).find((row) => isSameInvoice(incoming, {
+      supplier: row.supplier_name, number: row.invoice_number, date: row.invoice_date, total: row.total_amount,
+    }));
     if (existingInvoice?.id) {
       const err = new Error('DUPLICATE_INVOICE');
       err.code = 'DUPLICATE_INVOICE';
