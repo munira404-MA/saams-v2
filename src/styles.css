@@ -3575,3 +3575,7 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .asset-form-grid .new-asset-question input[type=radio]{width:18px!important;height:18px!important;min-height:0!important;flex:0 0 18px;padding:0!important;margin-top:3px}
 .asset-form-grid .new-asset-question label>span{min-width:0}
 .asset-form-grid .new-asset-question label>span strong{margin:0}
+/* V15 — زر «عرض الفاتورة الموجودة» في رسالة التكرار */
+.ocr-error .duplicate-invoice-open{display:inline-flex;align-items:center;gap:6px;margin-top:10px;margin-inline-start:0;padding:8px 14px;border-radius:10px;border:1px solid #3d71e5;background:#fff;color:#2f5fd0;font-weight:900;font-size:14px;cursor:pointer}
+.ocr-error .duplicate-invoice-open:hover{background:#eef4ff}
+.ocr-error:has(.duplicate-invoice-open){display:flex;flex-direction:column;align-items:flex-start}

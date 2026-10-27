@@ -2,6 +2,7 @@ import { recordAudit, loadAuditLog } from '../utils/audit';
 import { canDeleteInvoice } from '../utils/invoiceDeletion';
 import { registerAttachment } from '../utils/attachments';
 import { detectPotentialDuplicates } from '../utils/intelligence';
+import { isSameInvoice } from '../utils/invoiceDuplicates';
 import {
   createInvoice as createInvoiceDb,
   deleteInvoice as deleteInvoiceDb,
@@ -427,6 +428,8 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [selectedFileUrl, setSelectedFileUrl] = useState('');
   const [reading, setReading] = useState(false);
   const [ocrError, setOcrError] = useState('');
+  const [duplicateTarget, setDuplicateTarget] = useState(null);
+  useEffect(() => { if (!ocrError) setDuplicateTarget(null); }, [ocrError]);
   const [ocr, setOcr] = useState(null);
   const [detectedInvoices, setDetectedInvoices] = useState([]);
   const [activeDetectedIndex, setActiveDetectedIndex] = useState(0);
@@ -1020,6 +1023,19 @@ export default function Invoices({ lang, profile, databaseMode }) {
     setSelected(item);
   }
 
+  function openExistingDuplicate() {
+    const target = duplicateTarget;
+    if (!target) return;
+    const match = rows.find((row) => (target.dbId && row.dbId === target.dbId))
+      || rows.find((row) => isSameInvoice(
+        { supplier: row.supplierAr || row.supplierEn, number: row.id, date: row.date, total: row.total },
+        target,
+      ));
+    setShowUpload(false);
+    if (match) setSelected(match);
+    else setSearch(target.number || '');
+  }
+
   async function savePreviewInvoice() {
     if (!ocr) return;
     if (!ocr.can_save || ocr.document_quality === 'rejected') {
@@ -1091,6 +1107,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
           messageAr = 'انتهت جلسة الدخول. سجلي خروجًا ثم دخولًا مرة أخرى قبل حفظ الفاتورة.';
           messageEn = 'Your session has expired. Sign out and back in before saving the invoice.';
         } else if (code.includes('DUPLICATE_INVOICE') || code.includes('23505')) {
+          setDuplicateTarget({ dbId: error?.existingInvoiceId || null, number: ocr.invoice_number || '', supplier: ocr.supplier_name || '', date: ocr.invoice_date || '', total: Number(ocr.total_amount) || 0 });
           messageAr = `هذه الفاتورة موجودة مسبقًا: نفس المورد ونفس رقم الفاتورة (${ocr.invoice_number || ''}) ونفس التاريخ ونفس المبلغ. لن يتم حفظ نسخة مكررة.`;
           messageEn = `This invoice already exists: same supplier, invoice number (${ocr.invoice_number || ''}), date and amount. A duplicate copy was not saved.`;
         } else if (code.includes('row-level security') || code.includes('42501')) {
@@ -1102,6 +1119,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
           messageEn = `Could not save invoice: ${error.message}${technicalCode}`;
         }
         setOcrError(ar ? messageAr : messageEn);
+        if (!code.includes('DUPLICATE_INVOICE') && !code.includes('23505')) setDuplicateTarget(null);
         return;
       }
     }
@@ -1553,7 +1571,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                     <span className="ai-orb">✦</span>
                     <h3>{t.analyze}</h3>
                     <p>{ar ? 'بعد اختيار المرفق، سيقرأ النظام البيانات ويعرضها هنا بجانب الفاتورة للمراجعة.' : 'After choosing an attachment, the system will extract and display its data here beside the invoice.'}</p>
-                    {ocrError && <div className="ocr-error">! {ocrError}</div>}
+                    {ocrError && <div className="ocr-error">! {ocrError}{duplicateTarget && <button type="button" className="duplicate-invoice-open" onClick={openExistingDuplicate}>{ar ? '👁 عرض الفاتورة الموجودة' : '👁 View existing invoice'}</button>}</div>}
                     <button className="primary-action upload-save" type="button" disabled={reading || !selectedFile} onClick={() => analyzeInvoice()}>{reading ? `◌ ${t.analyzing}` : `✦ ${t.analyze}`}</button>
                   </div>
                 )}
@@ -1667,7 +1685,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                     )}
                     <div className={`receipt-check ${ocr.payment_method === 'card' && !ocr.card_receipt_detected ? 'receipt-warning' : ''}`}>{ocr.card_receipt_detected ? '✓' : '!'} {ocr.card_receipt_detected ? (ocr.linked_receipt_pages?.length ? `${t.receiptAttached} (${t.linkedReceiptPages}: ${ocr.linked_receipt_pages.join(', ')})` : (receiptFile ? t.receiptAttached : t.receiptFound)) : t.receiptMissing}</div>
                     {!!ocr.rejection_reasons?.length && <div className="ocr-reasons">{ocr.rejection_reasons.map((reason) => <span key={reason}>! {reason}</span>)}</div>}
-                    {ocrError && <div className="ocr-error">! {ocrError}</div>}
+                    {ocrError && <div className="ocr-error">! {ocrError}{duplicateTarget && <button type="button" className="duplicate-invoice-open" onClick={openExistingDuplicate}>{ar ? '👁 عرض الفاتورة الموجودة' : '👁 View existing invoice'}</button>}</div>}
                     <div className="ocr-actions">
                       <button className="secondary-action" type="button" onClick={() => analyzeInvoice()}>↻ {t.analyze}</button>
                       <button className="primary-action" type="button" disabled={!ocr.can_save} onClick={savePreviewInvoice}>✓ {t.savePreview}</button>
