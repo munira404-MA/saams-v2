@@ -22,7 +22,12 @@ export function loadAuditLog() {
 }
 
 export function saveAuditLog(rows) {
-  localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(rows.slice(0, 1000)));
+  // Local copy only; the central audit log is in Supabase. A full browser storage must never break an action.
+  try {
+    localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(rows.slice(0, 1000)));
+  } catch {
+    try { localStorage.setItem(AUDIT_STORAGE_KEY, JSON.stringify(rows.slice(0, 100))); } catch { /* ignore */ }
+  }
   window.dispatchEvent(new CustomEvent('saams:audit-updated'));
 }
 

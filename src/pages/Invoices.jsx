@@ -429,6 +429,8 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [reading, setReading] = useState(false);
   const [ocrError, setOcrError] = useState('');
   const [duplicateTarget, setDuplicateTarget] = useState(null);
+  const [savingInvoice, setSavingInvoice] = useState(false);
+  const saveInFlight = useRef(false);
   useEffect(() => { if (!ocrError) setDuplicateTarget(null); }, [ocrError]);
   const [ocr, setOcr] = useState(null);
   const [detectedInvoices, setDetectedInvoices] = useState([]);
@@ -1037,6 +1039,19 @@ export default function Invoices({ lang, profile, databaseMode }) {
   }
 
   async function savePreviewInvoice() {
+    // One save at a time: a second tap while saving used to create the «duplicate» message.
+    if (saveInFlight.current) return;
+    saveInFlight.current = true;
+    setSavingInvoice(true);
+    try {
+      await savePreviewInvoiceOnce();
+    } finally {
+      saveInFlight.current = false;
+      setSavingInvoice(false);
+    }
+  }
+
+  async function savePreviewInvoiceOnce() {
     if (!ocr) return;
     if (!ocr.can_save || ocr.document_quality === 'rejected') {
       setOcrError(t.blockedSave);
@@ -1123,7 +1138,12 @@ export default function Invoices({ lang, profile, databaseMode }) {
         return;
       }
     }
-    setRows((current) => [next, ...current]);
+    // From here the invoice IS saved. Local extras must never stop the screen from moving on.
+    // In database mode the file lives in Supabase Storage; don't keep multi-MB copies in memory.
+    const { attachmentDataUrl: _a, receiptDataUrl: _r, ...lightRow } = next;
+    setRows((current) => [databaseMode ? lightRow : next, ...current]);
+    showActionMessage(ar ? `تم حفظ الفاتورة ${next.id} بنجاح` : `Invoice ${next.id} saved`);
+    try {
     if (attachmentDataUrl) registerAttachment({entityType:'invoice',entityId:next.id,kind:'invoice',name:next.attachmentName||`${next.id}.pdf`,mime:next.attachmentType,dataUrl:attachmentDataUrl,nursery:next.nurseryAr,supplier:next.supplierAr});
     if (receiptDataUrl) registerAttachment({entityType:'invoice',entityId:next.id,kind:'receipt',name:next.receiptName||`${next.id}_receipt`,mime:next.receiptType,dataUrl:receiptDataUrl,nursery:next.nurseryAr,supplier:next.supplierAr});
     window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'invoices'}}));
@@ -1138,6 +1158,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
       details: `${next.supplierAr || next.supplierEn || 'مورد'} — ${Number(next.total || 0).toFixed(2)} AED`,
       after: { status: next.status, total: next.total, supplier: next.supplierAr || next.supplierEn },
     });
+    } catch (localError) {
+      console.warn('Post-save local steps skipped', localError);
+    }
     if (detectedInvoices.length > 1) {
       const remainingDetected = detectedInvoices.filter((_, index) => index !== activeDetectedIndex);
       setDetectedInvoices(remainingDetected);
@@ -1688,7 +1711,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                     {ocrError && <div className="ocr-error">! {ocrError}{duplicateTarget && <button type="button" className="duplicate-invoice-open" onClick={openExistingDuplicate}>{ar ? '👁 عرض الفاتورة الموجودة' : '👁 View existing invoice'}</button>}</div>}
                     <div className="ocr-actions">
                       <button className="secondary-action" type="button" onClick={() => analyzeInvoice()}>↻ {t.analyze}</button>
-                      <button className="primary-action" type="button" disabled={!ocr.can_save} onClick={savePreviewInvoice}>✓ {t.savePreview}</button>
+                      <button className="primary-action" type="button" disabled={!ocr.can_save || savingInvoice} aria-busy={savingInvoice} onClick={savePreviewInvoice}>{savingInvoice ? (ar ? '⏳ جاري حفظ الفاتورة...' : '⏳ Saving invoice...') : `✓ ${t.savePreview}`}</button>
                     </div>
                   </div>
                 )}

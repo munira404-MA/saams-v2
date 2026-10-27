@@ -21,18 +21,45 @@ export function loadAttachments() {
   }
 }
 
-export function registerAttachment(item) {
-  if (!item?.dataUrl) return;
-  const rows = loadAttachments();
-  const key = `${item.entityType}-${item.entityId}-${item.kind}-${item.name}`;
-  const next = {
-    id: key,
-    createdAt: new Date().toISOString(),
-    ...item,
-  };
-  const filtered = rows.filter((row) => row.id !== key);
-  localStorage.setItem(ATTACHMENTS_KEY, JSON.stringify([next, ...filtered].slice(0, 400)));
-  window.dispatchEvent(new CustomEvent('saams:attachments-updated'));
-  window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'attachments' } }));
+// Phone photos are 2–5 MB; the browser's local storage holds only ~5 MB in total.
+// The real file is already saved in Supabase Storage, so large files are cached here
+// WITHOUT their data, and a full storage NEVER interrupts a save (it used to throw after
+// the invoice was saved, so users pressed «حفظ» again and got «الفاتورة موجودة مسبقًا»).
+const MAX_CACHED_DATA_URL = 350 * 1024;
+
+function writeAttachments(rows) {
+  try {
+    localStorage.setItem(ATTACHMENTS_KEY, JSON.stringify(rows));
+    return true;
+  } catch {
+    try {
+      const light = rows.map(({ dataUrl, ...rest }) => ({ ...rest, dataUrl: '', storedRemotely: true })).slice(0, 200);
+      localStorage.setItem(ATTACHMENTS_KEY, JSON.stringify(light));
+      return true;
+    } catch {
+      try { localStorage.removeItem(ATTACHMENTS_KEY); } catch { /* ignore */ }
+      return false;
+    }
+  }
 }
 
+export function registerAttachment(item) {
+  try {
+    if (!item?.dataUrl) return;
+    const rows = loadAttachments();
+    const key = `${item.entityType}-${item.entityId}-${item.kind}-${item.name}`;
+    const tooLarge = String(item.dataUrl).length > MAX_CACHED_DATA_URL;
+    const next = {
+      id: key,
+      createdAt: new Date().toISOString(),
+      ...item,
+      ...(tooLarge ? { dataUrl: '', storedRemotely: true } : {}),
+    };
+    const filtered = rows.filter((row) => row.id !== key);
+    writeAttachments([next, ...filtered].slice(0, 400));
+    window.dispatchEvent(new CustomEvent('saams:attachments-updated'));
+    window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'attachments' } }));
+  } catch (error) {
+    console.warn('Local attachment cache skipped', error);
+  }
+}
