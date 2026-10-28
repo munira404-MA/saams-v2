@@ -139,12 +139,39 @@ export async function listOpenAdvanceAllocations(nurseryId = null) {
   return data || [];
 }
 
-export async function uploadInvoiceFile({ nurseryId, invoiceDbId, file, kind }) {
-  if (!file) return '';
+// Phone photos are often 2–5 MB, which made viewing/downloading attachments slow.
+// Large photos are resized to a sharp, readable size (long side 2000px, JPEG ~85%) before upload.
+// PDFs and small images are uploaded unchanged; any failure falls back to the original file.
+export async function compressInvoiceImage(file) {
+  try {
+    if (!file || !/^image\/(jpeg|jpg|png|webp)$/i.test(file.type || '') || file.size < 700 * 1024) return file;
+    if (typeof createImageBitmap !== 'function' || typeof document === 'undefined') return file;
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(bitmap.width * scale);
+    canvas.height = Math.round(bitmap.height * scale);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close?.();
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+    if (!blob || blob.size >= file.size) return file;
+    const name = String(file.name || 'image').replace(/\.(png|webp|jpe?g)$/i, '') + '.jpg';
+    return new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+  } catch {
+    return file;
+  }
+}
+
+export async function uploadInvoiceFile({ nurseryId, invoiceDbId, file: originalFile, kind }) {
+  if (!originalFile) return '';
+  const file = await compressInvoiceImage(originalFile);
   const path = `${nurseryId}/${invoiceDbId}/${kind}_${Date.now()}_${safeFileName(file.name)}`;
   const { error } = await supabase.storage
     .from('saams-invoices')
-    .upload(path, file, { contentType: file.type || undefined, upsert: false });
+    .upload(path, file, { contentType: file.type || undefined, upsert: false, cacheControl: '31536000' });
   if (error) throw error;
   return path;
 }
@@ -321,11 +348,11 @@ export async function deleteInvoice(invoiceDbId) {
   if (error) throw error;
 }
 
-export async function getSignedInvoiceUrl(path, expiresIn = 900) {
+export async function getSignedInvoiceUrl(path, expiresIn = 900, options = undefined) {
   if (!path) return '';
   const { data, error } = await supabase.storage
     .from('saams-invoices')
-    .createSignedUrl(path, expiresIn);
+    .createSignedUrl(path, expiresIn, options);
   if (error) throw error;
   return data?.signedUrl || '';
 }
@@ -573,6 +600,16 @@ export async function listAuditLogs({ nurseryId = null, limit = 200 } = {}) {
   });
 }
 
+function fileMime(path = '') {
+  const p = String(path).toLowerCase();
+  if (p.endsWith('.pdf')) return 'application/pdf';
+  if (/\.(jpe?g)$/.test(p)) return 'image/jpeg';
+  if (p.endsWith('.png')) return 'image/png';
+  if (p.endsWith('.webp')) return 'image/webp';
+  if (/\.(heic|heif)$/.test(p)) return 'image/heic';
+  return 'image/*';
+}
+
 export async function listAttachmentIndex(nurseryId = null) {
   const rows = [];
   const batchSize = 1000;
@@ -603,13 +640,13 @@ export async function listAttachmentIndex(nurseryId = null) {
       if (row.attachment_path) rows.push({
         ...base, id: `db-invoice-${row.id}`, kind: 'invoice', path: row.attachment_path,
         name: row.attachment_path.split('/').pop() || `${row.invoice_number || row.id}.pdf`,
-        mime: /\.pdf$/i.test(row.attachment_path) ? 'application/pdf' : 'image/*',
+        mime: fileMime(row.attachment_path),
         source: 'database',
       });
       if (row.receipt_path) rows.push({
         ...base, id: `db-receipt-${row.id}`, kind: 'receipt', path: row.receipt_path,
         name: row.receipt_path.split('/').pop() || `${row.invoice_number || row.id}_receipt`,
-        mime: /\.pdf$/i.test(row.receipt_path) ? 'application/pdf' : 'image/*',
+        mime: fileMime(row.receipt_path),
         source: 'database',
       });
     }

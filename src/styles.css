@@ -3579,3 +3579,13 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .ocr-error .duplicate-invoice-open{display:inline-flex;align-items:center;gap:6px;margin-top:10px;margin-inline-start:0;padding:8px 14px;border-radius:10px;border:1px solid #3d71e5;background:#fff;color:#2f5fd0;font-weight:900;font-size:14px;cursor:pointer}
 .ocr-error .duplicate-invoice-open:hover{background:#eef4ff}
 .ocr-error:has(.duplicate-invoice-open){display:flex;flex-direction:column;align-items:flex-start}
+/* V17 — مركز المرفقات */
+.attachment-center-toolbar{grid-template-columns:1fr 260px 220px!important}
+.attachment-center-toolbar.nursery-scope{grid-template-columns:1fr 220px!important}
+.attachment-file-preview.badge-img span{color:#0a9e97}
+.attachment-file-preview.badge-pdf span{color:#e24d5d}
+.attachment-file-info strong{font-size:13px!important}
+.attachment-file-info .attachment-nursery{display:block;font-size:12px!important;font-weight:800;color:#2f5fd0!important;margin-bottom:2px}
+.attachment-file-actions button:disabled{opacity:.6;cursor:wait}
+.attachment-load-more{display:flex;justify-content:center;margin:16px 0}
+@media(max-width:800px){.attachment-center-toolbar,.attachment-center-toolbar.nursery-scope{grid-template-columns:1fr!important}}
