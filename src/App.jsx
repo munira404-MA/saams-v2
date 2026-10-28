@@ -21,6 +21,21 @@ import { useLanguageDomGuard } from './utils/globalI18n';
 
 const PREVIEW_PROFILE_KEY = 'saams-preview-profile';
 
+// Tell the user the real reason a sign-in failed instead of one generic message.
+function loginErrorMessage(error, ar) {
+  const msg = String(error?.message || '').toLowerCase();
+  const code = String(error?.code || error?.error_code || '').toLowerCase();
+  if (msg === 'account_disabled') return ar ? 'هذا الحساب موقوف. يرجى التواصل مع الإدارة.' : 'This account is disabled. Contact administration.';
+  if (msg === 'invalid_username') return ar ? 'اكتبي اسم المستخدم بالأحرف الإنجليزية.' : 'Enter the username in English letters.';
+  if (code === 'invalid_credentials' || msg.includes('invalid login credentials')) return ar ? 'اسم المستخدم أو كلمة المرور غير صحيحة. تأكدي من كتابة اسم المستخدم كما هو في شاشة المستخدمين، أو اطلبي من مدير النظام تعيين كلمة مرور جديدة.' : 'Incorrect username or password. Check the username exactly as shown in Users, or ask the system administrator to set a new password.';
+  if (code === 'email_not_confirmed' || msg.includes('email not confirmed')) return ar ? 'الحساب غير مفعّل في Supabase (البريد غير مؤكد). يرجى التواصل مع مدير النظام.' : 'Account not confirmed in Supabase. Contact the system administrator.';
+  if (code === 'user_banned' || msg.includes('banned')) return ar ? 'الحساب محظور في Supabase. يرجى التواصل مع مدير النظام.' : 'Account is banned in Supabase. Contact the system administrator.';
+  if (code === 'pgrst116' || msg.includes('0 rows') || msg.includes('no rows')) return ar ? 'تم التحقق من كلمة المرور، لكن الحساب غير مرتبط بملف صلاحيات في النظام. يرجى التواصل مع مدير النظام.' : 'Password is correct, but the account has no profile in the system. Contact the system administrator.';
+  if (code === 'over_request_rate_limit' || msg.includes('rate limit') || msg.includes('too many')) return ar ? 'محاولات دخول كثيرة. انتظري دقائق ثم حاولي مرة أخرى.' : 'Too many sign-in attempts. Wait a few minutes and try again.';
+  if (msg.includes('failed to fetch') || msg.includes('network')) return ar ? 'تعذر الاتصال بالخادم. تأكدي من الإنترنت ثم حاولي مرة أخرى.' : 'Could not reach the server. Check the internet connection and try again.';
+  return ar ? `تعذر تسجيل الدخول: ${error?.message || 'خطأ غير معروف'}` : `Sign-in failed: ${error?.message || 'Unknown error'}`;
+}
+
 export default function App() {
   const [lang, setLang] = useState('ar');
   const [profile, setProfile] = useState(null);
@@ -99,10 +114,7 @@ export default function App() {
         setProfile(nextProfile);
         setDatabaseMode(true);
       } catch (error) {
-        const message = error?.message === 'ACCOUNT_DISABLED'
-          ? (lang === 'ar' ? 'هذا الحساب موقوف. يرجى التواصل مع الإدارة.' : 'This account is disabled.')
-          : (lang === 'ar' ? 'تعذر تسجيل الدخول. تأكدي من إنشاء الحساب في Supabase ومن صحة البيانات.' : 'Sign-in failed. Verify the Supabase account and credentials.');
-        setLoginError(message);
+        setLoginError(loginErrorMessage(error, lang === 'ar'));
       } finally {
         setAuthBusy(false);
       }

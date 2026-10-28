@@ -85,6 +85,7 @@ const PAGE_PERMISSIONS = [
   ['commandcenter', 'مركز القيادة التنفيذي', 'Executive Command Center'],
   ['invoices', 'الفواتير', 'Invoices'],
   ['assets', 'الأصول', 'Assets'],
+  ['asset_register', 'السجل الكامل للأصول (بيانات الإدارة)', 'Full asset register (administration data)'],
   ['transport', 'مهام النقل', 'Transport Tasks'],
   ['advances', 'السلف', 'Advances'],
   ['reports', 'التقارير', 'Reports'],
@@ -97,7 +98,7 @@ const PAGE_PERMISSIONS = [
 
 const PERMISSION_GROUPS = [
   { id: 'main', icon: '⌂', arLabel: 'الرئيسية', enLabel: 'Main', keys: ['dashboard'] },
-  { id: 'management', icon: '▣', arLabel: 'الإدارة', enLabel: 'Management', keys: ['invoices', 'assets', 'transport', 'advances', 'reports', 'attachments'] },
+  { id: 'management', icon: '▣', arLabel: 'الإدارة', enLabel: 'Management', keys: ['invoices', 'assets', 'asset_register', 'transport', 'advances', 'reports', 'attachments'] },
   { id: 'executive', icon: '♛', arLabel: 'الإدارة التنفيذية', enLabel: 'Executive', keys: ['commandcenter'] },
   { id: 'system', icon: '⚙', arLabel: 'النظام', enLabel: 'System', keys: ['users', 'settings', 'help', 'about'] },
 ];
@@ -109,6 +110,7 @@ const DEFAULT_ADMIN_PERMISSIONS = {
   commandcenter: false,
   invoices: false,
   assets: false,
+  asset_register: false,
   transport: false,
   advances: false,
   reports: false,

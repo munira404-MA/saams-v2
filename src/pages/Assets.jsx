@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../supabase';
 import * as XLSX from 'xlsx';
 import { translateAssetName } from '../utils/assetTranslations';
+import { REGISTER_COLUMNS, REGISTER_DB_COLUMNS, canSeeFullRegister, dbRowToRegister, registerValue, parseRegisterSheet } from '../utils/assetRegister';
 
 const ASSETS = [];
 
@@ -62,38 +63,40 @@ function rebuildAssetsFromAudit(){
 
 function dbAssetToUi(row){
  const n=Array.isArray(row.nurseries)?row.nurseries[0]:row.nurseries;
- return {id:row.id,barcode:row.barcode||'',centralBarcode:row.central_finance_barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||row.location_name_ar||row.location_name_en||'',nurseryEn:n?.name_en||row.location_name_en||row.location_name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||'',createdAt:row.created_at||'',isNewAsset:row.is_new_asset===true};
+ return {id:row.id,barcode:row.barcode||'',centralBarcode:row.central_finance_barcode||'',nameAr:row.name_ar||row.name_en||'',nameEn:row.name_en||row.name_ar||'',nurseryId:row.nursery_id||null,nurseryAr:n?.name_ar||row.location_name_ar||row.location_name_en||'',nurseryEn:n?.name_en||row.location_name_en||row.location_name_ar||'',categoryAr:row.category_ar||row.category_en||'',categoryEn:row.category_en||row.category_ar||'',status:row.status||'active',notes:row.notes||'',createdAt:row.created_at||'',isNewAsset:row.is_new_asset===true,register:dbRowToRegister(row),registerUpdatedAt:row.register_updated_at||null};
 }
 const NEW_ASSET_DAYS=30;
 // «جديد» only for assets the authorised employee marked as a NEW acquisition when adding them.
 function isNewAsset(a){if(!a?.isNewAsset||!a?.createdAt)return false;const t=new Date(a.createdAt).getTime();return Number.isFinite(t)&&Date.now()-t<=NEW_ASSET_DAYS*24*60*60*1000}
 
-async function fetchAllAssetRows(){
+async function fetchAllAssetRows({withRegister=false}={}){
  const pageSize=1000;
  let from=0;
  let all=[];
- let supportsCentralBarcode=true, supportsNewFlag=true, supportsLocation=true;
- const columns=()=>['id','barcode',supportsCentralBarcode&&'central_finance_barcode','name_ar','name_en','category_ar','category_en','nursery_id',supportsLocation&&'location_type,location_name_ar,location_name_en','status','notes','created_at',supportsNewFlag&&'is_new_asset','nurseries(name_ar,name_en)'].filter(Boolean).join(',');
+ let supportsCentralBarcode=true, supportsNewFlag=true, supportsLocation=true, supportsRegister=withRegister;
+ const columns=()=>['id','barcode',supportsCentralBarcode&&'central_finance_barcode','name_ar','name_en','category_ar','category_en','nursery_id',supportsLocation&&'location_type,location_name_ar,location_name_en','status','notes','created_at',supportsNewFlag&&'is_new_asset',supportsRegister&&[...REGISTER_DB_COLUMNS,'register_updated_at'].join(','),'nurseries(name_ar,name_en)'].filter(Boolean).join(',');
  while(true){
   let response;
   for(let attempt=0;attempt<4;attempt++){
    response=await supabase.from('assets').select(columns()).order('created_at',{ascending:false}).range(from,from+pageSize-1);
    if(!response.error||response.error.code!=='42703')break;
    const missing=String(response.error.message||'');
-   if(missing.includes('is_new_asset')&&supportsNewFlag) supportsNewFlag=false;
+   if(supportsRegister&&REGISTER_DB_COLUMNS.concat('register_updated_at').some(c=>missing.includes(c))) supportsRegister=false;
+   else if(missing.includes('is_new_asset')&&supportsNewFlag) supportsNewFlag=false;
    else if(missing.includes('central_finance_barcode')&&supportsCentralBarcode) supportsCentralBarcode=false;
    else if(missing.includes('location_')&&supportsLocation) supportsLocation=false;
+   else if(supportsRegister) supportsRegister=false;
    else if(supportsNewFlag) supportsNewFlag=false;
    else if(supportsLocation) supportsLocation=false;
    else break;
   }
-  if(response.error)return {data:null,error:response.error,supportsCentralBarcode,supportsNewFlag};
+  if(response.error)return {data:null,error:response.error,supportsCentralBarcode,supportsNewFlag,supportsRegister};
   const rows=(response.data||[]).map(r=>({...r,central_finance_barcode:supportsCentralBarcode?r.central_finance_barcode:null,is_new_asset:supportsNewFlag?r.is_new_asset:false}));
   all=all.concat(rows);
   if(rows.length<pageSize)break;
   from+=pageSize;
  }
- return {data:all,error:null,supportsCentralBarcode,supportsNewFlag};
+ return {data:all,error:null,supportsCentralBarcode,supportsNewFlag,supportsRegister};
 }
 
 function assetSelectAfterWrite(withNewFlag){return `id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,${withNewFlag?'is_new_asset,':''}nurseries(name_ar,name_en)`}
@@ -155,6 +158,7 @@ function requestStatusTextFor(r, ar, t){
 export default function Assets({lang,profile}){
  const ar=lang==='ar',t=COPY[lang]||COPY.ar;
  const isAdmin=profile?.role!=='nursery';
+ const canFullRegister=canSeeFullRegister(profile);
  const accountNursery=profile?.nursery||'';
  const nurseries=ar?NURSERIES_AR:NURSERIES_EN;
  const [tab,setTab]=useState('register');
@@ -171,6 +175,10 @@ export default function Assets({lang,profile}){
  const [assetsDbReady,setAssetsDbReady]=useState(false);
  const [newFlagReady,setNewFlagReady]=useState(false);
  const [importQuestion,setImportQuestion]=useState(null);
+ const [showFullRegister,setShowFullRegister]=useState(false);
+ const [registerReady,setRegisterReady]=useState(null);
+ const [registerImport,setRegisterImport]=useState(null);
+ const registerInputRef=useRef(null);
  const [requests,setRequests]=useState([]);
  const [requestsDbReady,setRequestsDbReady]=useState(false);
  const [search,setSearch]=useState('');
@@ -184,7 +192,8 @@ export default function Assets({lang,profile}){
  useEffect(()=>{let alive=true;(async()=>{
   const auditFallback=rebuildAssetsFromAudit();
   try{
-   const {data,error,supportsNewFlag:fetchFlag}=await fetchAllAssetRows();
+   const {data,error,supportsNewFlag:fetchFlag,supportsRegister}=await fetchAllAssetRows({withRegister:canFullRegister});
+   if(alive&&canFullRegister)setRegisterReady(Boolean(supportsRegister));
    if(error) throw error;
    let rows=data||[];
 
@@ -206,7 +215,7 @@ export default function Assets({lang,profile}){
       if(payload.length){
         const {error:insertErr}=await supabase.from('assets').insert(payload);
         if(insertErr && insertErr.code!=='23505') throw insertErr;
-        const refreshed=await fetchAllAssetRows();
+        const refreshed=await fetchAllAssetRows({withRegister:canFullRegister});
         if(refreshed.error) throw refreshed.error; rows=refreshed.data||rows;
       }
     }
@@ -251,12 +260,13 @@ export default function Assets({lang,profile}){
   return scopedAssets.filter(a=>{
    const nursery=nurseryLabel(a,ar)||'';
    const category=(categoryLabel(a,ar))||'';
-   const matchesSearch=!q||[a.barcode,a.centralBarcode,a.nameAr,a.nameEn,assetLabel(a,false),a.nurseryAr,a.nurseryEn,nurseryLabel(a,false),a.categoryAr,a.categoryEn,englishCategory(a.categoryEn||a.categoryAr)].some(v=>String(v||'').toLowerCase().includes(q));
+   const registerText=canFullRegister&&a.register?REGISTER_COLUMNS.flatMap(c=>[a.register[c.key],registerValue(c.key,a.register[c.key],true)]):[];
+   const matchesSearch=!q||[a.barcode,a.centralBarcode,a.nameAr,a.nameEn,assetLabel(a,false),a.nurseryAr,a.nurseryEn,nurseryLabel(a,false),a.categoryAr,a.categoryEn,englishCategory(a.categoryEn||a.categoryAr),...registerText].some(v=>String(v||'').toLowerCase().includes(q));
    const matchesNursery=!nurseryFilter||nursery===nurseryFilter;
    const matchesCategory=!categoryFilter||category===categoryFilter;
    return matchesSearch&&matchesNursery&&matchesCategory;
   });
- },[scopedAssets,search,nurseryFilter,categoryFilter,ar]);
+ },[scopedAssets,search,nurseryFilter,categoryFilter,ar,canFullRegister]);
  const assetPageCount=Math.max(1,Math.ceil(filtered.length/ASSET_PAGE_SIZE));
  const safeAssetPage=Math.min(assetPage,assetPageCount);
  const pagedAssets=useMemo(()=>filtered.slice((safeAssetPage-1)*ASSET_PAGE_SIZE,safeAssetPage*ASSET_PAGE_SIZE),[filtered,safeAssetPage]);
@@ -519,7 +529,7 @@ export default function Assets({lang,profile}){
    for(let i=0;i<pending.length;i+=200){
     await insertEntries(pending.slice(i,i+200));
    }
-   const refreshed=await fetchAllAssetRows();
+   const refreshed=await fetchAllAssetRows({withRegister:canFullRegister});
    if(!refreshed.error)setAssets((refreshed.data||[]).map(dbAssetToUi));
    window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
    const issueLines=issues.slice(0,12).map(x=>`${ar?'صف':'Row'} ${x.row}: ${x.reason}`).join('\n');
@@ -539,6 +549,58 @@ export default function Assets({lang,profile}){
    setExcelImporting(false);
    if(excelInputRef.current)excelInputRef.current.value='';
   }
+ }
+
+ // Fill the administration columns from the «Consolidated Asset Register» Excel (matched by internal barcode).
+ async function importRegisterExcel(file){
+  if(!file||!canFullRegister)return;
+  try{
+   if(!/\.(xlsx|xls)$/i.test(file.name||''))throw new Error('BAD_EXTENSION');
+   setRegisterImport({stage:'reading'});
+   const wb=await readExcelWorkbook(file);
+   const ws=wb.Sheets[wb.SheetNames[0]];
+   const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null,raw:true,blankrows:false});
+   const parsed=parseRegisterSheet(rows);
+   if(!parsed.length)throw new Error('EMPTY_SHEET');
+   if(!window.confirm(ar?`سيتم تحديث بيانات الإدارة (الموقع، التمويل، التصنيفات، الوصف، الموديل، التكلفة، المورد، التواريخ، الحالة...) لـ ${parsed.length.toLocaleString('en-US')} أصل حسب الباركود الداخلي.\n\nلن يتم تغيير اسم الأصل أو الحضانة أو الباركود، ولن تُضاف أصول جديدة.\nباركود المالية المركزية يُضاف فقط للأصول التي لا تملكه.\n\nمتابعة؟`:`Administration data will be updated for ${parsed.length} assets by internal barcode. Names, nurseries and barcodes are not changed and no assets are added. Continue?`)){setRegisterImport(null);return}
+   const total=parsed.length;let done=0,financeFilled=0;const unmatched=new Set();
+   setRegisterImport({stage:'saving',done,total});
+   for(let i=0;i<parsed.length;i+=500){
+    const batch=parsed.slice(i,i+500);
+    const {data,error}=await supabase.rpc('saams_apply_asset_register',{p_rows:batch});
+    if(error){
+     const msg=String(error.message||'');
+     if(error.code==='PGRST202'||/saams_apply_asset_register/.test(msg))throw new Error('REGISTER_SQL_MISSING');
+     if(/ASSET_REGISTER_FORBIDDEN/.test(msg))throw new Error('REGISTER_FORBIDDEN');
+     throw error;
+    }
+    financeFilled+=Number(data?.finance_filled||0);
+    for(const b of data?.unmatched||[])unmatched.add(normalizeBarcode(b));
+    done=Math.min(total,i+batch.length);setRegisterImport({stage:'saving',done,total});
+   }
+   const uniqueAll=new Set(parsed.map(r=>normalizeBarcode(r.barcode)));
+   const unmatchedRows=parsed.filter(r=>unmatched.has(normalizeBarcode(r.barcode)));
+   const byCustomer={};for(const r of unmatchedRows){const k=r.customer_name||'—';byCustomer[k]=(byCustomer[k]||0)+1}
+   const refreshed=await fetchAllAssetRows({withRegister:true});
+   if(!refreshed.error){setAssets((refreshed.data||[]).map(dbAssetToUi));setRegisterReady(Boolean(refreshed.supportsRegister))}
+   setRegisterImport({stage:'done',total,matched:uniqueAll.size-unmatched.size,financeFilled,unmatchedRows,byCustomer});
+   setShowFullRegister(true);
+   recordAudit({profile,screen:'الأصول',action:'تحديث السجل الكامل للأصول من Excel',actionType:'update',entityType:'asset_register',entityId:`REG-${Date.now()}`,details:`${uniqueAll.size-unmatched.size} أصل محدث؛ ${unmatched.size} غير موجود في النظام؛ ${financeFilled} باركود مالية مضاف`});
+  }catch(e){
+   console.error('Register import failed',e);
+   const m=String(e?.message||'');
+   const text=m==='REGISTER_HEADERS'?(ar?'أعمدة الملف لا تطابق «السجل الموحد للأصول». تأكدي أن الصف الأول فيه: Barcode, Fund Source, Main Category ...':'File columns do not match the Consolidated Asset Register.')
+    :m==='REGISTER_SQL_MISSING'?(ar?'شغلي ملف 21_FULL_ASSET_REGISTER.sql في Supabase أولاً.':'Run 21_FULL_ASSET_REGISTER.sql in Supabase first.')
+    :m==='REGISTER_FORBIDDEN'?(ar?'ليس لديك صلاحية «السجل الكامل للأصول».':'You do not have the full asset register permission.')
+    :m==='BAD_EXTENSION'?(ar?'الملف يجب أن يكون بصيغة XLSX أو XLS.':'The file must be XLSX or XLS.')
+    :(ar?`تعذر تحديث السجل: ${m||'خطأ غير معروف'}`:`Could not update the register: ${m||'Unknown error'}`);
+   setRegisterImport(null);window.alert(text);
+  }finally{if(registerInputRef.current)registerInputRef.current.value=''}
+ }
+ function downloadUnmatchedRegister(rows){
+  const sheet=rows.map(r=>({'الحضانة في السجل':r.customer_name||'','الباركود الداخلي':r.barcode,'التصنيف الرئيسي':r.main_category||'','التصنيف الفرعي 2':r.sub_category_2||'','وصف الأصل':r.item_description||'','الموقع':r.site_location||''}));
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sheet),'غير موجودة في النظام');
+  XLSX.writeFile(wb,`SAAMS_Register_Not_In_System_${new Date().toISOString().slice(0,10)}.xlsx`);
  }
 
  async function addRequest(form){
@@ -644,12 +706,17 @@ export default function Assets({lang,profile}){
     <div className="asset-actions">
      {(!isAdmin||previewNursery)&&<><button onClick={()=>setModal('transfer')}>⇄ {t.transfer}</button><button onClick={()=>setModal('surplus')}>▱ {t.surplus}</button><button onClick={()=>setModal('disposal')}>⌫ {t.disposal}</button></>}
      {isAdmin&&!previewNursery&&<><button type="button" className="asset-excel-template-btn" onClick={downloadAssetExcelTemplate}>⇩ {t.excelTemplate}</button><button type="button" className="asset-excel-upload-btn" disabled={excelImporting} onClick={()=>excelInputRef.current?.click()}>{excelImporting?'… '+t.excelReading:'⇧ '+t.excelUpload}</button><input ref={excelInputRef} className="asset-excel-hidden-input" type="file" accept=".xlsx,.xls" onChange={e=>e.target.files?.[0]&&importAssetsExcel(e.target.files[0])}/><button className="primary-action" onClick={()=>setModal('add')}>＋ {t.add}</button></>}
+     {isAdmin&&!previewNursery&&canFullRegister&&<><button type="button" className={`asset-register-toggle ${showFullRegister?'active':''}`} onClick={()=>setShowFullRegister(v=>!v)}>{showFullRegister?(ar?'▤ العرض المختصر':'▤ Compact view'):(ar?'▦ عرض السجل الكامل':'▦ Full register view')}</button><button type="button" className="asset-register-upload" disabled={!!registerImport&&registerImport.stage!=='done'} onClick={()=>registerInputRef.current?.click()}>{registerImport?.stage==='saving'?(ar?`⏳ تحديث السجل ${registerImport.done}/${registerImport.total}`:`⏳ Updating ${registerImport.done}/${registerImport.total}`):registerImport?.stage==='reading'?(ar?'⏳ قراءة الملف...':'⏳ Reading...'):(ar?'⇧ تحديث السجل الكامل من Excel':'⇧ Update full register from Excel')}</button><input ref={registerInputRef} className="asset-excel-hidden-input" type="file" accept=".xlsx,.xls" onChange={e=>e.target.files?.[0]&&importRegisterExcel(e.target.files[0])}/></>}
     </div>
    </div>
-   <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><span className="asset-barcode-cell central-finance-barcode">{a.centralBarcode||''}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button>{isNewAsset(a)&&<span className="asset-new-badge" title={ar?'أضيف خلال آخر 30 يومًا':'Added in the last 30 days'}>{ar?'جديد':'New'}</span>}</td><td>{nurseryLabel(a,ar)}</td><td>{categoryLabel(a,ar)}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="6" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>
+   {isAdmin&&!previewNursery&&canFullRegister&&showFullRegister&&registerReady===false&&<div className="asset-register-note warn">{ar?'لإظهار بيانات السجل الكامل شغلي ملف 21_FULL_ASSET_REGISTER.sql في Supabase، ثم ارفعي ملف السجل من زر «تحديث السجل الكامل من Excel».':'Run 21_FULL_ASSET_REGISTER.sql in Supabase, then upload the register Excel.'}</div>}
+   {isAdmin&&!previewNursery&&canFullRegister&&showFullRegister&&registerReady!==false&&!assets.some(a=>a.registerUpdatedAt)&&<div className="asset-register-note">{ar?'لا توجد بيانات سجل بعد. ارفعي ملف «السجل الموحد للأصول» من زر «تحديث السجل الكامل من Excel».':'No register data yet. Upload the Consolidated Asset Register Excel.'}</div>}
+   {isAdmin&&!previewNursery&&canFullRegister&&showFullRegister?<div className="asset-list-card"><div className="asset-list-wrap asset-full-register-wrap"><table className="asset-list-table asset-full-register-table"><thead><tr><th className="sticky-col">{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th>{REGISTER_COLUMNS.map(c=><th key={c.key}>{ar?c.ar:c.en}</th>)}<th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`full-${a.barcode}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td className="sticky-col"><span className="asset-barcode-cell">{a.barcode}</span></td><td><span className="asset-barcode-cell central-finance-barcode">{a.centralBarcode||''}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button>{isNewAsset(a)&&<span className="asset-new-badge">{ar?'جديد':'New'}</span>}</td><td>{nurseryLabel(a,ar)}</td><td>{categoryLabel(a,ar)}</td>{REGISTER_COLUMNS.map(c=><td key={c.key} className={`reg-${c.key}`} title={a.register?.[c.key]?String(a.register[c.key]):''}>{registerValue(c.key,a.register?.[c.key],ar)}</td>)}<td><div className="asset-row-actions"><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></div></td></tr>):<tr><td colSpan={REGISTER_COLUMNS.length+6} className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>:
+   <div className="asset-list-card"><div className="asset-list-wrap"><table className="asset-list-table"><thead><tr><th>{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.asset}</th><th>{t.location}</th><th>{t.category}</th><th>{t.actions}</th></tr></thead><tbody>{filtered.length?pagedAssets.map((a,index)=><tr key={`${a.barcode}-${a.nurseryAr}-${(safeAssetPage-1)*ASSET_PAGE_SIZE+index}`}><td><span className="asset-barcode-cell">{a.barcode}</span></td><td><span className="asset-barcode-cell central-finance-barcode">{a.centralBarcode||''}</span></td><td><button className="asset-history-link asset-name-cell" type="button" onClick={()=>setHistoryAsset(a)}>{assetLabel(a,ar)}</button>{isNewAsset(a)&&<span className="asset-new-badge" title={ar?'أضيف خلال آخر 30 يومًا':'Added in the last 30 days'}>{ar?'جديد':'New'}</span>}</td><td>{nurseryLabel(a,ar)}</td><td>{categoryLabel(a,ar)}</td><td><div className="asset-row-actions">{isAdmin&&!previewNursery?<><button className="asset-edit-btn" onClick={()=>setEditingAsset(a)}>✎ {t.edit}</button><button className="asset-delete-btn" onClick={()=>deleteAsset(a)}>⌫ {t.delete}</button></>:<><button title={t.transfer} onClick={()=>setModal('transfer')}>⇄</button><button title={t.surplus} onClick={()=>setModal('surplus')}>▱</button><button title={t.disposal} onClick={()=>setModal('disposal')}>⌫</button></>}</div></td></tr>):<tr><td colSpan="6" className="asset-empty-row">{ar?'لا توجد أصول مسجلة حاليًا':'No assets are currently registered'}</td></tr>}</tbody></table></div>{filtered.length>0&&<div className="asset-pagination"><div className="asset-pagination-summary">{ar?`عرض ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} من ${filtered.length.toLocaleString('en-US')} أصل`:`Showing ${(safeAssetPage-1)*ASSET_PAGE_SIZE+1}–${Math.min(safeAssetPage*ASSET_PAGE_SIZE,filtered.length)} of ${filtered.length.toLocaleString('en-US')} assets`}</div><div className="asset-pagination-controls"><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(1)}>«</button><button type="button" disabled={safeAssetPage<=1} onClick={()=>setAssetPage(p=>Math.max(1,p-1))}>{ar?'السابق':'Previous'}</button><span>{ar?`صفحة ${safeAssetPage} من ${assetPageCount}`:`Page ${safeAssetPage} of ${assetPageCount}`}</span><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(p=>Math.min(assetPageCount,p+1))}>{ar?'التالي':'Next'}</button><button type="button" disabled={safeAssetPage>=assetPageCount} onClick={()=>setAssetPage(assetPageCount)}>»</button></div></div>}</div>}
   </>:<div className="invoice-table-card"><div className="invoice-table-wrap"><table className="invoice-table asset-request-table"><thead><tr><th>{ar?'رقم الطلب':'Request ID'}</th><th>{t.type}</th><th>{t.asset}</th><th>{t.barcode}</th><th>{t.centralBarcode}</th><th>{t.from}</th><th>{t.to}</th><th>{t.reason}</th><th>{t.status}</th><th>{t.date}</th><th>{t.actions}</th></tr></thead><tbody>{scopedRequests.map(r=><tr key={r.id}><td><button className="request-link" onClick={()=>setViewing(r)}>{r.id}</button></td><td><span className={`request-type ${r.type}`}>{t[r.type]}</span></td><td>{ar?r.assetAr:translateAssetName(r.assetEn,r.assetAr)}</td><td>{r.barcode}</td><td>{r.centralBarcode||''}</td><td>{ar?r.fromAr:r.fromEn}</td><td>{r.type==='transfer'?(ar?r.toAr:r.toEn):'—'}</td><td>{ar?r.reasonAr:r.reasonEn}</td><td><span className={`invoice-status ${r.status==='pending'?'review':r.status}`}>{requestStatusText(r)}</span>{r.status==='rejected'&&<small className="rejection-inline">{ar?r.rejectionReasonAr:r.rejectionReasonEn}</small>}</td><td>{r.date}</td><td><div className="request-actions-cell"><button onClick={()=>setViewing(r)}>{t.viewRequest}</button>{isAdmin&&r.status==='pending'&&<><button className="approve-request-btn" onClick={()=>approveRequest(r.id)}>✓ {t.approve}</button><button className="reject-request-btn" onClick={()=>setRejecting(r)}>✕ {t.reject}</button></>}</div></td></tr>)}</tbody></table></div></div>}
   {officialDocument&&<AssetOfficialDocument request={officialDocument} ar={ar} onClose={()=>setOfficialDocument(null)} />}
-  {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} onClose={()=>setHistoryAsset(null)} />}
+  {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} showRegister={canFullRegister&&isAdmin&&!previewNursery} onClose={()=>setHistoryAsset(null)} />}
+  {registerImport?.stage==='done'&&<RegisterImportResult ar={ar} result={registerImport} onDownload={()=>downloadUnmatchedRegister(registerImport.unmatchedRows)} onClose={()=>setRegisterImport(null)}/>}
   {editingAsset&&<AssetEditModal asset={editingAsset} ar={ar} t={t} nurseries={nurseries} onClose={()=>setEditingAsset(null)} onSave={updateAsset}/>}
   {modal&&<AssetModal type={modal} ar={ar} defaultNursery={accountNursery} t={t} assets={isAdmin&&!previewNursery?assets:scopedAssets} nurseries={nurseries} isAdmin={isAdmin&&!previewNursery} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
   {viewing&&<RequestDetails request={viewing} ar={ar} t={t} isAdmin={isAdmin} onClose={()=>setViewing(null)} onApprove={()=>approveRequest(viewing.id)} onReject={()=>setRejecting(viewing)}/>}
@@ -740,13 +807,14 @@ function RejectModal({request,ar,t,onClose,onConfirm}){
 }
 
 
-function AssetHistory({asset,ar,onClose}){
+function AssetHistory({asset,ar,onClose,showRegister=false}){
  const logs=loadAuditLog().filter(x=>x.entityId===asset.barcode || x.details?.includes(asset.barcode)).filter(x=>['transfer','surplus','disposal','approve','reject','return'].includes(x.actionType));
  const fallback=[];
  const rows=logs.length?logs.slice().reverse():fallback;
  return <div className="invoice-overlay" onClick={onClose}><aside className="asset-history-modal" onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>{ar?'سجل الأصل':'Asset History'}</small><h2>{asset.barcode}</h2></div><button onClick={onClose}>×</button></div>
   <div className="asset-history-summary"><div className="asset-card-icon">◇</div><div><strong>{assetLabel(asset,ar)}</strong><span>{nurseryLabel(asset,ar)}</span><small>{ar?'الباركود الداخلي':'Internal Barcode'}: {asset.barcode} · {ar?'باركود المالية المركزية':'Central Finance Barcode'}: {asset.centralBarcode||''}</small><small>{categoryLabel(asset,ar)}</small></div></div>
+  {showRegister&&asset.register&&<div className="asset-register-details"><h3>{ar?'بيانات السجل الكامل':'Full register data'}</h3><div className="asset-register-grid">{REGISTER_COLUMNS.map(c=><div key={c.key} className={c.key==='itemDescription'?'wide':''}><small>{ar?c.ar:c.en}</small><strong>{registerValue(c.key,asset.register[c.key],ar)}</strong></div>)}</div></div>}
   <div className="asset-history-note">{ar?'يعرض هذا السجل حركات النقل والفائض والإسقاط فقط.':'This history shows transfer, surplus, and disposal movements only.'}</div>
   <div className="entity-timeline asset-timeline">{rows.map((x,i)=><div key={x.id}><span>{i+1}</span><div><strong>{x.action}</strong><small>{x.date} · {x.time} · {x.user}</small><p>{x.details}</p>{x.reason&&<p className="timeline-reason">{x.reason}</p>}</div></div>)}</div>
  </aside></div>
@@ -761,5 +829,21 @@ function NewAssetQuestion({ar,count,onAnswer}){
    <button type="button" className="secondary-action" onClick={()=>onAnswer('existing')}><strong>{ar?'لا، أصول موجودة مسبقًا':'No, existing assets'}</strong><small>{ar?'تسجيل أصول موجودة في الحضانات من قبل (لا تُحتسب جديدة)':'Registering assets that already existed (not counted as new)'}</small></button>
   </div>
   <div className="asset-modal-actions"><button type="button" className="secondary-action" onClick={()=>onAnswer(null)}>{ar?'إلغاء الرفع':'Cancel import'}</button></div>
+ </div></div>,document.body);
+}
+
+function RegisterImportResult({ar,result,onDownload,onClose}){
+ const missing=result.unmatchedRows?.length||0;
+ return createPortal(<div className="invoice-overlay" onClick={onClose}><div className="asset-modal register-import-result" onClick={e=>e.stopPropagation()}>
+  <div className="drawer-header"><div><small>{ar?'السجل الكامل للأصول':'Full asset register'}</small><h2>{ar?'اكتمل تحديث السجل':'Register update complete'}</h2></div><button type="button" onClick={onClose}>×</button></div>
+  <div className="register-result-stats">
+   <article><small>{ar?'أصول في الملف':'Assets in file'}</small><strong>{Number(result.total).toLocaleString('en-US')}</strong></article>
+   <article className="ok"><small>{ar?'تم تحديث بياناتها':'Updated'}</small><strong>{Number(result.matched).toLocaleString('en-US')}</strong></article>
+   <article><small>{ar?'باركود مالية أُضيف':'Finance barcodes added'}</small><strong>{Number(result.financeFilled).toLocaleString('en-US')}</strong></article>
+   <article className={missing?'warn':''}><small>{ar?'غير موجودة في النظام':'Not in the system'}</small><strong>{missing.toLocaleString('en-US')}</strong></article>
+  </div>
+  {missing>0&&<><p className="request-hint">{ar?'هذه الأصول موجودة في ملف السجل لكن باركودها غير مسجل في النظام، فلم تتم إضافتها:':'These register rows have barcodes that are not in the system and were not added:'}</p>
+  <ul className="register-missing-list">{Object.entries(result.byCustomer||{}).sort((a,b)=>b[1]-a[1]).map(([name,count])=><li key={name}><span>{name}</span><b>{count}</b></li>)}</ul></>}
+  <div className="asset-modal-actions">{missing>0&&<button type="button" className="secondary-action" onClick={onDownload}>⇩ {ar?'تنزيل قائمة غير الموجودة (Excel)':'Download missing list (Excel)'}</button>}<button type="button" className="primary-action" onClick={onClose}>{ar?'تم':'Done'}</button></div>
  </div></div>,document.body);
 }
