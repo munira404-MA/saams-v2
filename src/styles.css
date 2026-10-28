@@ -3589,3 +3589,12 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .attachment-file-actions button:disabled{opacity:.6;cursor:wait}
 .attachment-load-more{display:flex;justify-content:center;margin:16px 0}
 @media(max-width:800px){.attachment-center-toolbar,.attachment-center-toolbar.nursery-scope{grid-template-columns:1fr!important}}
+/* V18 — خصم الفاتورة من السلفة عند رفعها */
+.spent-breakdown{display:block;font-style:normal;font-size:11px;font-weight:700;color:#6b8296;margin-top:3px}
+.advance-balance-grid strong.negative,.detail-mini-stats strong.negative{color:#d94b5d!important}
+.upload-balance-note{display:grid;gap:3px;margin:0 0 12px;padding:12px 14px;border-radius:14px;background:#effbf9;border:1px solid #b9ece3}
+.upload-balance-note span{font-size:13px;font-weight:800;color:#2d4c63}
+.upload-balance-note strong{font-size:22px;color:#04877e}
+.upload-balance-note small{font-size:12px;color:#5d778c;line-height:1.5}
+.upload-balance-note.negative{background:#fff1f3;border-color:#f6c4cc}
+.upload-balance-note.negative strong{color:#d94b5d}

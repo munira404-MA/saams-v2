@@ -61,9 +61,9 @@ const COPY = {
     fromDate: 'من تاريخ', toDate: 'إلى تاريخ', chooseNurseries: 'تحديد الحضانات والمبالغ', selectAll: 'اختيار الكل', clearAll: 'إلغاء الكل', amount: 'المبلغ',
     sameAmount: 'تطبيق مبلغ موحد', apply: 'تطبيق', save: 'حفظ وفتح السلفة', saveDraft: 'حفظ كمسودة', cancel: 'إلغاء',
     details: 'تفاصيل السلفة', invoices: 'الفواتير المرتبطة', invoiceNo: 'رقم الفاتورة', supplier: 'المورد', date: 'التاريخ', invoiceAmount: 'قيمة الفاتورة', noInvoices: 'لا توجد فواتير مرتبطة حتى الآن.',
-    nurseryBalance: 'رصيد الحضانة', usage: 'نسبة الاستخدام', invoicesCount: 'عدد الفواتير', addInvoiceDemo: 'محاكاة إضافة فاتورة', invoiceDeductionNote: 'عند اعتماد أي فاتورة مرتبطة بهذه السلفة، يُخصم إجماليها تلقائيًا من رصيد الحضانة.',
+    nurseryBalance: 'رصيد الحضانة', usage: 'نسبة الاستخدام', invoicesCount: 'عدد الفواتير', addInvoiceDemo: 'محاكاة إضافة فاتورة', invoiceDeductionNote: 'عند رفع أي فاتورة مرتبطة بهذه السلفة يُخصم مبلغها مباشرة من رصيد الحضانة، وإذا أُعيدت الفاتورة للتعديل أو رُفضت يرجع مبلغها للرصيد.',
     created: 'تم إدراج السلفة بنجاح', closedMsg: 'تم إغلاق السلفة', reopenedMsg: 'تمت إعادة فتح السلفة', invalid: 'اختاري حضانة واحدة على الأقل وحددي مبلغًا أكبر من صفر.',
-    pendingInvoices: 'بانتظار المراجعة', returnedInvoices: 'معادة للتعديل', approvedInvoices: 'معتمدة', closeBlockedInvoices: 'لا يمكن إغلاق السلفة الآن. توجد فواتير بانتظار المراجعة أو معادة للتعديل.', balanceRule: 'المصروف يحتسب الفواتير المعتمدة فقط.',
+    pendingInvoices: 'بانتظار المراجعة', returnedInvoices: 'معادة للتعديل', approvedInvoices: 'معتمدة', closeBlockedInvoices: 'لا يمكن إغلاق السلفة الآن. توجد فواتير بانتظار المراجعة أو معادة للتعديل.', balanceRule: 'المصروف = الفواتير المعتمدة + الفواتير قيد المراجعة. الفواتير المعادة أو المرفوضة لا تُخصم.', approvedPart: 'معتمد', pendingPart: 'قيد المراجعة',
     search: 'بحث باسم السلفة أو الحضانة...', previewNursery: 'معاينة شاشة الحضانة', backAdmin: 'العودة لوضع الإدارة',
     deleteAdvance: 'حذف السلفة', deleteConfirm: 'هل أنتِ متأكدة من حذف هذه السلفة؟ لا يمكن التراجع عن الحذف.', deleteSuccess: 'تم حذف السلفة بنجاح', deleteBlocked: 'لا يمكن حذف السلفة لأنها مرتبطة بفواتير. أغلقي السلفة بدلًا من حذفها.', deleteFailed: 'تعذر حذف السلفة من قاعدة البيانات.', nurseriesLoading: 'جاري تحديث قائمة الحضانات...', noNurseries: 'لا توجد حضانات نشطة متاحة حاليًا.',
   },
@@ -79,9 +79,9 @@ const COPY = {
     fromDate: 'From Date', toDate: 'To Date', chooseNurseries: 'Choose nurseries and amounts', selectAll: 'Select All', clearAll: 'Clear All', amount: 'Amount',
     sameAmount: 'Apply same amount', apply: 'Apply', save: 'Save and Open', saveDraft: 'Save Draft', cancel: 'Cancel',
     details: 'Advance Details', invoices: 'Linked Invoices', invoiceNo: 'Invoice No.', supplier: 'Supplier', date: 'Date', invoiceAmount: 'Invoice Amount', noInvoices: 'No linked invoices yet.',
-    nurseryBalance: 'Nursery Balance', usage: 'Usage', invoicesCount: 'Invoice Count', addInvoiceDemo: 'Simulate Invoice', invoiceDeductionNote: 'Once a linked invoice is approved, its total is automatically deducted from the nursery balance.',
+    nurseryBalance: 'Nursery Balance', usage: 'Usage', invoicesCount: 'Invoice Count', addInvoiceDemo: 'Simulate Invoice', invoiceDeductionNote: 'A linked invoice is deducted from the nursery balance as soon as it is uploaded; if it is returned or rejected, its amount goes back to the balance.',
     created: 'Advance created successfully', closedMsg: 'Advance closed', reopenedMsg: 'Advance reopened', invalid: 'Select at least one nursery and enter an amount greater than zero.',
-    pendingInvoices: 'Pending Review', returnedInvoices: 'Returned for Editing', approvedInvoices: 'Approved', closeBlockedInvoices: 'This advance cannot be closed yet. Some invoices are pending review or returned for editing.', balanceRule: 'Spent includes approved invoices only.',
+    pendingInvoices: 'Pending Review', returnedInvoices: 'Returned for Editing', approvedInvoices: 'Approved', closeBlockedInvoices: 'This advance cannot be closed yet. Some invoices are pending review or returned for editing.', balanceRule: 'Spent = approved + under-review invoices. Returned or rejected invoices are not deducted.', approvedPart: 'approved', pendingPart: 'under review',
     search: 'Search advance or nursery...', previewNursery: 'Preview Nursery View', backAdmin: 'Back to Admin View',
     deleteAdvance: 'Delete Advance', deleteConfirm: 'Are you sure you want to delete this advance? This cannot be undone.', deleteSuccess: 'Advance deleted successfully', deleteBlocked: 'This advance cannot be deleted because invoices are linked to it. Close it instead.', deleteFailed: 'Could not delete advance from the database.', nurseriesLoading: 'Refreshing nursery list...', noNurseries: 'No active nurseries are currently available.',
   }
@@ -113,6 +113,8 @@ const INITIAL_ADVANCES = [
 ];
 
 const money = value => Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+import { balanceBreakdown } from '../utils/advanceBalance';
+const breakdownOf = allocation => balanceBreakdown(allocation?.allInvoices || allocation?.invoices || []);
 const spentOf = allocation => (allocation.invoices || []).reduce((sum, invoice) => sum + Number(invoice.amount || 0), 0);
 const statusCountsOf = allocation => (allocation?.allInvoices || allocation?.invoices || []).reduce((acc, invoice) => { const st=invoice.status||'approved'; if(st==='approved') acc.approved++; else if(st==='returned') acc.returned++; else acc.review++; return acc; }, {approved:0,review:0,returned:0});
 const totalsOf = advance => advance.allocations.reduce((acc, allocation) => {
@@ -305,7 +307,7 @@ export default function Advances({ lang, profile, databaseMode }) {
   }
 
   return <section className="advances-page">
-    {databaseMode&&<div className="database-connected-banner">● {ar?'السلف مرتبطة بقاعدة البيانات، والمصروف يُحسب من الفواتير المعتمدة.':'Advances are connected to the database; spending is calculated from approved invoices.'}</div>}
+    {databaseMode&&<div className="database-connected-banner">● {ar?'السلف مرتبطة بقاعدة البيانات. مبلغ الفاتورة يُخصم من سلفة الحضانة عند رفعها، ويرجع للرصيد إذا أُعيدت للتعديل أو رُفضت.':'Advances are connected to the database. An invoice is deducted when uploaded and returned to the balance if it is returned or rejected.'}</div>}
     {dbLoading&&<div className="database-loading-banner">◷ {ar?'جاري تحميل السلف...':'Loading advances...'}</div>}
     <div className="module-heading advances-heading">
       <div><span className="eyebrow">SAAMS Official 3.3</span><h1>{t.title}</h1><p>{t.sub}</p></div>
@@ -346,8 +348,8 @@ export default function Advances({ lang, profile, databaseMode }) {
           </div>
           <div className="advance-balance-grid">
             <div><small>{t.allocated}</small><strong>{money(allocated)} AED</strong></div>
-            <div><small>{t.spent}</small><strong>{money(spent)} AED</strong></div>
-            <div><small>{t.remaining}</small><strong className={remaining < allocated * .2 ? 'low' : ''}>{money(remaining)} AED</strong></div>
+            <div><small>{t.spent}</small><strong>{money(spent)} AED</strong>{(()=>{const b=allocation?breakdownOf(allocation):advance.allocations.reduce((acc,a)=>{const x=breakdownOf(a);acc.approved+=x.approved;acc.pending+=x.pending;return acc},{approved:0,pending:0});return b.pending>0?<em className="spent-breakdown">{t.approvedPart} {money(b.approved)} · {t.pendingPart} {money(b.pending)}</em>:null})()}</div>
+            <div><small>{t.remaining}</small><strong className={remaining < 0 ? 'low negative' : remaining < allocated * .2 ? 'low' : ''}>{money(remaining)} AED</strong></div>
             <div><small>{t.invoicesCount}</small><strong>{allocation ? allocation.invoices.length : advance.allocations.reduce((sum,a)=>sum+a.invoices.length,0)}</strong></div>
           </div>
           <div className="advance-progress"><div className="advance-progress-label"><span>{t.usage}</span><b>{usage.toFixed(0)}%</b></div><div className="advance-progress-track"><i style={{ width: `${usage}%` }} /></div></div>
@@ -401,7 +403,7 @@ function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDelete,
       <div className="selected-nursery-line"><small>{ar ? 'الحضانة المحددة' : 'Selected nursery'}</small><strong>{ar ? selected.nurseryAr : selected.nurseryEn}</strong></div>
     </div>}
     <div className="detail-balance-hero"><small>{t.nurseryBalance}</small><h3>{money(remaining)} AED</h3><div><span>{money(spent)} {t.spent}</span><span>{money(selected.allocated)} {t.allocated}</span></div><div className="advance-progress-track"><i style={{ width: `${Math.min(100, usage)}%` }} /></div></div>
-    <div className="detail-mini-stats"><div><small>{t.allocated}</small><strong>{money(selected.allocated)} AED</strong></div><div><small>{t.spent}</small><strong>{money(spent)} AED</strong></div><div><small>{t.remaining}</small><strong>{money(remaining)} AED</strong></div><div><small>{t.invoicesCount}</small><strong>{(selected.allInvoices || selected.invoices).length}</strong></div></div>
+    <div className="detail-mini-stats"><div><small>{t.allocated}</small><strong>{money(selected.allocated)} AED</strong></div><div><small>{t.spent}</small><strong>{money(spent)} AED</strong>{breakdownOf(selected).pending>0&&<em className="spent-breakdown">{t.approvedPart} {money(breakdownOf(selected).approved)} · {t.pendingPart} {money(breakdownOf(selected).pending)}</em>}</div><div><small>{t.remaining}</small><strong className={remaining<0?'low negative':''}>{money(remaining)} AED</strong></div><div><small>{t.invoicesCount}</small><strong>{(selected.allInvoices || selected.invoices).length}</strong></div></div>
     <div className="advance-status-summary"><div><small>{t.approvedInvoices}</small><strong>{statusCountsOf(selected).approved}</strong></div><div><small>{t.pendingInvoices}</small><strong>{statusCountsOf(selected).review}</strong></div><div><small>{t.returnedInvoices}</small><strong>{statusCountsOf(selected).returned}</strong></div></div>
     <div className="advance-deduction-note">✓ {t.balanceRule}</div>
     <div className="invoice-deduction-note">ⓘ {t.invoiceDeductionNote}</div>

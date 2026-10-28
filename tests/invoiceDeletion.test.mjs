@@ -32,7 +32,8 @@ for (const [name, profile, row, expected] of cases) {
 const source = await readFile(new URL('../src/data/supabaseData.js', import.meta.url), 'utf8');
 const mockedSource = source
   .replace("import { supabase } from '../supabase';", 'const supabase = globalThis.__invoiceTestDb;')
-  .replace("from '../utils/invoiceDuplicates';", `from '${new URL('../src/utils/invoiceDuplicates.js', import.meta.url).href}';`);
+  .replace("from '../utils/invoiceDuplicates';", `from '${new URL('../src/utils/invoiceDuplicates.js', import.meta.url).href}';`)
+  .replace("from '../utils/advanceBalance';", `from '${new URL('../src/utils/advanceBalance.js', import.meta.url).href}';`);
 const calls = [];
 globalThis.__invoiceTestDb = { rpc: async (...args) => { calls.push(args); return { error: null }; } };
 const { deleteInvoice } = await import(`data:text/javascript;base64,${Buffer.from(mockedSource).toString('base64')}`);

@@ -9,6 +9,7 @@ import {
   findNurseryByName,
   listInvoices as listInvoicesDb,
   listOpenAdvanceAllocations,
+  getNurseryOpenBalance,
   updateInvoiceStatus,
 } from '../data/supabaseData';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -430,6 +431,14 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [ocrError, setOcrError] = useState('');
   const [duplicateTarget, setDuplicateTarget] = useState(null);
   const [savingInvoice, setSavingInvoice] = useState(false);
+  const [nurseryBalance, setNurseryBalance] = useState(null);
+  // The nursery sees its remaining advance balance while uploading (V18 rule: uploaded invoices are deducted).
+  useEffect(() => {
+    if (!showUpload || !databaseMode || !isNursery || !profile?.nursery_id) return;
+    let alive = true;
+    getNurseryOpenBalance(profile.nursery_id).then((b) => { if (alive) setNurseryBalance(b); }).catch(() => {});
+    return () => { alive = false; };
+  }, [showUpload, databaseMode, isNursery, profile?.nursery_id, rows.length]);
   const saveInFlight = useRef(false);
   useEffect(() => { if (!ocrError) setDuplicateTarget(null); }, [ocrError]);
   const [ocr, setOcr] = useState(null);
@@ -1497,6 +1506,13 @@ export default function Invoices({ lang, profile, databaseMode }) {
               <div><small>SAAMS AI OCR</small><h2>{t.uploadTitle}</h2></div>
               <button type="button" onClick={resetUpload}>×</button>
             </div>
+            {isNursery && nurseryBalance && (
+              <div className={`upload-balance-note ${nurseryBalance.remaining < 0 ? 'negative' : ''}`}>
+                <span>{ar ? 'المتبقي في سلفتك الحالية' : 'Remaining in your current advance'}</span>
+                <strong>{Number(nurseryBalance.remaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED</strong>
+                <small>{ar ? `من ${Number(nurseryBalance.allocated).toLocaleString('en-US', { minimumFractionDigits: 2 })} AED — يُخصم مبلغ الفاتورة عند حفظها، ويرجع إذا أُعيدت أو رُفضت.` : `of ${Number(nurseryBalance.allocated).toLocaleString('en-US', { minimumFractionDigits: 2 })} AED — deducted when saved, returned if the invoice is returned or rejected.`}</small>
+              </div>
+            )}
             <p className="batch-upload-hint">{t.batchHint}</p>
             {selectedFiles.length > 0 && (
               <div className="batch-file-queue">

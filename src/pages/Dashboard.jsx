@@ -1,6 +1,7 @@
 import { dashboardAccess, activityPage } from '../utils/dashboardAccess';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
+import { getNurseryOpenBalance } from '../data/supabaseData';
 import { loadActivityFeed, isToday, activityActor, activityTime } from '../utils/activityFeed';
 import { translateAssetName } from '../utils/assetTranslations';
 import { englishPersonName, englishActivityText } from '../utils/englishDisplay';
@@ -120,7 +121,8 @@ export default function Dashboard({ lang, setActive, profile }) {
         const returned=canInvoices?await exactCount('invoices',q=>scopeNursery(q).in('status',['returned','rejected'])):0;
         const late=canInvoices?await exactCount('invoices',q=>scopeNursery(q).eq('status','review').lt('created_at',lateCutoffIso)):0;
 
-        let openAdvances=0;
+        let openAdvances=0, nurseryBalance=null;
+        if(canAdvances&&isNursery&&profile?.nursery_id) nurseryBalance=await getNurseryOpenBalance(profile.nursery_id).catch(()=>null);
         if(canAdvances&&isNursery&&profile?.nursery_id){
           let q=supabase.from('advance_allocations').select('id,advances!inner(status)',{count:'exact',head:true})
             .eq('nursery_id',profile.nursery_id).eq('advances.status','open');
@@ -244,7 +246,7 @@ export default function Dashboard({ lang, setActive, profile }) {
         const feed=await loadActivityFeed(profile,{limit:80});
         const auditRows=feed.rows.filter(x=>activityPage(x)&&can(activityPage(x)));
         if(alive){
-          setStats({assets:assetCount,newAssetsMonth,openAdvances,review,late,approved,returned,totalInvoices});
+          setStats({assets:assetCount,newAssetsMonth,openAdvances,nurseryBalance,review,late,approved,returned,totalInvoices});
           setAssetDistribution(distribution);
           setAlerts(nextAlerts);
           setActivities(auditRows);
@@ -284,7 +286,7 @@ export default function Dashboard({ lang, setActive, profile }) {
   const intro=isNursery?(ar?`ملخص بيانات ${nurseryName} فقط`:`Summary for ${nurseryName} only`):t.intro;
   const cards=useMemo(()=>[
     {page:'assets',label:t.totalAssets,value:stats.assets,suffix:t.asset,icon:'◇',tone:'violet',note:stats.newAssetsMonth>0?(ar?`${stats.newAssetsMonth} ${t.newThisMonth}`:`${stats.newAssetsMonth} ${t.newThisMonth}`):(ar?'من البيانات الفعلية':'Live data')},
-    {page:'advances',label:t.openAdvances,value:stats.openAdvances,suffix:t.advance,icon:'▣',tone:'blue',note:ar?'السلف المفتوحة فعلياً':'Currently open'},
+    {page:'advances',label:t.openAdvances,value:stats.openAdvances,suffix:t.advance,icon:'▣',tone:'blue',note:stats.nurseryBalance?(ar?`المتبقي في السلفة: ${Number(stats.nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} AED`:`Remaining: ${Number(stats.nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} AED`):(ar?'السلف المفتوحة فعلياً':'Currently open')},
     {page:'invoices',label:t.pendingInvoices,value:stats.review,suffix:t.invoice,icon:'▤',tone:'green',note:t.awaitingReview},
     {page:'invoices',label:t.lateInvoices,value:stats.late,suffix:t.invoice,icon:'◷',tone:'orange',note:ar?'لا توجد بيانات تجريبية':'No demo data'},
   ].filter(card=>can(card.page)),[stats,t,ar,canAssets,canInvoices,canAdvances]);

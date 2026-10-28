@@ -1,5 +1,6 @@
 import { supabase } from '../supabase';
 import { isSameInvoice } from '../utils/invoiceDuplicates';
+import { isDeductedInvoice } from '../utils/advanceBalance';
 
 export function isSupabaseConfigured() {
   return Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
@@ -357,6 +358,25 @@ export async function getSignedInvoiceUrl(path, expiresIn = 900, options = undef
   return data?.signedUrl || '';
 }
 
+// Open-advance balance of one nursery, with the V18 rule (review + approved are deducted).
+export async function getNurseryOpenBalance(nurseryId) {
+  if (!nurseryId) return null;
+  const { data, error } = await supabase
+    .from('advance_allocations')
+    .select('id,allocated,advances!inner(name_ar,name_en,status),invoices(total_amount,status)')
+    .eq('nursery_id', nurseryId)
+    .eq('advances.status', 'open');
+  if (error) throw error;
+  const rows = data || [];
+  if (!rows.length) return null;
+  let allocated = 0, deducted = 0;
+  for (const row of rows) {
+    allocated += Number(row.allocated || 0);
+    for (const inv of row.invoices || []) if (isDeductedInvoice(inv.status)) deducted += Number(inv.total_amount || 0);
+  }
+  return { allocated, deducted, remaining: allocated - deducted, names: rows.map((r) => r.advances?.name_ar || r.advances?.name_en).filter(Boolean) };
+}
+
 export async function listAdvances() {
   const { data, error } = await supabase
     .from('advances')
@@ -395,7 +415,8 @@ export async function listAdvances() {
         nurseryEn: allocation.nurseries?.name_en || '',
         allocated: Number(allocation.allocated || 0),
         allInvoices,
-        invoices: allInvoices.filter((invoice) => invoice.status === 'approved'),
+        // Deducted from the balance: under review + approved (returned/rejected give the amount back).
+        invoices: allInvoices.filter((invoice) => isDeductedInvoice(invoice.status)),
       };
     }),
   }));
