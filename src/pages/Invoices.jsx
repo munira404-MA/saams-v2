@@ -1508,6 +1508,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
             </div>
             {isNursery && nurseryBalance && (
               <div className={`upload-balance-note ${nurseryBalance.remaining < 0 ? 'negative' : ''}`}>
+                {nurseryBalance.remaining < 0 && <b className="upload-over-budget">{ar ? `⚠ تجاوزتم المبلغ المخصص بمبلغ ${Number(-nurseryBalance.remaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} درهم` : `⚠ You exceeded the allocation by AED ${Number(-nurseryBalance.remaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</b>}
                 <span>{ar ? 'المتبقي في سلفتك الحالية' : 'Remaining in your current advance'}</span>
                 <strong>{Number(nurseryBalance.remaining).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} AED</strong>
                 <small>{ar ? `من ${Number(nurseryBalance.allocated).toLocaleString('en-US', { minimumFractionDigits: 2 })} AED — يُخصم مبلغ الفاتورة عند حفظها، ويرجع إذا أُعيدت أو رُفضت.` : `of ${Number(nurseryBalance.allocated).toLocaleString('en-US', { minimumFractionDigits: 2 })} AED — deducted when saved, returned if the invoice is returned or rejected.`}</small>

@@ -15,7 +15,7 @@ function harness(assets,editingAsset=null){
    then(resolve){return Promise.resolve({data:[{id:'nursery'}],error:null}).then(resolve)}};
   return query;
  };
- const deps={assets,editingAsset,ar:false,t:{},assetsDbReady:true,newFlagReady:true,assetSelectAfterWrite:()=>'*',profile:{id:'admin'},supabase:{from:q},notify:m=>messages.push(m),normalizeBarcode:v=>String(v||'').replace(/\s+/g,'').toLowerCase(),nurseryLabel:()=>'',dbAssetToUi:row=>({...row,centralBarcode:row.central_finance_barcode}),setAssets(){},setModal(){},setEditingAsset(){},recordAudit(){},window:{dispatchEvent(){}},CustomEvent:class{}};
+ const deps={assets,editingAsset,ar:false,t:{},assetsDbReady:true,newFlagReady:true,assetSelectAfterWrite:()=>'*',canFullRegister:false,registerReady:null,hasRegisterInput:()=>false,registerPayloadFrom:()=>({}),profile:{id:'admin'},supabase:{from:q},notify:m=>messages.push(m),normalizeBarcode:v=>String(v||'').replace(/\s+/g,'').toLowerCase(),nurseryLabel:()=>'',dbAssetToUi:row=>({...row,centralBarcode:row.central_finance_barcode}),setAssets(){},setModal(){},setEditingAsset(){},recordAudit(){},window:{dispatchEvent(){}},CustomEvent:class{}};
  const keys=Object.keys(deps);
  const actions=new Function(...keys,add+update+';return {addAsset,updateAsset}')( ...keys.map(k=>deps[k]));
  return {...actions,writes,messages};

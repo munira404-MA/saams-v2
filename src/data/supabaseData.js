@@ -377,6 +377,20 @@ export async function getNurseryOpenBalance(nurseryId) {
   return { allocated, deducted, remaining: allocated - deducted, names: rows.map((r) => r.advances?.name_ar || r.advances?.name_en).filter(Boolean) };
 }
 
+// Nurseries whose deducted invoices exceed their allocation in an OPEN advance (for administration alerts).
+export async function listOverBudgetAllocations() {
+  const { data, error } = await supabase
+    .from('advance_allocations')
+    .select('id,allocated,nurseries(name_ar,name_en),advances!inner(name_ar,status),invoices(total_amount,status)')
+    .eq('advances.status', 'open');
+  if (error) throw error;
+  return (data || []).map((row) => {
+    let deducted = 0;
+    for (const inv of row.invoices || []) if (isDeductedInvoice(inv.status)) deducted += Number(inv.total_amount || 0);
+    return { nurseryAr: row.nurseries?.name_ar || '', nurseryEn: row.nurseries?.name_en || '', advance: row.advances?.name_ar || '', allocated: Number(row.allocated || 0), deducted, over: deducted - Number(row.allocated || 0) };
+  }).filter((x) => x.over > 0.004).sort((a, b) => b.over - a.over);
+}
+
 export async function listAdvances() {
   const { data, error } = await supabase
     .from('advances')

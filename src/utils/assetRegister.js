@@ -221,3 +221,42 @@ export function parseRegisterSheet(rows) {
   }
   return out;
 }
+
+// ---- Entry form support (add / edit asset) ----
+const titleCase = (s) => s.split(' ').map((w) => (/^(ac|tv|pc|cpu|nvr|poe|it|aed|suv|loa)$/i.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1))).join(' ');
+const optionsFrom = (map) => {
+  const seen = new Set();
+  return Object.entries(map).filter(([, ar]) => { if (seen.has(ar)) return false; seen.add(ar); return true; })
+    .map(([en, ar]) => ({ value: titleCase(en), ar }));
+};
+export const REGISTER_SELECT_OPTIONS = {
+  fundSource: optionsFrom(FUND),
+  mainCategory: optionsFrom(MAIN),
+  assetCondition: optionsFrom(CONDITION),
+  registerStatus: optionsFrom(STATUS),
+};
+export const SUB_CATEGORY_SUGGESTIONS = optionsFrom(SUB).sort((a, b) => a.ar.localeCompare(b.ar, 'ar'));
+
+// What the user typed/chose → value stored in the database (register values are kept in English
+// so they match the imported register; an Arabic label of a known value is converted back).
+export function registerInputToDb(key, input) {
+  const raw = String(input ?? '').trim();
+  if (!raw) return null;
+  if (key === 'cost') { const n = Number(raw.replace(/,/g, '')); return Number.isFinite(n) ? n : null; }
+  if (key === 'subCategory1' || key === 'subCategory2') {
+    const hit = SUB_CATEGORY_SUGGESTIONS.find((o) => o.ar === raw || o.value.toLowerCase() === raw.toLowerCase());
+    return hit ? hit.value : raw;
+  }
+  return raw;
+}
+// Database value → what the form shows (sub-categories in Arabic when known).
+export function registerDbToInput(key, value) {
+  if (value === null || value === undefined || isEmptyRegisterValue(value)) return '';
+  if (key === 'subCategory1' || key === 'subCategory2') return SUB[norm(value)] || String(value);
+  if (key === 'receivingDate' || key === 'warrantyExpiry') return String(value).slice(0, 10);
+  if (REGISTER_SELECT_OPTIONS[key]) {
+    const hit = REGISTER_SELECT_OPTIONS[key].find((o) => o.value.toLowerCase() === norm(value));
+    return hit ? hit.value : String(value);
+  }
+  return String(value);
+}

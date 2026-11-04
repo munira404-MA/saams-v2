@@ -1,7 +1,7 @@
 import { dashboardAccess, activityPage } from '../utils/dashboardAccess';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
-import { getNurseryOpenBalance } from '../data/supabaseData';
+import { getNurseryOpenBalance, listOverBudgetAllocations } from '../data/supabaseData';
 import { loadActivityFeed, isToday, activityActor, activityTime } from '../utils/activityFeed';
 import { translateAssetName } from '../utils/assetTranslations';
 import { englishPersonName, englishActivityText } from '../utils/englishDisplay';
@@ -237,9 +237,18 @@ export default function Dashboard({ lang, setActive, profile }) {
             }
           }
           nextAlerts.sort((a,b)=>new Date(b.time||0)-new Date(a.time||0));
+          // Over-budget: always first, in red.
+          if(nurseryBalance&&nurseryBalance.remaining<0){
+            const by=(-nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+            nextAlerts.unshift({tone:'red',pinned:true,title:ar?`تجاوزتم المبلغ المخصص للسلفة بمبلغ ${by} درهم`:`You exceeded your advance allocation by AED ${by}`,sub:ar?`المبلغ المخصص ${Number(nurseryBalance.allocated).toLocaleString('en-US',{minimumFractionDigits:2})} — المصروف ${Number(nurseryBalance.deducted).toLocaleString('en-US',{minimumFractionDigits:2})}`:`Allocated ${Number(nurseryBalance.allocated).toFixed(2)} — spent ${Number(nurseryBalance.deducted).toFixed(2)}`,target:'advances',time:new Date().toISOString()});
+          }
         }else{
           if(canInvoices&&late>0) nextAlerts.push({tone:'red',title:ar?`${late} فاتورة متأخرة لأكثر من أسبوع`:`${late} invoice(s) overdue for more than a week`,sub:ar?'بانتظار الاعتماد':'Awaiting approval'});
           if(canInvoices&&returned>0) nextAlerts.push({tone:'orange',title:ar?`${returned} فاتورة معادة/مرفوضة`:`${returned} returned/rejected invoice(s)`,sub:ar?'تحتاج متابعة':'Needs follow-up'});
+          if(canAdvances){
+            const overList=await listOverBudgetAllocations().catch(()=>[]);
+            for(const o of overList){const by=o.over.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});nextAlerts.unshift({tone:'red',pinned:true,title:ar?`${o.nurseryAr} تجاوزت المبلغ المخصص بمبلغ ${by} درهم`:`${o.nurseryEn||o.nurseryAr} exceeded the allocation by AED ${by}`,sub:ar?`${o.advance} — المصروف ${o.deducted.toLocaleString('en-US',{minimumFractionDigits:2})} من ${o.allocated.toLocaleString('en-US',{minimumFractionDigits:2})}`:`${o.advance} — spent ${o.deducted.toFixed(2)} of ${o.allocated.toFixed(2)}`,target:'advances'});}
+          }
           if(canAdvances&&openAdvances>0) nextAlerts.push({tone:'blue',title:ar?`${openAdvances} سلفة مفتوحة حالياً`:`${openAdvances} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
         }
 
@@ -286,7 +295,7 @@ export default function Dashboard({ lang, setActive, profile }) {
   const intro=isNursery?(ar?`ملخص بيانات ${nurseryName} فقط`:`Summary for ${nurseryName} only`):t.intro;
   const cards=useMemo(()=>[
     {page:'assets',label:t.totalAssets,value:stats.assets,suffix:t.asset,icon:'◇',tone:'violet',note:stats.newAssetsMonth>0?(ar?`${stats.newAssetsMonth} ${t.newThisMonth}`:`${stats.newAssetsMonth} ${t.newThisMonth}`):(ar?'من البيانات الفعلية':'Live data')},
-    {page:'advances',label:t.openAdvances,value:stats.openAdvances,suffix:t.advance,icon:'▣',tone:'blue',note:stats.nurseryBalance?(ar?`المتبقي في السلفة: ${Number(stats.nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} AED`:`Remaining: ${Number(stats.nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} AED`):(ar?'السلف المفتوحة فعلياً':'Currently open')},
+    {page:'advances',label:t.openAdvances,value:stats.openAdvances,suffix:t.advance,icon:'▣',tone:'blue',note:stats.nurseryBalance&&stats.nurseryBalance.remaining<0?(ar?`⚠ تجاوز المبلغ المخصص بـ ${Number(-stats.nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} AED`:`⚠ Over allocation by AED ${Number(-stats.nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`):stats.nurseryBalance?(ar?`المتبقي في السلفة: ${Number(stats.nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} AED`:`Remaining: ${Number(stats.nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} AED`):(ar?'السلف المفتوحة فعلياً':'Currently open')},
     {page:'invoices',label:t.pendingInvoices,value:stats.review,suffix:t.invoice,icon:'▤',tone:'green',note:t.awaitingReview},
     {page:'invoices',label:t.lateInvoices,value:stats.late,suffix:t.invoice,icon:'◷',tone:'orange',note:ar?'لا توجد بيانات تجريبية':'No demo data'},
   ].filter(card=>can(card.page)),[stats,t,ar,canAssets,canInvoices,canAdvances]);
@@ -299,7 +308,7 @@ export default function Dashboard({ lang, setActive, profile }) {
   return <div className="glass-dashboard">
     <section className="dashboard-hero"><div><span className="eyebrow">SAAMS Official 3.3</span><h1>{greeting} <span className="wave">👋</span></h1><p>{intro}</p></div><div className="dashboard-filters"><button type="button">☷ {t.filter}</button><button type="button">▣ {today}</button></div></section>
     {loading&&<div className="dashboard-live-note">{t.loading}</div>}{error&&<div className="dashboard-live-note error">{error}</div>}
-    <section className="stat-grid" style={{gridTemplateColumns:`repeat(${Math.max(cards.length,1)},minmax(0,1fr))`}}>{cards.map((c,i)=><article className={`stat-card ${c.tone}`} key={c.label} style={{animationDelay:`${i*70}ms`}}><div className="stat-icon">{c.icon}</div><span>{c.label}</span><strong><AnimatedNumber value={c.value}/></strong><em>{c.suffix}</em><footer>{c.note}</footer></article>)}</section>
+    <section className="stat-grid" style={{gridTemplateColumns:`repeat(${Math.max(cards.length,1)},minmax(0,1fr))`}}>{cards.map((c,i)=><article className={`stat-card ${c.tone}`} key={c.label} style={{animationDelay:`${i*70}ms`}}><div className="stat-icon">{c.icon}</div><span>{c.label}</span><strong><AnimatedNumber value={c.value}/></strong><em>{c.suffix}</em><footer className={String(c.note||'').startsWith('⚠')?'over-budget-note':''}>{c.note}</footer></article>)}</section>
     <section className="dashboard-grid dashboard-grid-top">
       <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2>{permittedAlerts.length>5&&<button type="button" onClick={()=>setShowAllAlerts(v=>!v)}>{showAllAlerts?t.showLess:t.viewAll}</button>}</div><div className="alerts-list">{visibleAlerts.length?visibleAlerts.map((a,i)=><div className={`live-alert ${a.tone} ${a.target?'clickable':''}`} key={`${a.title}-${i}`} role={a.target?'button':undefined} tabIndex={a.target?0:undefined} onClick={()=>a.target&&setActive(a.target)} onKeyDown={(e)=>{if(a.target&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setActive(a.target)}}}><b>{a.tone==='green'?'✓':a.tone==='red'?'!':a.tone==='orange'?'↩':a.tone==='teal'?'＋':'•'}</b><div><strong>{a.title}</strong><small>{a.sub}{a.target?` • ${t.tapForDetails}`:''}</small></div></div>):<div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div>}</div></article>
       {canAssets&&<article className="glass-panel chart-panel"><div className="panel-heading"><h2>{isNursery?(ar?`أصول ${nurseryName}`:`${nurseryName} Assets`):t.assetByNursery}</h2><button type="button">{t.thisMonth}⌄</button></div><AssetDistribution t={t} rows={assetDistribution}/></article>}

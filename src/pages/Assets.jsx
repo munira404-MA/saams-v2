@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from '../supabase';
 import * as XLSX from 'xlsx';
 import { translateAssetName } from '../utils/assetTranslations';
-import { REGISTER_COLUMNS, REGISTER_DB_COLUMNS, canSeeFullRegister, dbRowToRegister, registerValue, parseRegisterSheet } from '../utils/assetRegister';
+import { REGISTER_COLUMNS, REGISTER_DB_COLUMNS, REGISTER_SELECT_OPTIONS, SUB_CATEGORY_SUGGESTIONS, canSeeFullRegister, dbRowToRegister, registerValue, parseRegisterSheet, registerInputToDb, registerDbToInput } from '../utils/assetRegister';
 
 const ASSETS = [];
 
@@ -99,7 +99,14 @@ async function fetchAllAssetRows({withRegister=false}={}){
  return {data:all,error:null,supportsCentralBarcode,supportsNewFlag,supportsRegister};
 }
 
-function assetSelectAfterWrite(withNewFlag){return `id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,${withNewFlag?'is_new_asset,':''}nurseries(name_ar,name_en)`}
+function registerPayloadFrom(reg){
+ const out={};
+ for(const c of REGISTER_COLUMNS) out[c.db]=registerInputToDb(c.key,reg?.[c.key]);
+ out.register_updated_at=new Date().toISOString();
+ return out;
+}
+function hasRegisterInput(reg){return REGISTER_COLUMNS.some(c=>String(reg?.[c.key]??'').trim()!=='')}
+function assetSelectAfterWrite(withNewFlag,withRegister=false){return `id,barcode,central_finance_barcode,name_ar,name_en,category_ar,category_en,nursery_id,status,notes,created_at,${withNewFlag?'is_new_asset,':''}${withRegister?[...REGISTER_DB_COLUMNS,'register_updated_at'].join(',')+',':''}nurseries(name_ar,name_en)`}
 
 function dbRequestToUi(row){
  return {
@@ -279,6 +286,7 @@ export default function Assets({lang,profile}){
   const centralBarcode=String(form.centralBarcode||'').trim();
   if(!barcode){notify(ar?'الباركود الداخلي إلزامي':'Internal Barcode is required');return false}
   if(form.isNew!=='yes'&&form.isNew!=='no'){notify(ar?'حددي: هل هذا أصل جديد؟':'Please answer: is this a new asset?');return false}
+  if(canFullRegister&&registerReady!==true&&hasRegisterInput(form.register)){notify(ar?'لحفظ بيانات السجل الكامل شغلي ملف 21_FULL_ASSET_REGISTER.sql أولاً.':'Run 21_FULL_ASSET_REGISTER.sql first to save full register data.');return false}
   if(form.isNew==='yes'&&!newFlagReady){notify(ar?'لتسجيل «أصل جديد» شغلي ملف 18_NEW_ASSET_FLAG.sql في Supabase أولاً.':'Run 18_NEW_ASSET_FLAG.sql in Supabase first to record new assets.');return false}
   const duplicate=assets.find(a=>normalizeBarcode(a.barcode)===normalizeBarcode(barcode)||(centralBarcode&&normalizeBarcode(a.centralBarcode)===normalizeBarcode(centralBarcode)));
   if(duplicate){notify(`${t.duplicateBarcode}: ${duplicate.barcode}${duplicate.centralBarcode?` / ${duplicate.centralBarcode}`:''} — ${nurseryLabel(duplicate,ar)}`);return false}
@@ -288,7 +296,7 @@ export default function Assets({lang,profile}){
   if(nurseryErr){notify(ar?'تعذر التحقق من الحضانة':'Could not verify the nursery');return false}
   const nurseryId=nurseryRows?.[0]?.id||null;
   if(!nurseryId){notify(ar?'تعذر حفظ الأصل: لم يتم العثور على الحضانة المحددة في قاعدة البيانات':'Could not save the asset: selected nursery was not found');return false}
-  const {data,error}=await supabase.from('assets').insert({barcode,central_finance_barcode:centralBarcode||null,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,status:'active',notes:form.notes||'',created_by:profile?.id||null,...(newFlagReady?{is_new_asset:form.isNew==='yes'}:{})}).select(assetSelectAfterWrite(newFlagReady)).single();
+  const {data,error}=await supabase.from('assets').insert({barcode,central_finance_barcode:centralBarcode||null,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,status:'active',notes:form.notes||'',created_by:profile?.id||null,...(newFlagReady?{is_new_asset:form.isNew==='yes'}:{}),...(canFullRegister&&registerReady===true&&hasRegisterInput(form.register)?registerPayloadFrom(form.register):{})}).select(assetSelectAfterWrite(newFlagReady,canFullRegister&&registerReady===true)).single();
   if(error){if(error.code==='23505'){notify(`${t.duplicateBarcode}: ${barcode}`);return false}console.error('Asset insert failed',error);notify(ar?`تعذر حفظ الأصل في قاعدة البيانات: ${error.message||'خطأ غير معروف'}`:`Could not save the asset: ${error.message||'Unknown error'}`);return false}
   const saved=dbAssetToUi(data);setAssets(x=>[saved,...x]);next.id=saved.id;next.nurseryId=saved.nurseryId;
   setModal(null);notify(t.assetSaved);recordAudit({profile,screen:'الأصول',action:form.isNew==='yes'?'إضافة أصل جديد':'إضافة أصل',actionType:'create',entityType:'asset',entityId:next.barcode,nursery:next.nurseryAr,details:next.nameAr,after:next});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));return true;
@@ -301,8 +309,8 @@ export default function Assets({lang,profile}){
   const before=editingAsset; let updated={...editingAsset,centralBarcode,nameAr:form.name,nameEn:form.name,nurseryAr:form.from,nurseryEn:form.from,categoryAr:form.category,categoryEn:form.category};
   if(assetsDbReady){
    const {data:nurseryRows}=await supabase.from('nurseries').select('id,name_ar,name_en').or(`name_ar.eq.${form.from},name_en.eq.${form.from}`).limit(1); const nurseryId=nurseryRows?.[0]?.id||null;
-   let q=supabase.from('assets').update({central_finance_barcode:centralBarcode||null,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,...(newFlagReady?{is_new_asset:!!form.isNew}:{}),updated_at:new Date().toISOString()}); q=editingAsset.id?q.eq('id',editingAsset.id):q.eq('barcode',editingAsset.barcode);
-   const {data,error}=await q.select(assetSelectAfterWrite(newFlagReady)).single(); if(error){notify(ar?'تعذر تحديث الأصل':'Could not update the asset');return} updated=dbAssetToUi(data);
+   let q=supabase.from('assets').update({central_finance_barcode:centralBarcode||null,name_ar:form.name,name_en:form.name,category_ar:form.category,category_en:form.category,nursery_id:nurseryId,...(newFlagReady?{is_new_asset:!!form.isNew}:{}),...(canFullRegister&&registerReady===true&&form.register?registerPayloadFrom(form.register):{}),updated_at:new Date().toISOString()}); q=editingAsset.id?q.eq('id',editingAsset.id):q.eq('barcode',editingAsset.barcode);
+   const {data,error}=await q.select(assetSelectAfterWrite(newFlagReady,canFullRegister&&registerReady===true)).single(); if(error){notify(ar?'تعذر تحديث الأصل':'Could not update the asset');return} updated=dbAssetToUi(data);
   }
   setAssets(x=>x.map(a=>(editingAsset.id&&a.id===editingAsset.id)||(!editingAsset.id&&a.barcode===editingAsset.barcode)?updated:a));setEditingAsset(null);notify(t.assetUpdated);recordAudit({profile,screen:'الأصول',action:'تعديل أصل',actionType:'update',entityType:'asset',entityId:updated.barcode,nursery:updated.nurseryAr,details:updated.nameAr,before,after:updated});window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'assets'}}));
  }
@@ -717,8 +725,8 @@ export default function Assets({lang,profile}){
   {officialDocument&&<AssetOfficialDocument request={officialDocument} ar={ar} onClose={()=>setOfficialDocument(null)} />}
   {historyAsset&&<AssetHistory asset={historyAsset} ar={ar} showRegister={canFullRegister&&isAdmin&&!previewNursery} onClose={()=>setHistoryAsset(null)} />}
   {registerImport?.stage==='done'&&<RegisterImportResult ar={ar} result={registerImport} onDownload={()=>downloadUnmatchedRegister(registerImport.unmatchedRows)} onClose={()=>setRegisterImport(null)}/>}
-  {editingAsset&&<AssetEditModal asset={editingAsset} ar={ar} t={t} nurseries={nurseries} onClose={()=>setEditingAsset(null)} onSave={updateAsset}/>}
-  {modal&&<AssetModal type={modal} ar={ar} defaultNursery={accountNursery} t={t} assets={isAdmin&&!previewNursery?assets:scopedAssets} nurseries={nurseries} isAdmin={isAdmin&&!previewNursery} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
+  {editingAsset&&<AssetEditModal asset={editingAsset} ar={ar} t={t} nurseries={nurseries} showRegister={canFullRegister&&registerReady===true} onClose={()=>setEditingAsset(null)} onSave={updateAsset}/>}
+  {modal&&<AssetModal type={modal} showRegister={modal==='add'&&canFullRegister&&registerReady===true} ar={ar} defaultNursery={accountNursery} t={t} assets={isAdmin&&!previewNursery?assets:scopedAssets} nurseries={nurseries} isAdmin={isAdmin&&!previewNursery} onClose={()=>setModal(null)} onSave={modal==='add'?addAsset:addRequest}/>}
   {viewing&&<RequestDetails request={viewing} ar={ar} t={t} isAdmin={isAdmin} onClose={()=>setViewing(null)} onApprove={()=>approveRequest(viewing.id)} onReject={()=>setRejecting(viewing)}/>}
   {rejecting&&<RejectModal request={rejecting} ar={ar} t={t} onClose={()=>setRejecting(null)} onConfirm={reason=>rejectRequest(rejecting.id,reason)}/>}
   {importQuestion&&<NewAssetQuestion ar={ar} count={importQuestion.count} onAnswer={importQuestion.resolve}/>}
@@ -726,8 +734,8 @@ export default function Assets({lang,profile}){
  </section>
 }
 
-function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
- const [form,setForm]=useState({centralBarcode:asset.centralBarcode||'',name:ar?asset.nameAr:assetLabel(asset,false),category:categoryLabel(asset,ar),from:ar?asset.nurseryAr:nurseryLabel(asset,false),isNew:!!asset.isNewAsset});
+function AssetEditModal({asset,ar,t,nurseries,onClose,onSave,showRegister=false}){
+ const [form,setForm]=useState({centralBarcode:asset.centralBarcode||'',name:ar?asset.nameAr:assetLabel(asset,false),category:categoryLabel(asset,ar),from:ar?asset.nurseryAr:nurseryLabel(asset,false),isNew:!!asset.isNewAsset,register:Object.fromEntries(REGISTER_COLUMNS.map(c=>[c.key,registerDbToInput(c.key,asset.register?.[c.key])]))});
  return <div className="invoice-overlay" onClick={onClose}><form className="asset-modal" onSubmit={e=>{e.preventDefault();onSave(form)}} onClick={e=>e.stopPropagation()}>
   <div className="drawer-header"><div><small>SAAMS Assets</small><h2>{t.editAsset}</h2></div><button type="button" onClick={onClose}>×</button></div>
   <div className="asset-form-grid">
@@ -735,14 +743,15 @@ function AssetEditModal({asset,ar,t,nurseries,onClose,onSave}){
    <label><span>{t.assetName}</span><input required autoFocus value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label>
    <label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label>
    <label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label>
+   {showRegister&&<RegisterFields ar={ar} value={form.register} onChange={register=>setForm(f=>({...f,register}))}/>}
    <label className="wide new-asset-toggle"><input type="checkbox" checked={form.isNew} onChange={e=>setForm({...form,isNew:e.target.checked})}/><span>{ar?'أصل جديد (يُحتسب في تقارير الأصول الجديدة ويظهر للحضانة كأصل جديد)':'New asset (counted in new-asset reports and shown to the nursery as new)'}</span></label>
   </div>
   <div className="asset-modal-actions"><button type="button" className="secondary-action" onClick={onClose}>{t.cancel}</button><button className="primary-action">✓ {t.edit}</button></div>
  </form></div>
 }
 
-function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,isAdmin=false}){
- const [form,setForm]=useState({barcode:'',centralBarcode:'',asset:'',from:defaultNursery||'',to:'',reason:'',name:'',category:'',notes:'',isNew:''});
+function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,isAdmin=false,showRegister=false}){
+ const [form,setForm]=useState({barcode:'',centralBarcode:'',asset:'',from:defaultNursery||'',to:'',reason:'',name:'',category:'',notes:'',isNew:'',register:{registerStatus:'Active'}});
  const [lookup,setLookup]=useState(null),[camera,setCamera]=useState(false),[scanMsg,setScanMsg]=useState('');
  const [pickCategory,setPickCategory]=useState('');
  const requestCategories=useMemo(()=>{const counts=new Map();for(const a of assets){const c=categoryLabel(a,ar)||(ar?'بدون تصنيف':'Uncategorized');counts.set(c,(counts.get(c)||0)+1)}return [...counts.entries()].sort((x,y)=>x[0].localeCompare(y[0],ar?'ar':'en'))},[assets,ar]);
@@ -770,7 +779,7 @@ function AssetModal({type,ar,t,assets,nurseries,onClose,onSave,defaultNursery,is
  function submit(e){e.preventDefault();if(type==='add'&&duplicateOnAdd){setLookup('duplicate');return}if(type!=='add'&&!selected)return setLookup('missing');if(type==='transfer'&&!form.to)return;onSave(form)}
  const hint=type==='transfer'?t.transferHint:type==='surplus'?t.surplusHint:type==='disposal'?t.disposalHint:'';
  return createPortal(<div className="invoice-overlay asset-request-overlay" onClick={()=>{stopCamera();onClose()}}><form className="asset-modal" onSubmit={submit} onClick={e=>e.stopPropagation()}><div className="drawer-header"><div><small>SAAMS Assets</small><h2>{type==='add'?t.add:t[type]}</h2></div><button type="button" onClick={()=>{stopCamera();onClose()}}>×</button></div>
-  {type==='add'?<div className="asset-form-grid"><label><span>{t.barcode}</span><input required value={form.barcode} onChange={e=>{setForm({...form,barcode:e.target.value});setLookup(null)}}/>{duplicateOnAdd&&<div className="duplicate-asset-warning"><b>⚠ {t.duplicateBarcode}</b><span>{duplicateOnAdd.barcode} · {assetLabel(duplicateOnAdd,ar)} · {t.duplicateBarcodeDetail}: {nurseryLabel(duplicateOnAdd,ar)}</span><small>{t.duplicateBarcodeBlocked}</small></div>}</label><label><span>{t.centralBarcode}</span><input value={form.centralBarcode} onChange={e=>setForm({...form,centralBarcode:e.target.value})}/></label><label><span>{t.assetName}</span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label><label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label><fieldset className="wide new-asset-question"><legend>{ar?'هل هذا أصل جديد؟':'Is this a new asset?'} <b>*</b></legend><label className={form.isNew==='yes'?'active':''}><input type="radio" name="isNew" value="yes" required checked={form.isNew==='yes'} onChange={()=>setForm({...form,isNew:'yes'})}/><span><strong>{ar?'نعم، أصل جديد':'Yes, new asset'}</strong><small>{ar?'شراء أو استلام جديد — يظهر للحضانة كأصل جديد ويُحتسب في التقارير':'Newly purchased or received — shown to the nursery as new and counted in reports'}</small></span></label><label className={form.isNew==='no'?'active':''}><input type="radio" name="isNew" value="no" checked={form.isNew==='no'} onChange={()=>setForm({...form,isNew:'no'})}/><span><strong>{ar?'لا، أصل موجود مسبقًا':'No, existing asset'}</strong><small>{ar?'تسجيل أصل موجود في الحضانة من قبل':'Registering an asset that already existed'}</small></span></label></fieldset><label className="wide"><span>{t.notes}</span><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label></div>:<>
+  {type==='add'?<div className="asset-form-grid"><label><span>{t.barcode}</span><input required value={form.barcode} onChange={e=>{setForm({...form,barcode:e.target.value});setLookup(null)}}/>{duplicateOnAdd&&<div className="duplicate-asset-warning"><b>⚠ {t.duplicateBarcode}</b><span>{duplicateOnAdd.barcode} · {assetLabel(duplicateOnAdd,ar)} · {t.duplicateBarcodeDetail}: {nurseryLabel(duplicateOnAdd,ar)}</span><small>{t.duplicateBarcodeBlocked}</small></div>}</label><label><span>{t.centralBarcode}</span><input value={form.centralBarcode} onChange={e=>setForm({...form,centralBarcode:e.target.value})}/></label><label><span>{t.assetName}</span><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/></label><label><span>{t.category}</span><input required value={form.category} onChange={e=>setForm({...form,category:e.target.value})}/></label><label><span>{t.location}</span><select value={form.from} onChange={e=>setForm({...form,from:e.target.value})}>{nurseries.map(n=><option key={n}>{n}</option>)}</select></label>{showRegister&&<RegisterFields ar={ar} value={form.register} onChange={register=>setForm(f=>({...f,register,category:f.category||(register.mainCategory?(REGISTER_SELECT_OPTIONS.mainCategory.find(o=>o.value===register.mainCategory)?.ar||''):'')}))}/>}<fieldset className="wide new-asset-question"><legend>{ar?'هل هذا أصل جديد؟':'Is this a new asset?'} <b>*</b></legend><label className={form.isNew==='yes'?'active':''}><input type="radio" name="isNew" value="yes" required checked={form.isNew==='yes'} onChange={()=>setForm({...form,isNew:'yes'})}/><span><strong>{ar?'نعم، أصل جديد':'Yes, new asset'}</strong><small>{ar?'شراء أو استلام جديد — يظهر للحضانة كأصل جديد ويُحتسب في التقارير':'Newly purchased or received — shown to the nursery as new and counted in reports'}</small></span></label><label className={form.isNew==='no'?'active':''}><input type="radio" name="isNew" value="no" checked={form.isNew==='no'} onChange={()=>setForm({...form,isNew:'no'})}/><span><strong>{ar?'لا، أصل موجود مسبقًا':'No, existing asset'}</strong><small>{ar?'تسجيل أصل موجود في الحضانة من قبل':'Registering an asset that already existed'}</small></span></label></fieldset><label className="wide"><span>{t.notes}</span><textarea value={form.notes} onChange={e=>setForm({...form,notes:e.target.value})}/></label></div>:<>
    <p className="request-hint">{hint}</p><div className="request-asset-pickers"><label className="nursery-asset-picker request-category-picker"><span>{ar?'١. اختاري التصنيف':'1. Choose category'}</span><select value={pickCategory} onChange={e=>setPickCategory(e.target.value)}><option value="">{ar?`كل التصنيفات (${assets.length})`:`All categories (${assets.length})`}</option>{requestCategories.map(([c,n])=><option key={c} value={c}>{c} ({n})</option>)}</select></label><label className="nursery-asset-picker"><span>{ar?(isAdmin?'٢. اختاري الأصل':'٢. اختاري الأصل من أصول الحضانة'):(isAdmin?'2. Choose asset':'2. Choose from nursery assets')}</span><select value={selected?.id||selected?.barcode||''} onChange={e=>chooseRequestAsset(e.target.value)}><option value="">{ar?`اختاري الأصل... (${pickerAssets.length})`:`Choose asset... (${pickerAssets.length})`}</option>{pickerAssets.map(a=><option key={a.id||a.barcode} value={a.id||a.barcode}>{assetLabel(a,ar)} — {a.barcode}{a.centralBarcode?` / ${a.centralBarcode}`:''}{isAdmin?` — ${nurseryLabel(a,ar)}`:''}</option>)}</select></label></div><div className="barcode-panel"><label><span>{ar?'أي باركود للأصل':'Either Asset Barcode'}</span><div className="barcode-input-row"><input required value={form.barcode} onChange={e=>handleRequestBarcode(e.target.value)} placeholder="SEA-000000"/><button type="button" onClick={findAsset}>{t.lookup}</button></div></label><div className="barcode-tools"><button type="button" onClick={startCamera}>▣ {t.scan}</button><label className="upload-barcode">⇧ {t.upload}<input type="file" accept="image/*" capture="environment" onChange={e=>e.target.files[0]&&decodeImage(e.target.files[0])}/></label></div><small>{ar?'يمكنك اختيار الأصل من القائمة أو إدخال كوده مباشرة، وسيتم تعبئة البيانات تلقائيًا.':'Choose an asset from the list or enter its code; details will fill automatically.'}</small>{scanMsg&&<div className="scan-warning">{scanMsg}</div>}{lookup==='found'&&selected&&<div className="asset-found"><b>✓ {t.found}</b><strong>{assetLabel(selected,ar)}</strong><span>{nurseryLabel(selected,ar)} · {selected.barcode}{selected.centralBarcode?` · ${selected.centralBarcode}`:''}</span></div>}{lookup==='missing'&&form.barcode&&<div className="scan-error">! {t.notFound}</div>}</div>
    {camera&&<div className="camera-box"><video ref={videoRef} autoPlay muted playsInline/><div className="scan-frame"></div><p>{t.cameraHint}</p><button type="button" onClick={stopCamera}>{t.closeCamera}</button></div>}
    <div className="asset-form-grid"><label><span>{t.asset}</span><input readOnly value={form.asset}/></label><label><span>{t.category}</span><input readOnly value={form.category}/></label><label><span>{t.from}</span>{isAdmin?<select required value={form.from} onChange={e=>setForm({...form,from:e.target.value,to:e.target.value===form.to?'':form.to})}><option value="">{ar?'اختاري الحضانة...':'Choose nursery...'}</option>{nurseries.map(n=><option key={n}>{n}</option>)}</select>:<input readOnly value={form.from||defaultNursery||''}/>}</label>{type==='transfer'&&<label><span>{t.to}</span><select required value={form.to} onChange={e=>setForm({...form,to:e.target.value})}><option value="">{ar?'اختاري الحضانة المنقول إليها...':'Choose destination nursery...'}</option>{transferDestinations.filter(n=>n!==form.from).map(n=><option key={n} value={n}>{n}</option>)}</select></label>}<label className="wide"><span>{t.reason}</span><textarea required value={form.reason} onChange={e=>setForm({...form,reason:e.target.value})}/></label></div>
@@ -846,4 +855,24 @@ function RegisterImportResult({ar,result,onDownload,onClose}){
   <ul className="register-missing-list">{Object.entries(result.byCustomer||{}).sort((a,b)=>b[1]-a[1]).map(([name,count])=><li key={name}><span>{name}</span><b>{count}</b></li>)}</ul></>}
   <div className="asset-modal-actions">{missing>0&&<button type="button" className="secondary-action" onClick={onDownload}>⇩ {ar?'تنزيل قائمة غير الموجودة (Excel)':'Download missing list (Excel)'}</button>}<button type="button" className="primary-action" onClick={onClose}>{ar?'تم':'Done'}</button></div>
  </div></div>,document.body);
+}
+
+// «بيانات السجل الكامل» inside the add / edit asset card (same fields as the asset details card).
+function RegisterFields({ar,value={},onChange}){
+ const set=(key,v)=>onChange({...value,[key]:v});
+ const field=(c)=>{
+  const v=value?.[c.key]??'';
+  const label=ar?c.ar:c.en;
+  if(REGISTER_SELECT_OPTIONS[c.key]) return <label key={c.key}><span>{label}</span><select value={v} onChange={e=>set(c.key,e.target.value)}><option value="">{ar?'— اختاري —':'— Choose —'}</option>{REGISTER_SELECT_OPTIONS[c.key].map(o=><option key={o.value} value={o.value}>{ar?o.ar:o.value}</option>)}</select></label>;
+  if(c.key==='subCategory1'||c.key==='subCategory2') return <label key={c.key}><span>{label}</span><input list="saams-sub-categories" value={v} onChange={e=>set(c.key,e.target.value)} placeholder={ar?'اختاري أو اكتبي':'Choose or type'}/></label>;
+  if(c.key==='receivingDate'||c.key==='warrantyExpiry') return <label key={c.key}><span>{label}</span><input type="date" value={v} onChange={e=>set(c.key,e.target.value)}/></label>;
+  if(c.key==='cost') return <label key={c.key}><span>{label}</span><input type="number" min="0" step="0.01" inputMode="decimal" value={v} onChange={e=>set(c.key,e.target.value)} placeholder="0.00"/></label>;
+  if(c.key==='itemDescription') return <label key={c.key} className="wide"><span>{label}</span><textarea value={v} onChange={e=>set(c.key,e.target.value)} rows={2}/></label>;
+  return <label key={c.key}><span>{label}</span><input value={v} onChange={e=>set(c.key,e.target.value)}/></label>;
+ };
+ return <fieldset className="wide register-fields">
+  <legend>{ar?'بيانات السجل الكامل':'Full register data'} <small>{ar?'(اختياري — تظهر للإدارة فقط)':'(optional — administration only)'}</small></legend>
+  <datalist id="saams-sub-categories">{SUB_CATEGORY_SUGGESTIONS.map(o=><option key={o.value} value={ar?o.ar:o.value}/>)}</datalist>
+  <div className="register-fields-grid">{REGISTER_COLUMNS.map(field)}</div>
+ </fieldset>;
 }
