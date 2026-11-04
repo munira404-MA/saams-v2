@@ -1298,6 +1298,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
     window.dispatchEvent(new Event('saams:invoice-status-changed'));
     window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'invoices'}}));
     showActionMessage(t.approvedSuccess);
+    // Decision made: close the invoice screens automatically.
+    closeFullAttachment();
+    setSelected(null);
   }
 
   function openReturnDialog(invoice) {
@@ -1346,6 +1349,8 @@ export default function Invoices({ lang, profile, databaseMode }) {
     window.dispatchEvent(new Event('saams:invoice-status-changed'));
     window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'invoices'}}));
     showActionMessage(t.returnedSuccess);
+    closeFullAttachment();
+    setSelected(null);
   }
 
   return (
