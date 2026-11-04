@@ -10,9 +10,11 @@ import {
   listInvoices as listInvoicesDb,
   listOpenAdvanceAllocations,
   getNurseryOpenBalance,
+  getSignedInvoiceUrl,
   updateInvoiceStatus,
 } from '../data/supabaseData';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import JSZip from 'jszip';
 import { PDFDocument } from 'pdf-lib';
 import { supabase } from '../supabase';
@@ -158,6 +160,16 @@ function fileToDataUrl(file) {
 
 const copy = {
   ar: {
+    approveConfirm: 'هل تريدين اعتماد هذه الفاتورة؟',
+    approvedSuccess: 'تم اعتماد الفاتورة بنجاح.',
+    returnTitle: 'إرجاع الفاتورة للحضانة',
+    returnInstruction: 'اكتبي سببًا واضحًا حتى تتمكن الحضانة من تصحيح الفاتورة.',
+    returnPlaceholder: 'مثال: أرفقي إثبات خصم واضح بشكل منفصل، أو صححي المبلغ الإجمالي...',
+    cancel: 'إلغاء',
+    confirmReturn: 'تأكيد الإرجاع',
+    returnReasonRequired: 'اكتبي سبب الإرجاع.',
+    returnedSuccess: 'تم إرجاع الفاتورة للحضانة.',
+    currentReturnReason: 'سبب الإرجاع الحالي',
     title: 'إدارة الفواتير',
     subtitle: 'رفع الفواتير، مراجعتها، اعتمادها، وإرجاعها للحضانة عند الحاجة.',
     upload: 'رفع فاتورة جديدة',
@@ -451,6 +463,10 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [receiptFile, setReceiptFile] = useState(null);
   const [receiptFileUrl, setReceiptFileUrl] = useState('');
   const [fullScreenAttachment, setFullScreenAttachment] = useState(null);
+  // Invoice being reviewed inside the full-size viewer (review without closing the image).
+  const [viewerInvoice, setViewerInvoice] = useState(null);
+  const [viewerZoom, setViewerZoom] = useState(1);
+  const [viewerRotate, setViewerRotate] = useState(0);
   const [returnTarget, setReturnTarget] = useState(null);
   const [returnReason, setReturnReason] = useState('');
   const [actionMessage, setActionMessage] = useState('');
@@ -580,6 +596,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
   }
 
   function closeFullAttachment() {
+    setViewerInvoice(null);
+    setViewerZoom(1);
+    setViewerRotate(0);
     setFullScreenAttachment((current) => {
       if (current?.revokeOnClose && String(current?.dataUrl || '').startsWith('blob:')) {
         try { URL.revokeObjectURL(current.dataUrl); } catch {}
@@ -1006,6 +1025,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
 
   async function openSavedInvoice(item) {
     if (!item) return;
+    setViewerInvoice(item);
+    setViewerZoom(1);
+    setViewerRotate(0);
     const pages = invoicePageNumbers(item);
     if (item.attachmentDataUrl) {
       await showInvoicePagesOnly({
@@ -1764,7 +1786,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
         </div>
       )}
 
-      {!isNursery && returnTarget && (
+      {!isNursery && returnTarget && createPortal(
         <div className="return-invoice-overlay" onClick={() => setReturnTarget(null)}>
           <div className="return-invoice-modal" onClick={(event) => event.stopPropagation()}>
             <div className="drawer-header">
@@ -1784,11 +1806,15 @@ export default function Invoices({ lang, profile, databaseMode }) {
               <button className="return-button" type="button" onClick={confirmReturnInvoice}>↩ {t.confirmReturn}</button>
             </div>
           </div>
-        </div>
+        </div>, document.body
       )}
 
-      {fullScreenAttachment && (
-        <div className="full-attachment-overlay" onClick={closeFullAttachment}>
+      {fullScreenAttachment && (() => {
+        const vi = viewerInvoice ? (rows.find((r) => (viewerInvoice.dbId && r.dbId === viewerInvoice.dbId) || r.id === viewerInvoice.id) || viewerInvoice) : null;
+        const pending = rows.filter((r) => r.status === 'review' && (!vi || r.id !== vi.id));
+        const isImage = !(fullScreenAttachment.type === 'application/pdf' || fullScreenAttachment.name?.toLowerCase().endsWith('.pdf'));
+        return createPortal(
+        <div className={`full-attachment-overlay ${vi ? 'with-review' : ''}`} onClick={closeFullAttachment}>
           <button className="full-attachment-floating-close" type="button" aria-label={ar ? 'إغلاق الفاتورة' : 'Close invoice'} onClick={closeFullAttachment}>× <span>{ar ? 'إغلاق' : 'Close'}</span></button>
           <div className="full-attachment-modal" onClick={(event) => event.stopPropagation()}>
             <header>
@@ -1809,16 +1835,71 @@ export default function Invoices({ lang, profile, databaseMode }) {
                 <button className="full-attachment-close" type="button" onClick={closeFullAttachment}>×</button>
               </div>
             </header>
+            <div className="full-attachment-body">
             <div className="full-attachment-content">
-              {(fullScreenAttachment.type === 'application/pdf' || fullScreenAttachment.name?.toLowerCase().endsWith('.pdf')) ? (
+              {isImage && (
+                <div className="viewer-tools" onClick={(e) => e.stopPropagation()}>
+                  <button type="button" onClick={() => setViewerZoom((z) => Math.min(4, +(z + 0.25).toFixed(2)))} title={ar ? 'تكبير' : 'Zoom in'}>＋</button>
+                  <span>{Math.round(viewerZoom * 100)}%</span>
+                  <button type="button" onClick={() => setViewerZoom((z) => Math.max(0.5, +(z - 0.25).toFixed(2)))} title={ar ? 'تصغير' : 'Zoom out'}>－</button>
+                  <button type="button" onClick={() => setViewerRotate((r) => (r + 90) % 360)} title={ar ? 'تدوير' : 'Rotate'}>⟳</button>
+                  <button type="button" onClick={() => { setViewerZoom(1); setViewerRotate(0); }}>{ar ? 'ملاءمة' : 'Fit'}</button>
+                </div>
+              )}
+              {!isImage ? (
                 <iframe src={`${fullScreenAttachment.dataUrl}#toolbar=1&navpanes=1&view=FitH`} title={fullScreenAttachment.name} />
               ) : (
-                <img src={fullScreenAttachment.dataUrl} alt={fullScreenAttachment.name} />
+                <div className="viewer-image-scroll">
+                  <img src={fullScreenAttachment.dataUrl} alt={fullScreenAttachment.name} style={{ transform: `rotate(${viewerRotate}deg) scale(${viewerZoom})`, transformOrigin: viewerZoom > 1 ? 'top center' : 'center' }} />
+                </div>
               )}
             </div>
+            {vi && (
+              <aside className="viewer-review-panel" onClick={(e) => e.stopPropagation()}>
+                <div className="viewer-review-head">
+                  <div><small>{ar ? 'مراجعة الفاتورة' : 'Invoice review'}</small><strong>{vi.id}</strong></div>
+                  <StatusBadge status={vi.status} t={t} />
+                </div>
+                <div className="viewer-review-grid">
+                  <div className="wide"><small>{t.supplier}</small><strong>{ar ? vi.supplierAr : vi.supplierEn}</strong></div>
+                  <div className="wide"><small>{t.nurseryName}</small><strong>{ar ? vi.nurseryAr : vi.nurseryEn}</strong></div>
+                  <div><small>{t.invoiceDate}</small><strong>{vi.date}</strong></div>
+                  <div><small>{t.payment}</small><strong>{t[vi.payment]}</strong></div>
+                  <div><small>{t.beforeVat}</small><strong>{(Number(vi.total || 0) - Number(vi.vat || 0)).toFixed(2)}</strong></div>
+                  <div><small>{t.vat}</small><strong>{Number(vi.vat || 0).toFixed(2)}</strong></div>
+                  <div className="wide total"><small>{t.totalAmount}</small><strong>{Number(vi.total || 0).toFixed(2)} AED</strong></div>
+                  <div className="wide"><small>{t.trn}</small><strong>{vi.trn || '—'}</strong></div>
+                </div>
+                {vi.payment === 'card' && (
+                  <div className="viewer-review-proof">
+                    {vi.receiptDataUrl || vi.receiptPath
+                      ? <button type="button" onClick={async () => {
+                          if (vi.receiptDataUrl) { showFullAttachment({ dataUrl: vi.receiptDataUrl, name: vi.receiptName || `${vi.id}_receipt`, type: vi.receiptType }); return; }
+                          try { const url = await getSignedInvoiceUrl(vi.receiptPath, 900); if (url) showFullAttachment({ dataUrl: url, name: vi.receiptPath.split('/').pop(), type: /\.pdf$/i.test(vi.receiptPath) ? 'application/pdf' : 'image/jpeg' }); } catch (e) { console.error(e); }
+                        }}>↗ {ar ? 'عرض إثبات الخصم' : 'View payment proof'}</button>
+                      : <span className="missing">{ar ? '⚠ لا يوجد إثبات خصم' : '⚠ No payment proof'}</span>}
+                    <button type="button" className="back-to-invoice" onClick={() => openSavedInvoice(vi)}>↺ {ar ? 'عرض الفاتورة' : 'Show invoice'}</button>
+                  </div>
+                )}
+                {vi.returnReason && <div className="viewer-review-reason"><small>{t.currentReturnReason}</small><strong>{vi.returnReason}</strong></div>}
+                {!isNursery && (
+                  <div className="viewer-review-actions">
+                    <button className="primary-action" type="button" disabled={vi.status === 'approved'} onClick={() => approveInvoice(vi)}>✓ {t.approve}</button>
+                    <button className="return-button" type="button" disabled={vi.status === 'approved'} onClick={() => openReturnDialog(vi)}>↩ {t.return}</button>
+                  </div>
+                )}
+                {!isNursery && pending.length > 0 && (
+                  <button className="viewer-next-invoice" type="button" onClick={() => openSavedInvoice(pending[0])}>
+                    {ar ? `الفاتورة التالية بانتظار المراجعة (${pending.length}) ←` : `Next invoice pending review (${pending.length}) →`}
+                  </button>
+                )}
+              </aside>
+            )}
+            </div>
           </div>
-        </div>
-      )}
+        </div>, document.body
+        );
+      })()}
     </section>
   );
 }
