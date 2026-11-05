@@ -1098,8 +1098,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
       nurseryEn: ar ? 'Selected Nursery' : nurseryName,
       advanceAr: uploadAdvance || 'فواتير مرفوعة',
       advanceEn: uploadAdvance || 'Uploaded Invoices',
-      supplierAr: ocr.supplier_name || 'مورد غير محدد',
-      supplierEn: ocr.supplier_name || 'Unknown Supplier',
+      // Arabic name first when printed on the invoice; English kept for the English UI and duplicate checks.
+      supplierAr: ocr.supplier_name || ocr.supplier_name_en || 'مورد غير محدد',
+      supplierEn: ocr.supplier_name_en || ocr.supplier_name || 'Unknown Supplier',
       date: ocr.invoice_date || new Date().toLocaleDateString('en-GB'),
       total: Number(ocr.total_amount) || 0,
       vat: Number(ocr.vat_amount) || 0,

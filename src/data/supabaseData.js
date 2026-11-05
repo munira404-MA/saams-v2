@@ -255,10 +255,13 @@ export async function createInvoice(payload, invoiceFile, receiptFile) {
     candidates = invoiceDate ? candidates.eq('invoice_date', invoiceDate) : candidates.is('invoice_date', null);
     const { data: sameDateAndAmount, error: duplicateCheckError } = await candidates;
     if (duplicateCheckError) throw duplicateCheckError;
-    const incoming = { supplier: normalizedSupplier, number: normalizedInvoiceNumber, date: invoiceDate, total };
-    const existingInvoice = (sameDateAndAmount || []).find((row) => isSameInvoice(incoming, {
-      supplier: row.supplier_name, number: row.invoice_number, date: row.invoice_date, total: row.total_amount,
-    }));
+    // The same supplier may be stored in Arabic or English (older invoices were read in English),
+    // so compare every name the invoice carries.
+    const names = [...new Set([normalizedSupplier, payload.supplierEn, payload.ocrPayload?.supplier_name_en, payload.ocrPayload?.supplier_name].map((v) => String(v || '').trim()).filter(Boolean))];
+    const existingInvoice = (sameDateAndAmount || []).find((row) => names.some((name) => isSameInvoice(
+      { supplier: name, number: normalizedInvoiceNumber, date: invoiceDate, total },
+      { supplier: row.supplier_name, number: row.invoice_number, date: row.invoice_date, total: row.total_amount },
+    )));
     if (existingInvoice?.id) {
       const err = new Error('DUPLICATE_INVOICE');
       err.code = 'DUPLICATE_INVOICE';

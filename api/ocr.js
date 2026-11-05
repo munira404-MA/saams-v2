@@ -29,6 +29,7 @@ const invoiceItemSchema = {
     payment_proof_pages: { type: 'array', items: { type: 'integer', minimum: 1 } },
     payment_proof_types: { type: 'array', items: { type: 'string', enum: ['card_receipt','bank_message','bank_app_proof'] } },
     supplier_name: { type: 'string' },
+    supplier_name_en: { type: 'string' },
     invoice_number: { type: 'string' },
     invoice_date: { type: 'string' },
     amount_before_vat: { type: ['number', 'null'] },
@@ -46,7 +47,7 @@ const invoiceItemSchema = {
     can_save: { type: 'boolean' },
   },
   required: [
-    'invoice_page','sequence_mark','receipt_pages','payment_proof_pages','payment_proof_types','supplier_name','invoice_number','invoice_date',
+    'invoice_page','sequence_mark','receipt_pages','payment_proof_pages','payment_proof_types','supplier_name','supplier_name_en','invoice_number','invoice_date',
     'amount_before_vat','vat_amount','total_amount','trn','payment_method',
     'card_receipt_detected','currency','document_quality','rejection_reasons','confidence','needs_review','review_message','can_save'
   ],
@@ -57,6 +58,7 @@ const schema = {
   additionalProperties: false,
   properties: {
     supplier_name: { type: 'string' },
+    supplier_name_en: { type: 'string' },
     invoice_number: { type: 'string' },
     invoice_date: { type: 'string' },
     amount_before_vat: { type: ['number', 'null'] },
@@ -99,7 +101,7 @@ const schema = {
     batch_invoices: { type: 'array', items: invoiceItemSchema },
   },
   required: [
-    'supplier_name','invoice_number','invoice_date','amount_before_vat','vat_amount',
+    'supplier_name','supplier_name_en','invoice_number','invoice_date','amount_before_vat','vat_amount',
     'total_amount','trn','payment_method','card_receipt_detected',
     'bank_receipt_over_invoice','multiple_documents_same_page','invoice_cropped',
     'important_fields_obscured','can_save','currency','document_quality',
@@ -150,6 +152,7 @@ function blankInvoiceForPage(page) {
     payment_proof_pages: [],
     payment_proof_types: [],
     supplier_name: String(page?.supplier_hint || ''),
+    supplier_name_en: '',
     invoice_number: invNo,
     invoice_date: '',
     amount_before_vat: null,
@@ -473,6 +476,9 @@ VISUAL REJECTION RULES APPLY PER PAGE, NOT TO THE WHOLE PDF:
 - Missing TRN/payment method means needs_review, not visual rejection.
 
 EXTRACTION:
+- supplier_name (ARABIC FIRST): if the supplier / shop / company name is printed in Arabic anywhere on the invoice page (header, logo text, stamp, footer), return the Arabic name EXACTLY as printed (for example "أسواق السيوح للهدايا ذ.م.م"). Return the English name only when no Arabic name is printed. Never translate or transliterate a name yourself — copy what is printed.
+- supplier_name_en: the English (Latin-letter) supplier name exactly as printed on the invoice, or "" if none is printed. When only an English name exists, supplier_name and supplier_name_en are the same.
+- supplier_hint in page_classification follows the same Arabic-first rule.
 - invoice_number comes from the SAME invoice page only, never from POS receipt/reference and never from a different invoice page.
 - HARD VALIDATION: invoice_number MUST NEVER equal the UAE tax registration number (TRN). If a candidate exactly equals TRN, reject that candidate and keep searching the same invoice page/group for Invoice No, Bill No, POS BILL NO, Receipt No, order number, or the numeric code printed directly under the invoice barcode. If no safe alternative exists, leave invoice_number empty and mark needs_review=true.
 - For Amazon / online Order Summary pages: invoice_number MUST be the value immediately following "Order #" (for example 402-7301997-2576356). Do not use the card ending, TRN-like values, sequence mark, or product code. Extract total_amount from the TOP Order Summary box: prefer Grand Total, otherwise Total. Extract amount_before_vat from Total before VAT when shown, and vat_amount from Estimated VAT.
@@ -588,7 +594,7 @@ Return only the requested structured result.`
         invoice_page: pageNo,
         sequence_mark:String(pageHint.sequence_mark || ''),
         receipt_pages:[], payment_proof_pages:[], payment_proof_types:[],
-        supplier_name:String(pageHint.supplier_hint || ''),
+        supplier_name:String(pageHint.supplier_hint || ''), supplier_name_en:'',
         invoice_number:String(pageHint.invoice_number_hint || ''),
         invoice_date:'', amount_before_vat:null, vat_amount:null, total_amount:null, trn:'',
         payment_method:'unknown', card_receipt_detected:false, currency:'AED', document_quality:'needs_review',
@@ -698,7 +704,7 @@ Return only the requested structured result.`
         invoice_pages: [Number(page.page_number) || 1],
         sequence_mark: String(page.sequence_mark || ''),
         receipt_pages: [], payment_proof_pages: [], payment_proof_types: [],
-        supplier_name: String(page.supplier_hint || ''),
+        supplier_name: String(page.supplier_hint || ''), supplier_name_en: '',
         invoice_number: String(page.invoice_number_hint || ''),
         invoice_date: String(page.invoice_date_hint || ''), amount_before_vat: page.amount_before_vat_hint ?? null, vat_amount: page.vat_amount_hint ?? null, total_amount: page.total_amount_hint ?? null, trn: '',
         payment_method: String(page.payment_method_hint || 'unknown'), card_receipt_detected: false, currency: 'AED',
@@ -791,6 +797,7 @@ Return only the requested structured result.`
       extracted = {
         ...extracted,
         supplier_name: first.supplier_name,
+        supplier_name_en: first.supplier_name_en || '',
         invoice_number: first.invoice_number,
         invoice_date: first.invoice_date,
         amount_before_vat: first.amount_before_vat,
