@@ -8,6 +8,7 @@ import {
   deleteAdvance as deleteAdvanceDb,
 } from '../data/supabaseData';
 import { toEnglishDisplay, toArabicDisplay } from '../utils/globalI18n';
+import { computeLateNurseries, lateReasonText, IDLE_DAYS, MONTH_DAY } from '../utils/lateNurseries';
 
 const SETTINGS_KEY = 'saams-system-settings-v1';
 
@@ -211,6 +212,7 @@ export default function Advances({ lang, profile, databaseMode }) {
     return [advance.id, advance.nameAr, advance.nameEn, ...advance.allocations.flatMap(a => [a.nurseryAr, a.nurseryEn])].some(v => String(v).toLowerCase().includes(term));
   }), [advances, filter, search, nurseryMode]);
 
+  const lateNurseries = useMemo(() => computeLateNurseries(advances), [advances]);
   const summary = visibleAdvances.reduce((acc, advance) => {
     const allocations = nurseryMode ? [currentNurseryAllocation(advance)].filter(Boolean) : advance.allocations;
     allocations.forEach(allocation => { acc.allocated += Number(allocation.allocated || 0); acc.spent += spentOf(allocation); });
@@ -334,6 +336,14 @@ export default function Advances({ lang, profile, databaseMode }) {
       <article className="remaining"><span>◉</span><div><small>{t.totalRemaining}</small><strong>{money(summary.allocated - summary.spent)} <b>AED</b></strong></div></article>
       <article className="opened"><span>▣</span><div><small>{t.openAdvances}</small><strong>{summary.open}</strong></div></article>
     </div>
+
+    {!nurseryMode && <details className="late-nurseries-panel" open={lateNurseries.length > 0}>
+      <summary><b>{lateNurseries.length}</b> {ar ? 'حضانة متأخرة في تسليم الفواتير' : 'nurseries late in handing in invoices'}<small>{ar ? `السلف المفتوحة بمبالغ فقط · متأخرة إذا: انتهت فترة السلفة بدون فواتير، أو ${IDLE_DAYS} يوم بدون فاتورة، أو لا فواتير هذا الشهر بعد يوم ${MONTH_DAY}` : `Open fixed-amount advances only · late if: period ended with no invoices, ${IDLE_DAYS} days without an invoice, or no invoices this month after day ${MONTH_DAY}`}</small></summary>
+      {lateNurseries.length ? <div className="late-nurseries-list">{lateNurseries.map(n => <article key={n.nurseryId || n.nurseryAr}>
+        <strong>{ar ? n.nurseryAr : (n.nurseryEn || n.nurseryAr)}</strong>
+        {n.items.map(i => <div key={i.advanceId}><span>{ar ? i.advanceAr : i.advanceEn}</span><em>{i.reasons.map(r => lateReasonText(r, ar)).join(' · ')}</em><small>{ar ? `فواتير مرفوعة: ${i.invoices}${i.lastUpload ? ` · آخر رفع ${i.lastUpload}` : ''}` : `Uploaded: ${i.invoices}${i.lastUpload ? ` · last ${i.lastUpload}` : ''}`}</small></div>)}
+      </article>)}</div> : <p className="late-nurseries-empty">✓ {ar ? 'كل الحضانات ملتزمة بتسليم الفواتير.' : 'All nurseries are up to date.'}</p>}
+    </details>}
 
     <div className="advance-toolbar">
       <div className="invoice-search"><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search} /></div>

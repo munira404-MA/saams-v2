@@ -1,7 +1,8 @@
 import { dashboardAccess, activityPage } from '../utils/dashboardAccess';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
-import { getNurseryOpenBalance, listOverBudgetAllocations } from '../data/supabaseData';
+import { getNurseryOpenBalance, listOverBudgetAllocations, listAdvances } from '../data/supabaseData';
+import { computeLateNurseries, lateReasonText } from '../utils/lateNurseries';
 import { loadActivityFeed, isToday, activityActor, activityTime } from '../utils/activityFeed';
 import { translateAssetName } from '../utils/assetTranslations';
 import { englishPersonName, englishActivityText } from '../utils/englishDisplay';
@@ -237,6 +238,12 @@ export default function Dashboard({ lang, setActive, profile }) {
             }
           }
           nextAlerts.sort((a,b)=>new Date(b.time||0)-new Date(a.time||0));
+          // Late in handing in invoices (this nursery only).
+          {
+            const mine=computeLateNurseries(await listAdvances().catch(()=>[])).filter(x=>!profile?.nursery_id||!x.nurseryId||x.nurseryId===profile.nursery_id);
+            const items=mine.flatMap(x=>x.items);
+            if(items.length) nextAlerts.unshift({tone:'red',pinned:true,title:ar?'يرجى تسليم الفواتير — متأخرين في رفع الفواتير':'Please hand in your invoices — you are late',sub:items.map(i=>`${ar?i.advanceAr:i.advanceEn}: ${i.reasons.map(r=>lateReasonText(r,ar)).join('، ')}`).join(' · ')});
+          }
           // Over-budget: always first, in red.
           if(nurseryBalance&&nurseryBalance.remaining<0){
             const by=(-nurseryBalance.remaining).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -248,6 +255,13 @@ export default function Dashboard({ lang, setActive, profile }) {
           if(canAdvances){
             const overList=await listOverBudgetAllocations().catch(()=>[]);
             for(const o of overList){const by=o.over.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});nextAlerts.unshift({tone:'red',pinned:true,title:ar?`${o.nurseryAr} تجاوزت المبلغ المخصص بمبلغ ${by} درهم`:`${o.nurseryEn||o.nurseryAr} exceeded the allocation by AED ${by}`,sub:ar?`${o.advance} — المصروف ${o.deducted.toLocaleString('en-US',{minimumFractionDigits:2})} من ${o.allocated.toLocaleString('en-US',{minimumFractionDigits:2})}`:`${o.advance} — spent ${o.deducted.toFixed(2)} of ${o.allocated.toFixed(2)}`,target:'advances'});}
+          }
+          if(canAdvances){
+            const lateList=computeLateNurseries(await listAdvances().catch(()=>[]));
+            if(lateList.length){
+              const names=lateList.map(x=>ar?x.nurseryAr:(x.nurseryEn||x.nurseryAr));
+              nextAlerts.unshift({tone:'red',pinned:true,target:'advances',title:ar?`${lateList.length} حضانة متأخرة في تسليم الفواتير`:`${lateList.length} nursery(ies) late in handing in invoices`,sub:`${names.slice(0,4).join('، ')}${names.length>4?(ar?` و${names.length-4} أخرى`:` and ${names.length-4} more`):''} — ${ar?'التفاصيل في شاشة السلف':'details on the Advances screen'}`});
+            }
           }
           if(canAdvances&&openAdvances>0) nextAlerts.push({tone:'blue',title:ar?`${openAdvances} سلفة مفتوحة حالياً`:`${openAdvances} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
         }

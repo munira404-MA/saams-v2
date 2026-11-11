@@ -414,7 +414,7 @@ export async function listAdvances() {
       advance_allocations(
         id, nursery_id, allocated,
         nurseries(name_ar,name_en),
-        invoices(invoice_number,supplier_name,invoice_date,total_amount,status)
+        invoices(invoice_number,supplier_name,invoice_date,total_amount,status,created_at)
       )
     `)
     .order('created_at', { ascending: false });
@@ -437,6 +437,7 @@ export async function listAdvances() {
         date: invoice.invoice_date,
         amount: Number(invoice.total_amount || 0),
         status: invoice.status || 'review',
+        createdAt: invoice.created_at || '',
       }));
       return {
         dbId: allocation.id,

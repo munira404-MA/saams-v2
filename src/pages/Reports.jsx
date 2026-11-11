@@ -1,3 +1,4 @@
+import { computeLateNurseries, lateReasonText } from '../utils/lateNurseries';
 import { assetCategoryLabel } from '../utils/assetCategories';
 import { translateAssetName } from '../utils/assetTranslations';
 import { useEffect, useMemo, useState } from 'react';
@@ -107,6 +108,7 @@ export default function Reports({lang,profile}){
   const [invoiceRows,setInvoiceRows] = useState([]);
   const [advanceRows,setAdvanceRows] = useState([]);
   const [assetRows,setAssetRows] = useState([]);
+  const [lateRows,setLateRows] = useState([]);
   const [assetRequestRows,setAssetRequestRows] = useState([]);
   const [assetReportView,setAssetReportView] = useState('register');
   const [assetReportPage,setAssetReportPage] = useState(1);
@@ -160,6 +162,7 @@ export default function Reports({lang,profile}){
           });
         });
         setAdvanceRows(flat);
+        setLateRows(computeLateNurseries(advances||[]));
         setAssetRows((assets||[]).map(row=>({
           id:row.id, nurseryId:row.nursery_id||null, barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'',
           name:ar?(row.name_ar||row.name_en||'—'):translateAssetName(row.name_en,row.name_ar),
@@ -285,6 +288,9 @@ export default function Reports({lang,profile}){
     if(kind==='advances'){
       // Keep a compact overview first, then place each advance in its own worksheet.
       addSheet(wb,ar?'ملخص السلف':'Advances Summary',advRows);
+      // Nurseries late in handing in invoices.
+      const lateSheet=lateRows.filter(n=>!isNursery||!accountNurseryId||!n.nurseryId||n.nurseryId===accountNurseryId).flatMap(n=>n.items.map(i=>ar?{'الحضانة':n.nurseryAr,'السلفة':i.advanceAr,'من':i.from,'إلى':i.to,'فواتير مرفوعة':i.invoices,'آخر رفع':i.lastUpload||'—','سبب التأخير':i.reasons.map(r=>lateReasonText(r,true)).join(' · ')}:{Nursery:n.nurseryEn||n.nurseryAr,Advance:i.advanceEn,From:i.from,To:i.to,'Uploaded':i.invoices,'Last upload':i.lastUpload||'—',Reason:i.reasons.map(r=>lateReasonText(r,false)).join(' · ')}));
+      addSheet(wb,ar?'الحضانات المتأخرة':'Late Nurseries',lateSheet.length?lateSheet:[ar?{'الحضانة':'لا توجد حضانات متأخرة'}:{Nursery:'No late nurseries'}]);
       const grouped=new Map();
       filtered.advances.forEach(row=>{
         const key=`${row.advanceNo||''}__${row.name||''}`;
