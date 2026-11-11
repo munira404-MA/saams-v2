@@ -2,6 +2,7 @@ import { requestAdminUsers } from '../utils/adminUsersClient';
 import { personalProfileFields, profileContactPayload } from '../utils/profileFields';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import * as XLSX from 'xlsx';
 import { supabase } from '../supabase';
 import { listNurseries, findNurseryByName } from '../data/supabaseData';
 
@@ -237,6 +238,39 @@ export default function Users({ lang, profile, databaseMode = false, onProfileUp
     return `nursery${String(index + 1).padStart(2, '0')}`;
   }
 
+  // Users report (no passwords — Supabase stores them encrypted and they cannot be read).
+  function exportUsersExcel() {
+    const pageLabel = (key) => { const p = PAGE_PERMISSIONS.find((x) => x[0] === key); return p ? (ar ? p[1] : p[2]) : key; };
+    const rows = filtered.map((user, i) => {
+      const pages = user.role === 'super_admin' ? (ar ? 'كامل النظام' : 'Full system')
+        : user.role === 'nursery' ? (ar ? 'نطاق الحضانة' : 'Nursery scope')
+        : Object.entries(user.permissions || {}).filter(([, v]) => v).map(([k]) => pageLabel(k)).join('، ');
+      return ar ? {
+        '#': i + 1,
+        'الاسم': user.full_name || '',
+        'اسم المستخدم (للدخول)': user.username || '',
+        'نوع الحساب': roleLabel(user.role),
+        'الحضانة': user.nursery || '',
+        'المسمى الوظيفي': user.job_title_ar || user.job_title || '',
+        'البريد الإلكتروني': user.contact_email || user.email || '',
+        'الصلاحيات': pages,
+        'الحالة': user.active ? 'نشط' : 'موقوف',
+        'آخر دخول': formatLastLogin(user.last_login, true),
+      } : {
+        '#': i + 1, Name: user.full_name || '', Username: user.username || '', 'Account type': roleLabel(user.role),
+        Nursery: user.nursery || '', 'Job title': user.job_title_en || user.job_title || '', Email: user.contact_email || user.email || '',
+        Permissions: pages, Status: user.active ? 'Active' : 'Disabled', 'Last login': formatLastLogin(user.last_login, false),
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = Object.keys(rows[0] || {}).map((k) => ({ wch: k === 'الصلاحيات' || k === 'Permissions' ? 50 : k === '#' ? 5 : 24 }));
+    if (ar) ws['!views'] = [{ rightToLeft: true }];
+    const wb = XLSX.utils.book_new();
+    if (ar) wb.Workbook = { Views: [{ RTL: true }] };
+    XLSX.utils.book_append_sheet(wb, ws, ar ? 'المستخدمون' : 'Users');
+    XLSX.writeFile(wb, `SAAMS_Users_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  }
+
   function startCreate(role = 'nursery') {
     setEditingId(null);
     setForm({
@@ -431,6 +465,7 @@ export default function Users({ lang, profile, databaseMode = false, onProfileUp
       <section className="users-table-card">
         <div className="users-toolbar">
           <div className="invoice-search"><span>⌕</span><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={ar ? 'بحث بالاسم أو اسم المستخدم أو الحضانة...' : 'Search name, username, or nursery...'} /></div>
+          <button type="button" className="secondary-action users-export-btn" disabled={!filtered.length} onClick={exportUsersExcel}>⇩ {ar ? `تصدير Excel (${filtered.length})` : `Export Excel (${filtered.length})`}</button>
           {loadingUsers && <span className="users-loading">{ar ? 'جاري تحميل الحسابات...' : 'Loading accounts...'}</span>}
         </div>
         <div className="users-table-wrap">
