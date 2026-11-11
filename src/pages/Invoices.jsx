@@ -668,35 +668,40 @@ export default function Invoices({ lang, profile, databaseMode }) {
   }
 
   function exportInvoicesExcel() {
+    // Approved template order first (الرقم … TRN), then the system columns; total row at the end.
     const headers = ar
-      ? ['رقم الفاتورة', 'المورد', 'التاريخ', 'الشهر / الفعالية', 'الحضانة', 'السلفة', 'قبل الضريبة', 'الضريبة', 'الإجمالي', 'طريقة الدفع', 'الحالة', 'الرقم الضريبي', 'اسم المرفق', 'اسم إيصال البطاقة']
-      : ['Invoice No.', 'Supplier', 'Date', 'Month / Activity', 'Nursery', 'Advance', 'Before VAT', 'VAT', 'Total', 'Payment', 'Status', 'TRN', 'Attachment', 'Card Receipt'];
-    const bodyRows = filtered.map((item) => [
+      ? ['الرقم', 'رقم الفاتورة', 'التاريخ', 'المورد', 'المبلغ بدون الضريبة', 'الضريبة', 'الاجمالي', 'TRN', 'الحضانة', 'السلفة', 'الشهر / الفعالية', 'طريقة الدفع', 'الحالة', 'المرفق', 'إيصال البطاقة']
+      : ['No.', 'Invoice No.', 'Date', 'Supplier', 'Amount before VAT', 'VAT', 'Total', 'TRN', 'Nursery', 'Advance', 'Month / Activity', 'Payment', 'Status', 'Attachment', 'Card Receipt'];
+    const bodyRows = filtered.map((item, index) => [
+      index + 1,
       item.id,
-      ar ? item.supplierAr : item.supplierEn,
       item.date,
-      invoiceNoteOf(item, ar),
-      ar ? item.nurseryAr : item.nurseryEn,
-      ar ? item.advanceAr : item.advanceEn,
+      ar ? item.supplierAr : item.supplierEn,
       (Number(item.total) - Number(item.vat)).toFixed(2),
       Number(item.vat).toFixed(2),
       Number(item.total).toFixed(2),
+      item.trn || '',
+      ar ? item.nurseryAr : item.nurseryEn,
+      ar ? item.advanceAr : item.advanceEn,
+      invoiceNoteOf(item, ar),
       t[item.payment] || item.payment,
       t[item.status] || item.status,
-      item.trn || '',
       item.attachmentName || '',
       item.receiptName || '',
     ]);
+    const sumOf = (fn) => filtered.reduce((s, item) => s + fn(item), 0).toFixed(2);
+    const totalRow = filtered.length ? [ar ? 'الإجمالي' : 'Total', '', '', '', sumOf((x) => Number(x.total) - Number(x.vat)), sumOf((x) => Number(x.vat)), sumOf((x) => Number(x.total)), '', '', '', '', '', '', '', ''] : null;
     const escapeCell = (value) => String(value ?? '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
     const html = `<!doctype html><html><head><meta charset="UTF-8"><style>
       table{border-collapse:collapse;font-family:Arial,sans-serif;direction:${ar ? 'rtl' : 'ltr'}}
-      th,td{border:1px solid #b9c8d5;padding:8px;white-space:nowrap}th{background:#dff4f2;font-weight:700}
-      td.amount{mso-number-format:'0.00'}
+      th,td{border:1px solid #9aa9b6;padding:8px;white-space:nowrap}th{background:#FFFF99;color:#C00000;font-weight:700}
+      td.amount{mso-number-format:'0.00'}tr.total td{background:#FFFF99;font-weight:700}
     </style></head><body><table><thead><tr>${headers.map((h) => `<th>${escapeCell(h)}</th>`).join('')}</tr></thead>
-      <tbody>${bodyRows.map((row) => `<tr>${row.map((cell, index) => `<td${index >= 7 && index <= 9 ? ' class="amount"' : ''}>${escapeCell(cell)}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tbody>${bodyRows.map((row) => `<tr>${row.map((cell, index) => `<td${index >= 4 && index <= 6 ? ' class="amount"' : ''}>${escapeCell(cell)}</td>`).join('')}</tr>`).join('')}
+      ${totalRow ? `<tr class="total">${totalRow.map((cell, index) => `<td${index >= 4 && index <= 6 ? ' class="amount"' : ''}>${escapeCell(cell)}</td>`).join('')}</tr>` : ''}</tbody>
     </table></body></html>`;
     downloadBlob(new Blob(['\ufeff', html], { type: 'application/vnd.ms-excel;charset=utf-8' }), `SAAMS_Invoices_${new Date().toISOString().slice(0, 10)}.xls`);
   }
