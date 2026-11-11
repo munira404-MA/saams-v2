@@ -95,6 +95,7 @@ export default function Reports({lang,profile}){
   const ar = lang === 'ar';
   const isNursery = profile?.role === 'nursery';
   const accountNursery = profile?.nursery || '';
+  const accountNurseryId = profile?.nursery_id || null;
   const t = COPY[lang] || COPY.ar;
   const databaseMode = isSupabaseConfigured();
   const [tab,setTab] = useState('invoices');
@@ -135,7 +136,7 @@ export default function Reports({lang,profile}){
         if(!active)return;
         setNurseryRows((nurseries||[]).filter(n=>n.active!==false));
         setInvoiceRows((invoices||[]).map(row=>({
-          invoiceNo:row.id||'—', supplier:ar?row.supplierAr:row.supplierEn, nursery:ar?row.nurseryAr:row.nurseryEn,
+          invoiceNo:row.id||'—', nurseryId:row.nurseryId||null, supplier:ar?row.supplierAr:row.supplierEn, nursery:ar?(row.nurseryAr||row.nurseryEn):(row.nurseryEn||row.nurseryAr),
           nurseryAr:row.nurseryAr,nurseryEn:row.nurseryEn, advance:ar?row.advanceAr:row.advanceEn, advanceAr:row.advanceAr,advanceEn:row.advanceEn,
           date:row.date||'', beforeVat:Number(row.subtotal||Math.max(0,row.total-row.vat)), vat:Number(row.vat||0), total:Number(row.total||0),
           invoiceNote:[row.invoiceMonth,row.activityName].filter(Boolean).join(' · '), payment:row.payment||'', status:row.status||'review', trn:row.trn||'', proof:Boolean(row.receiptPath), receiptPath:row.receiptPath||'', attachmentPath:row.attachmentPath||''
@@ -151,7 +152,7 @@ export default function Reports({lang,profile}){
             const allocated=Number(allocation.allocated||0);
             flat.push({
               advanceNo:advance.id,name:ar?advance.nameAr:advance.nameEn,nameAr:advance.nameAr,nameEn:advance.nameEn,type:advance.type,
-              nursery:ar?allocation.nurseryAr:allocation.nurseryEn,nurseryAr:allocation.nurseryAr,nurseryEn:allocation.nurseryEn,
+              nurseryId:allocation.nurseryId||null,nursery:ar?allocation.nurseryAr:allocation.nurseryEn,nurseryAr:allocation.nurseryAr,nurseryEn:allocation.nurseryEn,
               from:advance.from||'',to:advance.to||'',allocated,spent,approvedSpent,remaining:advance.openAmount?0:allocated-spent,openAmount:Boolean(advance.openAmount),invoices:allInvoices.length,
               approved:approved.length,review:allInvoices.filter(x=>x.status==='review').length,returned:allInvoices.filter(x=>x.status==='returned').length,
               status:advance.status
@@ -160,7 +161,7 @@ export default function Reports({lang,profile}){
         });
         setAdvanceRows(flat);
         setAssetRows((assets||[]).map(row=>({
-          id:row.id, barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'',
+          id:row.id, nurseryId:row.nursery_id||null, barcode:row.barcode||'—', centralBarcode:row.central_finance_barcode||'',
           name:ar?(row.name_ar||row.name_en||'—'):translateAssetName(row.name_en,row.name_ar),
           nameAr:row.name_ar||'', nameEn:row.name_en||'',
           category:assetCategoryLabel(row.category_ar,row.category_en,lang)||'—',
@@ -205,7 +206,8 @@ export default function Reports({lang,profile}){
   const filtered = useMemo(() => {
     const term=safe(filters.search);
     const effectiveNursery=isNursery?accountNursery:filters.nursery;
-    const nurseryMatch=row=>effectiveNursery===t.allNurseries || row.nursery===effectiveNursery || row.nurseryAr===effectiveNursery || row.nurseryEn===effectiveNursery;
+    // Nursery account: match by the linked nursery id (same rule as the home dashboard and database permissions).
+    const nurseryMatch=row=>(isNursery&&accountNurseryId&&row.nurseryId)?row.nurseryId===accountNurseryId:effectiveNursery===t.allNurseries || row.nursery===effectiveNursery || row.nurseryAr===effectiveNursery || row.nurseryEn===effectiveNursery;
     const advanceMatch=row=>filters.advance===t.allAdvances || row.advance===filters.advance || row.name===filters.advance || row.advanceAr===filters.advance || row.advanceEn===filters.advance || row.nameAr===filters.advance || row.nameEn===filters.advance;
     const statusMatch=row=>filters.status===t.all || statusText(row.status,ar)===filters.status || row.status===filters.status;
     const textMatch=row=>!term || Object.values(row).some(v=>safe(v).includes(term));
@@ -218,7 +220,7 @@ export default function Reports({lang,profile}){
       invoices:invoiceRows.filter(row=>nurseryMatch(row)&&advanceMatch(row)&&dateInRange(row.date,filters.from,filters.to)&&statusMatch(row)&&textMatch(row)),
       advances:advanceRows.filter(row=>nurseryMatch(row)&&advanceMatch(row)&&dateInRange(row.from,filters.from,filters.to)&&statusMatch(row)&&textMatch(row))
     };
-  },[filters,isNursery,accountNursery,t.allNurseries,t.allAdvances,t.all,invoiceRows,advanceRows,assetRows,assetRequestRows,ar]);
+  },[filters,isNursery,accountNursery,accountNurseryId,t.allNurseries,t.allAdvances,t.all,invoiceRows,advanceRows,assetRows,assetRequestRows,ar]);
 
   const summary = useMemo(()=>({
     assetCount:filtered.assets.length, assetRequestCount:filtered.assetRequests.length,
@@ -230,7 +232,7 @@ export default function Reports({lang,profile}){
   // New assets registered for the selected nursery (independent of the date filter), for management reporting.
   const newAssetStats = useMemo(()=>{
     const effectiveNursery=isNursery?accountNursery:filters.nursery;
-    const scoped=assetRows.filter(row=>row.isNew).filter(row=>effectiveNursery===t.allNurseries||row.nursery===effectiveNursery||row.nurseryAr===effectiveNursery||row.nurseryEn===effectiveNursery);
+    const scoped=assetRows.filter(row=>row.isNew).filter(row=>(isNursery&&accountNurseryId&&row.nurseryId)?row.nurseryId===accountNurseryId:effectiveNursery===t.allNurseries||row.nursery===effectiveNursery||row.nurseryAr===effectiveNursery||row.nurseryEn===effectiveNursery);
     const now=new Date();
     const month=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
     const year=String(now.getFullYear());
@@ -241,7 +243,7 @@ export default function Reports({lang,profile}){
       monthLabel:new Intl.DateTimeFormat(ar?'ar-AE':'en-GB',{month:'long',year:'numeric'}).format(now),
       yearLabel:year,
     };
-  },[assetRows,filters.nursery,filters.from,filters.to,isNursery,accountNursery,t.allNurseries,ar]);
+  },[assetRows,filters.nursery,filters.from,filters.to,isNursery,accountNursery,accountNurseryId,t.allNurseries,ar]);
 
   const tabs=[{id:'invoices',label:t.invoices,icon:'▤'},{id:'advances',label:t.advances,icon:'▥'},{id:'assets',label:t.assets,icon:'◇'},{id:'comprehensive',label:t.comprehensive,icon:'▦'}];
   function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2300)}

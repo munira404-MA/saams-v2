@@ -206,7 +206,11 @@ export default function Assets({lang,profile}){
 
    // Recover assets that were added in older builds where they only lived in the browser audit log.
    // We only insert barcodes that are missing from Supabase, so existing production rows are never overwritten.
-   if(auditFallback.length){
+   // Only an administration account (which sees every asset) may run this recovery. A nursery account only sees its own
+   // assets, so every other nursery's barcode would look "missing", the insert is refused, and the screen used to fall back
+   // to the few assets cached in the browser instead of the real list. A failed recovery never replaces the database rows.
+   if(auditFallback.length&&isAdmin){
+    try{
     const existing=new Set(rows.map(r=>normalizeBarcode(r.barcode)));
     const missing=auditFallback.filter(a=>a?.barcode&&!existing.has(normalizeBarcode(a.barcode)));
     if(missing.length){
@@ -226,6 +230,7 @@ export default function Assets({lang,profile}){
         if(refreshed.error) throw refreshed.error; rows=refreshed.data||rows;
       }
     }
+    }catch(recoveryError){console.warn('Local asset recovery skipped',recoveryError)}
    }
    if(alive){setAssets(rows.map(dbAssetToUi));setAssetsDbReady(true);setNewFlagReady(data!==null&&fetchFlag!==false)}
   }catch(e){
@@ -234,7 +239,15 @@ export default function Assets({lang,profile}){
   }finally{if(alive)setAssetsLoading(false)}
  })();return()=>{alive=false}},[profile?.id]);
 
- const scopedAssets=useMemo(()=>isAdmin||previewNursery?assets:assets.filter(a=>a.nurseryAr===accountNursery||a.nurseryEn===accountNursery),[assets,isAdmin,previewNursery,accountNursery]);
+ // Nursery account: scope by the linked nursery id — the same rule as the home dashboard count and database permissions —
+ // so the totals always match. Name matching is only a fallback for rows without a nursery id.
+ const accountNurseryId=profile?.nursery_id||null;
+ const scopedAssets=useMemo(()=>{
+  if(isAdmin||previewNursery)return assets;
+  return assets
+   .filter(a=>(accountNurseryId&&a.nurseryId)?String(a.nurseryId)===String(accountNurseryId):(a.nurseryAr===accountNursery||a.nurseryEn===accountNursery))
+   .map(a=>a.nurseryAr?a:{...a,nurseryAr:accountNursery,nurseryEn:a.nurseryEn||accountNursery});
+ },[assets,isAdmin,previewNursery,accountNursery,accountNurseryId]);
  async function loadRequests(){
   try{
    const {data,error}=await fetchAllAssetRequestRows();
