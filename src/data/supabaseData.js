@@ -452,12 +452,23 @@ export async function listAdvances() {
   }));
 }
 
+function bumpAdvanceCode(code, step) {
+  const m = String(code || '').match(/^(.*?)(\d+)$/);
+  if (!m) return `${code || 'ADV'}-${step}`;
+  return `${m[1]}${String(Number(m[2]) + step).padStart(m[2].length, '0')}`;
+}
+
 export async function createAdvance(payload) {
   const { data: userData } = await supabase.auth.getUser();
-  const { data: advance, error } = await supabase
+  // The code is unique in the database: if it is already taken (e.g. after a deleted advance), try the next number.
+  let advance = null;
+  let error = null;
+  for (let step = 0; step < 40; step += 1) {
+    const code = step ? bumpAdvanceCode(payload.id, step) : payload.id;
+    ({ data: advance, error } = await supabase
     .from('advances')
     .insert({
-      code: payload.id,
+      code,
       name_ar: payload.nameAr,
       name_en: payload.nameEn,
       advance_type: payload.type,
@@ -468,7 +479,10 @@ export async function createAdvance(payload) {
       ...(payload.openAmount ? { is_open_amount: true } : {}),
     })
     .select('id')
-    .single();
+    .single());
+    if (!error) { payload.id = code; break; }
+    if (error.code !== '23505' || !/code/i.test(`${error.message} ${error.details}`)) break;
+  }
   if (error) throw error;
 
   const allocations = payload.allocations.map((row) => ({
@@ -479,7 +493,11 @@ export async function createAdvance(payload) {
   const { error: allocationError } = await supabase
     .from('advance_allocations')
     .insert(allocations);
-  if (allocationError) throw allocationError;
+  if (allocationError) {
+    // Do not leave an advance without nurseries behind.
+    await supabase.from('advances').delete().eq('id', advance.id);
+    throw allocationError;
+  }
   return advance.id;
 }
 

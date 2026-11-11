@@ -16,6 +16,13 @@ const DEFAULT_ADVANCE_TYPES = [
   { id: 'ADV-T-2', value: 'event', nameAr: 'سلفة فعاليات', nameEn: 'Event Advance', active: true },
 ];
 
+// Next advance code = highest existing number + 1 (never reuses a code after a deletion).
+function nextAdvanceCode(list) {
+  const year = new Date().getFullYear();
+  const max = (list || []).reduce((m, a) => { const n = Number(String(a?.id || '').match(/(\d+)\s*$/)?.[1] || 0); return n > m ? n : m; }, 8);
+  return `ADV-${year}-${String(max + 1).padStart(3, '0')}`;
+}
+
 function advanceTypeValue(type) {
   if (!type) return '';
   if (type.value) return String(type.value);
@@ -217,7 +224,7 @@ export default function Advances({ lang, profile, databaseMode }) {
     if (form.openAmount && !allocations.length) { notify(ar ? 'اختاري حضانة واحدة على الأقل.' : 'Select at least one nursery.'); return false; }
     if (!allocations.length) { notify(t.invalid); return false; }
     const next = {
-      id: `ADV-2026-${String(advances.length + 9).padStart(3, '0')}`,
+      id: nextAdvanceCode(advances),
       nameAr: form.name, nameEn: toEnglishDisplay(form.name),
       type: form.type, from: form.from, to: form.to, status, openAmount: Boolean(form.openAmount),
       allocations: allocations.map((row) => {
@@ -234,7 +241,8 @@ export default function Advances({ lang, profile, databaseMode }) {
         next.dbId = await createAdvanceDb(next);
       } catch (error) {
         console.error(error);
-        notify(/is_open_amount/.test(String(error?.message || '')) ? (ar ? 'لإنشاء سلفة مفتوحة شغلي ملف 22_OPEN_ADVANCE_AND_INVOICE_MONTH.sql في Supabase أولاً.' : 'Run 22_OPEN_ADVANCE_AND_INVOICE_MONTH.sql first.') : (ar ? 'تعذر حفظ السلفة في قاعدة البيانات.' : 'Could not save advance to database.'));
+        const raw = [error?.code, error?.message, error?.details, error?.hint].filter(Boolean).join(' — ');
+        notify(/is_open_amount/.test(raw) ? (ar ? 'لإنشاء سلفة مفتوحة شغلي ملف 22_OPEN_ADVANCE_AND_INVOICE_MONTH.sql في Supabase أولاً.' : 'Run 22_OPEN_ADVANCE_AND_INVOICE_MONTH.sql first.') : `${ar ? 'تعذر حفظ السلفة في قاعدة البيانات' : 'Could not save advance to database'}${raw ? `: ${raw}` : '.'}`);
         return false;
       }
     }
