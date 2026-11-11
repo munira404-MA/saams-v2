@@ -1928,7 +1928,9 @@ html[dir="rtl"] .settings-switch-ui::after{left:auto;right:3px}html[dir="rtl"] .
    Production cleanup and visual system
    ===================================================== */
 .dashboard-main > *{
-  animation:saamsPageEnter .28s ease both;
+  /* V26: «backwards» (not «both») so no transform stays on the page after the animation.
+     A leftover transform trapped full-screen windows inside the page (add user, asset forms...). */
+  animation:saamsPageEnter .28s ease backwards;
 }
 @keyframes saamsPageEnter{
   from{opacity:0;transform:translateY(7px)}
@@ -3681,3 +3683,7 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .viewer-next-invoice{border:1px dashed #9db8cc;background:#f5f9fc;color:#2c4f6b;border-radius:12px;min-height:42px;font-weight:900;cursor:pointer}
 .return-invoice-overlay{z-index:1100!important}
 @media(max-width:900px){.full-attachment-body{flex-direction:column}.viewer-review-panel{flex:0 0 auto;max-width:none;max-height:46vh;border-inline-start:0;border-top:1px solid #dbe7ef}}
+/* V26 — نافذة إضافة/تعديل مستخدم تفتح فوق الشاشة مباشرة */
+.users-modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:start center;overflow-y:auto;padding:24px 16px;background:rgba(15,36,54,.42);backdrop-filter:blur(4px)}
+.users-modal-backdrop .user-modal{max-height:none;margin:auto 0;animation:usersModalIn .18s ease}
+@keyframes usersModalIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}

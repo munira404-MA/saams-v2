@@ -1,6 +1,7 @@
 import { requestAdminUsers } from '../utils/adminUsersClient';
 import { personalProfileFields, profileContactPayload } from '../utils/profileFields';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '../supabase';
 import { listNurseries, findNurseryByName } from '../data/supabaseData';
 
@@ -449,7 +450,7 @@ export default function Users({ lang, profile, databaseMode = false, onProfileUp
         </div>
       </section>
 
-      {open && <div className="modal-backdrop" onMouseDown={() => !busy && setOpen(false)}>
+      {open && createPortal(<div className="modal-backdrop users-modal-backdrop" onMouseDown={() => !busy && setOpen(false)}>
         <form className="user-modal" onMouseDown={(e) => e.stopPropagation()} onSubmit={submit}>
           <div className="modal-title"><div><span className="eyebrow">USER ACCOUNT</span><h2>{editingId ? (ar ? 'تعديل المستخدم' : 'Edit User') : form.role === 'nursery' ? (ar ? 'إنشاء حساب حضانة' : 'Create Nursery Account') : (ar ? 'إضافة مستخدم جديد' : 'Add New User')}</h2></div><button type="button" disabled={busy} onClick={() => setOpen(false)}>×</button></div>
 
@@ -498,7 +499,7 @@ export default function Users({ lang, profile, databaseMode = false, onProfileUp
           {message && <div className="form-message">{message}</div>}
           <div className="modal-actions"><button type="button" className="secondary-action" disabled={busy} onClick={() => setOpen(false)}>{ar ? 'إلغاء' : 'Cancel'}</button><button className="primary-action" disabled={busy}>{busy ? (ar ? 'جاري الحفظ...' : 'Saving...') : (ar ? 'حفظ المستخدم' : 'Save User')}</button></div>
         </form>
-      </div>}
+      </div>, document.body)}
     </div>
   );
 }
