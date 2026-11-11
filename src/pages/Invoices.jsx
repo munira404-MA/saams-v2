@@ -418,6 +418,11 @@ const copy = {
 
 const AR_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// «الشهر / الفعالية» — only asked for invoices on an open-amount advance.
+function invoiceNoteOf(item, ar) {
+  return [item?.invoiceMonth ? formatMonth(item.invoiceMonth, ar) : '', item?.activityName || ''].filter(Boolean).join(' · ');
+}
+
 function formatMonth(value, ar) {
   const m = String(value || '').match(/^(\d{4})-(\d{2})$/);
   if (!m) return value || '';
@@ -469,7 +474,6 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [uploadNursery, setUploadNursery] = useState('');
   const [uploadAdvance, setUploadAdvance] = useState('');
   // Which month / which activity the invoice is for (month kept between uploads; activity cleared).
-  const [uploadMonth, setUploadMonth] = useState('');
   const [uploadActivity, setUploadActivity] = useState('');
   const [monthFilter, setMonthFilter] = useState('all');
   const [manualInvoice, setManualInvoice] = useState(false);
@@ -489,6 +493,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [deleteError, setDeleteError] = useState('');
   const [dbLoading, setDbLoading] = useState(databaseMode);
   const [advanceOptions, setAdvanceOptions] = useState([]);
+  const uploadIsOpenAdvance = Boolean(advanceOptions.find((option) => option.id === uploadAdvance)?.advances?.is_open_amount);
   const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
 
   useEffect(() => {
@@ -555,7 +560,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
       const currentNursery = ar ? item.nurseryAr : item.nurseryEn;
       const matchesNursery = nursery === 'all' || currentNursery === nursery;
       const matchesStatus = status === 'all' || item.status === status;
-      const matchesMonth = monthFilter === 'all' || (monthFilter === 'none' ? !item.invoiceMonth : item.invoiceMonth === monthFilter);
+      const matchesMonth = monthFilter === 'all' || invoiceNoteOf(item, ar) === monthFilter;
       return matchesText && matchesNursery && matchesStatus && matchesMonth;
     });
   }, [search, nursery, status, ar, scopedRows]);
@@ -664,14 +669,13 @@ export default function Invoices({ lang, profile, databaseMode }) {
 
   function exportInvoicesExcel() {
     const headers = ar
-      ? ['رقم الفاتورة', 'المورد', 'التاريخ', 'الفاتورة لشهر', 'الفعالية', 'الحضانة', 'السلفة', 'قبل الضريبة', 'الضريبة', 'الإجمالي', 'طريقة الدفع', 'الحالة', 'الرقم الضريبي', 'اسم المرفق', 'اسم إيصال البطاقة']
-      : ['Invoice No.', 'Supplier', 'Date', 'Invoice month', 'Activity', 'Nursery', 'Advance', 'Before VAT', 'VAT', 'Total', 'Payment', 'Status', 'TRN', 'Attachment', 'Card Receipt'];
+      ? ['رقم الفاتورة', 'المورد', 'التاريخ', 'الشهر / الفعالية', 'الحضانة', 'السلفة', 'قبل الضريبة', 'الضريبة', 'الإجمالي', 'طريقة الدفع', 'الحالة', 'الرقم الضريبي', 'اسم المرفق', 'اسم إيصال البطاقة']
+      : ['Invoice No.', 'Supplier', 'Date', 'Month / Activity', 'Nursery', 'Advance', 'Before VAT', 'VAT', 'Total', 'Payment', 'Status', 'TRN', 'Attachment', 'Card Receipt'];
     const bodyRows = filtered.map((item) => [
       item.id,
       ar ? item.supplierAr : item.supplierEn,
       item.date,
-      item.invoiceMonth ? formatMonth(item.invoiceMonth, ar) : '',
-      item.activityName || '',
+      invoiceNoteOf(item, ar),
       ar ? item.nurseryAr : item.nurseryEn,
       ar ? item.advanceAr : item.advanceEn,
       (Number(item.total) - Number(item.vat)).toFixed(2),
@@ -1106,8 +1110,8 @@ export default function Invoices({ lang, profile, databaseMode }) {
       setOcrError(t.blockedSave);
       return;
     }
-    if (!/^\d{4}-\d{2}$/.test(uploadMonth)) {
-      setOcrError(ar ? 'حددي الفاتورة لأي شهر قبل الحفظ.' : 'Choose which month the invoice is for before saving.');
+    if (uploadIsOpenAdvance && !uploadActivity.trim()) {
+      setOcrError(ar ? 'يرجى ذكر الشهر أو الفعالية للفاتورة قبل الحفظ.' : 'Please state the month or activity for this invoice before saving.');
       document.querySelector('.invoice-month-field input')?.focus();
       return;
     }
@@ -1122,8 +1126,8 @@ export default function Invoices({ lang, profile, databaseMode }) {
       advanceAr: uploadAdvance || 'فواتير مرفوعة',
       advanceEn: uploadAdvance || 'Uploaded Invoices',
       // Arabic name first when printed on the invoice; English kept for the English UI and duplicate checks.
-      invoiceMonth: uploadMonth,
-      activityName: uploadActivity.trim(),
+      invoiceMonth: '',
+      activityName: uploadIsOpenAdvance ? uploadActivity.trim() : '',
       supplierAr: ocr.supplier_name || ocr.supplier_name_en || 'مورد غير محدد',
       supplierEn: ocr.supplier_name_en || ocr.supplier_name || 'Unknown Supplier',
       date: ocr.invoice_date || new Date().toLocaleDateString('en-GB'),
@@ -1419,11 +1423,10 @@ export default function Invoices({ lang, profile, databaseMode }) {
           <option value="all">{t.nursery}</option>
           {nurseries.map((name) => <option key={name} value={name}>{name}</option>)}
         </select>
-        <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} aria-label={ar ? 'شهر الفاتورة' : 'Invoice month'}>
-          <option value="all">{ar ? 'كل الأشهر' : 'All months'}</option>
-          {[...new Set(scopedRows.map((r) => r.invoiceMonth).filter(Boolean))].sort().reverse().map((m) => <option key={m} value={m}>{formatMonth(m, ar)}</option>)}
-          <option value="none">{ar ? 'بدون شهر محدد' : 'No month set'}</option>
-        </select>
+        {scopedRows.some((r) => invoiceNoteOf(r, ar)) && <select value={monthFilter} onChange={(e) => setMonthFilter(e.target.value)} aria-label={ar ? 'الشهر / الفعالية' : 'Month / activity'}>
+          <option value="all">{ar ? 'كل الأشهر والفعاليات' : 'All months & activities'}</option>
+          {[...new Set(scopedRows.map((r) => invoiceNoteOf(r, ar)).filter(Boolean))].sort().map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>}
         <select value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="all">{t.status}</option>
           <option value="review">{t.review}</option>
@@ -1452,7 +1455,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
             <tbody>
               {filtered.map((item) => (
                 <tr key={item.dbId || item.id}>
-                  <td><strong className="invoice-id">{item.id}</strong><small>{item.pages} {t.pages}</small>{(item.invoiceMonth || item.activityName) && <small className="invoice-month-tag">{[item.invoiceMonth && formatMonth(item.invoiceMonth, ar), item.activityName].filter(Boolean).join(' · ')}</small>}</td>
+                  <td><strong className="invoice-id">{item.id}</strong><small>{item.pages} {t.pages}</small>{invoiceNoteOf(item, ar) && <small className="invoice-month-tag">{invoiceNoteOf(item, ar)}</small>}</td>
                   <td><strong>{ar ? item.supplierAr : item.supplierEn}</strong><small>TRN {item.trn.slice(-6)}</small></td>
                   <td>{item.date}</td>
                   <td>{ar ? item.nurseryAr : item.nurseryEn}</td>
@@ -1521,8 +1524,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
               <div><small>{t.supplier}</small><strong>{ar ? selected.supplierAr : selected.supplierEn}</strong></div>
               <div><small>{t.nurseryName}</small><strong>{ar ? selected.nurseryAr : selected.nurseryEn}</strong></div>
               <div><small>{t.invoiceDate}</small><strong>{selected.date}</strong></div>
-              <div><small>{ar ? 'الفاتورة لشهر' : 'Invoice month'}</small><strong>{selected.invoiceMonth ? formatMonth(selected.invoiceMonth, ar) : '—'}</strong></div>
-              <div><small>{ar ? 'الفعالية' : 'Activity'}</small><strong>{selected.activityName || '—'}</strong></div>
+              {invoiceNoteOf(selected, ar) && <div><small>{ar ? 'الشهر / الفعالية' : 'Month / activity'}</small><strong>{invoiceNoteOf(selected, ar)}</strong></div>}
               <div><small>{t.payment}</small><strong>{t[selected.payment]}</strong></div>
               <div><small>{t.beforeVat}</small><strong>{(selected.total - selected.vat).toFixed(2)} AED</strong></div>
               <div><small>{t.vat}</small><strong>{selected.vat.toFixed(2)} AED</strong></div>
@@ -1603,8 +1605,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                     </option>
                   ))}
               </select></label>
-              <label className="invoice-month-field"><span>{ar ? 'الفاتورة لأي شهر؟ *' : 'Invoice for which month? *'}</span><input type="month" required value={uploadMonth} onChange={(e) => setUploadMonth(e.target.value)} /></label>
-              <label><span>{ar ? 'اسم الفعالية (إذا الفاتورة لفعالية)' : 'Activity name (if for an activity)'}</span><input value={uploadActivity} maxLength={120} onChange={(e) => setUploadActivity(e.target.value)} placeholder={ar ? 'مثال: اليوم الوطني' : 'e.g. National Day'} /></label>
+              {uploadIsOpenAdvance && <label className="invoice-month-field wide"><span>{ar ? 'يرجى ذكر الشهر أو الفعالية للفاتورة *' : 'Please state the month or activity for this invoice *'}</span><input value={uploadActivity} maxLength={150} required onChange={(e) => setUploadActivity(e.target.value)} placeholder={ar ? 'مثال: فاتورة شهر مايو — أو — فعالية اليوم الوطني' : 'e.g. May invoice — or — National Day activity'} /></label>}
             </div>
 
             <div className={`attachment-workspace ${ocr ? 'with-results' : ''}`}>
@@ -1901,8 +1902,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                   <div className="wide"><small>{t.supplier}</small><strong>{ar ? vi.supplierAr : vi.supplierEn}</strong></div>
                   <div className="wide"><small>{t.nurseryName}</small><strong>{ar ? vi.nurseryAr : vi.nurseryEn}</strong></div>
                   <div><small>{t.invoiceDate}</small><strong>{vi.date}</strong></div>
-                  <div><small>{ar ? 'الفاتورة لشهر' : 'Invoice month'}</small><strong>{vi.invoiceMonth ? formatMonth(vi.invoiceMonth, ar) : '—'}</strong></div>
-                  {vi.activityName && <div className="wide"><small>{ar ? 'الفعالية' : 'Activity'}</small><strong>{vi.activityName}</strong></div>}
+                  {invoiceNoteOf(vi, ar) && <div className="wide"><small>{ar ? 'الشهر / الفعالية' : 'Month / activity'}</small><strong>{invoiceNoteOf(vi, ar)}</strong></div>}
                   <div><small>{t.payment}</small><strong>{t[vi.payment]}</strong></div>
                   <div><small>{t.beforeVat}</small><strong>{(Number(vi.total || 0) - Number(vi.vat || 0)).toFixed(2)}</strong></div>
                   <div><small>{t.vat}</small><strong>{Number(vi.vat || 0).toFixed(2)}</strong></div>

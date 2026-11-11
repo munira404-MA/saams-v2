@@ -3701,3 +3701,4 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .detail-balance-hero.open h3{color:#2f5aa8}
 .upload-form-grid input:not([type=checkbox]):not([type=radio]){width:100%;min-width:0;height:44px;border:1px solid #d3e1eb;border-radius:13px;background:#fff;padding:0 12px;color:#496078;outline:0;font:inherit;box-sizing:border-box}
 .upload-form-grid .invoice-month-field input{border-color:#9db8e6}
+.upload-form-grid .invoice-month-field.wide{grid-column:1/-1}.upload-form-grid .invoice-month-field span{color:#2f5aa8}

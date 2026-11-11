@@ -138,7 +138,7 @@ export default function Reports({lang,profile}){
           invoiceNo:row.id||'—', supplier:ar?row.supplierAr:row.supplierEn, nursery:ar?row.nurseryAr:row.nurseryEn,
           nurseryAr:row.nurseryAr,nurseryEn:row.nurseryEn, advance:ar?row.advanceAr:row.advanceEn, advanceAr:row.advanceAr,advanceEn:row.advanceEn,
           date:row.date||'', beforeVat:Number(row.subtotal||Math.max(0,row.total-row.vat)), vat:Number(row.vat||0), total:Number(row.total||0),
-          invoiceMonth:row.invoiceMonth||'', activityName:row.activityName||'', payment:row.payment||'', status:row.status||'review', trn:row.trn||'', proof:Boolean(row.receiptPath), receiptPath:row.receiptPath||'', attachmentPath:row.attachmentPath||''
+          invoiceNote:[row.invoiceMonth,row.activityName].filter(Boolean).join(' · '), payment:row.payment||'', status:row.status||'review', trn:row.trn||'', proof:Boolean(row.receiptPath), receiptPath:row.receiptPath||'', attachmentPath:row.attachmentPath||''
         })));
         const flat=[];
         (advances||[]).forEach(advance=>{
@@ -247,8 +247,8 @@ export default function Reports({lang,profile}){
   function notify(msg){setToast(msg);setTimeout(()=>setToast(''),2300)}
 
   function invoiceExcelRows(rows){return rows.map(r=>ar?{
-    'رقم الفاتورة':r.invoiceNo,'المورد':r.supplier,'الحضانة':r.nursery,'السلفة':r.advance,'التاريخ':r.date,'الفاتورة لشهر':r.invoiceMonth||'','الفعالية':r.activityName||'','قبل الضريبة':r.beforeVat,'الضريبة':r.vat,'الإجمالي':r.total,'طريقة الدفع':r.payment==='card'?'بطاقة':'نقد','الحالة':statusText(r.status,true),'الرقم الضريبي':r.trn,'إثبات الخصم':r.proof?'مرفق':'غير مرفق'
-  }:{Invoice:r.invoiceNo,Supplier:r.supplier,Nursery:r.nursery,Advance:r.advance,Date:r.date,'Invoice Month':r.invoiceMonth||'',Activity:r.activityName||'',Subtotal:r.beforeVat,VAT:r.vat,Total:r.total,Payment:r.payment,Status:statusText(r.status,false),TRN:r.trn,'Payment Proof':r.proof?'Attached':'Not Attached'});}
+    'رقم الفاتورة':r.invoiceNo,'المورد':r.supplier,'الحضانة':r.nursery,'السلفة':r.advance,'التاريخ':r.date,'الشهر / الفعالية':r.invoiceNote||'','قبل الضريبة':r.beforeVat,'الضريبة':r.vat,'الإجمالي':r.total,'طريقة الدفع':r.payment==='card'?'بطاقة':'نقد','الحالة':statusText(r.status,true),'الرقم الضريبي':r.trn,'إثبات الخصم':r.proof?'مرفق':'غير مرفق'
+  }:{Invoice:r.invoiceNo,Supplier:r.supplier,Nursery:r.nursery,Advance:r.advance,Date:r.date,'Month / Activity':r.invoiceNote||'',Subtotal:r.beforeVat,VAT:r.vat,Total:r.total,Payment:r.payment,Status:statusText(r.status,false),TRN:r.trn,'Payment Proof':r.proof?'Attached':'Not Attached'});}
   function advanceExcelRows(rows){return rows.map(r=>ar?{
     'رقم السلفة':r.advanceNo,'اسم السلفة':r.name,'النوع':r.type,'الحضانة':r.nursery,'من':r.from,'إلى':r.to,'المخصص':r.openAmount?'مفتوحة':r.allocated,'المصروف (المخصوم)':r.spent,'منه معتمد':r.approvedSpent,'المتبقي':r.openAmount?'—':r.remaining,'عدد الفواتير':r.invoices,'معتمدة':r.approved,'قيد المراجعة':r.review,'معادة للتعديل':r.returned,'الحالة':statusText(r.status,true)
   }:{'Advance No':r.advanceNo,Advance:r.name,Type:r.type,Nursery:r.nursery,From:r.from,To:r.to,Allocated:r.openAmount?'Open':r.allocated,'Spent (deducted)':r.spent,'Of which approved':r.approvedSpent,Remaining:r.openAmount?'—':r.remaining,Invoices:r.invoices,Approved:r.approved,'Under Review':r.review,Returned:r.returned,Status:statusText(r.status,false)});}
