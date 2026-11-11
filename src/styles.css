@@ -3687,3 +3687,17 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .users-modal-backdrop{position:fixed;inset:0;z-index:1000;display:grid;place-items:start center;overflow-y:auto;padding:24px 16px;background:rgba(15,36,54,.42);backdrop-filter:blur(4px)}
 .users-modal-backdrop .user-modal{max-height:none;margin:auto 0;animation:usersModalIn .18s ease}
 @keyframes usersModalIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* V28 — open advance + invoice month/activity */
+.invoice-month-tag{display:inline-block;margin-top:3px;padding:1px 8px;border-radius:999px;background:#eef4ff;color:#2f5aa8;font-size:11px;font-weight:600}
+.invoice-month-field input[type=month]{min-height:40px}
+.open-advance-toggle{display:flex;gap:12px;align-items:flex-start;margin:12px 0;padding:12px 14px;border:1.5px dashed #c9d3e3;border-radius:14px;background:#f8fafd;cursor:pointer}
+.open-advance-toggle.active{border-style:solid;border-color:#3b6fd1;background:#eef4ff}
+.open-advance-toggle input{margin-top:3px;width:18px;height:18px;flex:none}
+.open-advance-toggle span{display:flex;flex-direction:column;gap:3px}
+.open-advance-toggle small{color:#5d6b82;line-height:1.5}
+.advance-open-badge{display:inline-block;white-space:nowrap;padding:2px 9px;border-radius:999px;background:#eef4ff;color:#2f5aa8;font-size:11px;font-weight:700}
+.open-advance-note{margin:10px 0;padding:10px 12px;border-radius:12px;background:#eef4ff;color:#2f5aa8;font-size:13px}
+.detail-balance-hero.open h3{color:#2f5aa8}
+.upload-form-grid input:not([type=checkbox]):not([type=radio]){width:100%;min-width:0;height:44px;border:1px solid #d3e1eb;border-radius:13px;background:#fff;padding:0 12px;color:#496078;outline:0;font:inherit;box-sizing:border-box}
+.upload-form-grid .invoice-month-field input{border-color:#9db8e6}

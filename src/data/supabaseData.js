@@ -116,6 +116,8 @@ export async function listInvoices() {
     status: row.status,
     trn: row.trn || '',
     returnReason: row.return_reason || '',
+    invoiceMonth: row.invoice_month || row.ocr_payload?.invoice_month || '',
+    activityName: row.activity_name || row.ocr_payload?.activity_name || '',
     attachmentPath: row.attachment_path || '',
     receiptPath: row.receipt_path || '',
     approvedAt: row.approved_at,
@@ -131,7 +133,7 @@ export async function listOpenAdvanceAllocations(nurseryId = null) {
     .select(`
       id, nursery_id, allocated,
       nurseries(name_ar,name_en),
-      advances!inner(id,code,name_ar,name_en,status,date_from,date_to)
+      advances!inner(*)
     `)
     .eq('advances.status', 'open');
   if (nurseryId) query = query.eq('nursery_id', nurseryId);
@@ -286,13 +288,22 @@ export async function createInvoice(payload, invoiceFile, receiptFile) {
     uploaded_by: userId,
     // Compatibility with existing SAAMS databases where created_by is required.
     created_by: userId,
+    // Which month / which activity the invoice is for (22_OPEN_ADVANCE_AND_INVOICE_MONTH.sql).
+    ...(payload.invoiceMonth ? { invoice_month: payload.invoiceMonth } : {}),
+    ...(payload.activityName ? { activity_name: payload.activityName } : {}),
   };
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('invoices')
     .insert(insertPayload)
     .select('id')
     .single();
+  if (error && (error.code === 'PGRST204' || error.code === '42703') && /invoice_month|activity_name/.test(String(error.message || ''))) {
+    // Database without file 22 yet: save the invoice anyway (month/activity kept in ocr_payload).
+    const { invoice_month, activity_name, ...legacy } = insertPayload;
+    legacy.ocr_payload = { ...(legacy.ocr_payload || {}), invoice_month: invoice_month || null, activity_name: activity_name || null };
+    ({ data, error } = await supabase.from('invoices').insert(legacy).select('id').single());
+  }
   if (error) throw error;
 
   let attachmentPath = '';
@@ -366,11 +377,12 @@ export async function getNurseryOpenBalance(nurseryId) {
   if (!nurseryId) return null;
   const { data, error } = await supabase
     .from('advance_allocations')
-    .select('id,allocated,advances!inner(name_ar,name_en,status),invoices(total_amount,status)')
+    .select('id,allocated,advances!inner(*),invoices(total_amount,status)')
     .eq('nursery_id', nurseryId)
     .eq('advances.status', 'open');
   if (error) throw error;
-  const rows = data || [];
+  // Open-amount advances (سلفة مفتوحة) have no limit, so they have no «remaining».
+  const rows = (data || []).filter((row) => !row.advances?.is_open_amount);
   if (!rows.length) return null;
   let allocated = 0, deducted = 0;
   for (const row of rows) {
@@ -384,10 +396,10 @@ export async function getNurseryOpenBalance(nurseryId) {
 export async function listOverBudgetAllocations() {
   const { data, error } = await supabase
     .from('advance_allocations')
-    .select('id,allocated,nurseries(name_ar,name_en),advances!inner(name_ar,status),invoices(total_amount,status)')
+    .select('id,allocated,nurseries(name_ar,name_en),advances!inner(*),invoices(total_amount,status)')
     .eq('advances.status', 'open');
   if (error) throw error;
-  return (data || []).map((row) => {
+  return (data || []).filter((row) => !row.advances?.is_open_amount).map((row) => {
     let deducted = 0;
     for (const inv of row.invoices || []) if (isDeductedInvoice(inv.status)) deducted += Number(inv.total_amount || 0);
     return { nurseryAr: row.nurseries?.name_ar || '', nurseryEn: row.nurseries?.name_en || '', advance: row.advances?.name_ar || '', allocated: Number(row.allocated || 0), deducted, over: deducted - Number(row.allocated || 0) };
@@ -416,6 +428,7 @@ export async function listAdvances() {
     from: row.date_from,
     to: row.date_to,
     status: row.status,
+    openAmount: row.is_open_amount === true,
     allocations: (row.advance_allocations || []).map((allocation) => {
       const allInvoices = (allocation.invoices || []).map((invoice) => ({
         no: invoice.invoice_number,
@@ -452,6 +465,7 @@ export async function createAdvance(payload) {
       date_to: payload.to || null,
       status: payload.status,
       created_by: userData?.user?.id || null,
+      ...(payload.openAmount ? { is_open_amount: true } : {}),
     })
     .select('id')
     .single();

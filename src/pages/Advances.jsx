@@ -212,12 +212,14 @@ export default function Advances({ lang, profile, databaseMode }) {
   }, { allocated: 0, spent: 0, open: 0 });
 
   async function createAdvance(form, status) {
-    const allocations = form.rows.filter(row => row.selected && Number(row.amount) > 0).map(row => ({ nurseryId: row.id || null, nurseryAr: row.ar, nurseryEn: row.en, allocated: Number(row.amount), invoices: [] }));
+    // «سلفة مفتوحة»: nurseries only, no amount per nursery.
+    const allocations = form.rows.filter(row => row.selected && (form.openAmount || Number(row.amount) > 0)).map(row => ({ nurseryId: row.id || null, nurseryAr: row.ar, nurseryEn: row.en, allocated: form.openAmount ? 0 : Number(row.amount), invoices: [] }));
+    if (form.openAmount && !allocations.length) { notify(ar ? 'اختاري حضانة واحدة على الأقل.' : 'Select at least one nursery.'); return false; }
     if (!allocations.length) { notify(t.invalid); return false; }
     const next = {
       id: `ADV-2026-${String(advances.length + 9).padStart(3, '0')}`,
       nameAr: form.name, nameEn: toEnglishDisplay(form.name),
-      type: form.type, from: form.from, to: form.to, status,
+      type: form.type, from: form.from, to: form.to, status, openAmount: Boolean(form.openAmount),
       allocations: allocations.map((row) => {
         const match = row.nurseryId ? null : dbNurseries.find((nursery) => nursery.name_ar === row.nurseryAr || nursery.name_en === row.nurseryEn);
         return { ...row, nurseryId: row.nurseryId || match?.id };
@@ -232,7 +234,7 @@ export default function Advances({ lang, profile, databaseMode }) {
         next.dbId = await createAdvanceDb(next);
       } catch (error) {
         console.error(error);
-        notify(ar ? 'تعذر حفظ السلفة في قاعدة البيانات.' : 'Could not save advance to database.');
+        notify(/is_open_amount/.test(String(error?.message || '')) ? (ar ? 'لإنشاء سلفة مفتوحة شغلي ملف 22_OPEN_ADVANCE_AND_INVOICE_MONTH.sql في Supabase أولاً.' : 'Run 22_OPEN_ADVANCE_AND_INVOICE_MONTH.sql first.') : (ar ? 'تعذر حفظ السلفة في قاعدة البيانات.' : 'Could not save advance to database.'));
         return false;
       }
     }
@@ -338,15 +340,16 @@ export default function Advances({ lang, profile, databaseMode }) {
         const allocation = nurseryMode ? currentNurseryAllocation(advance) : null;
         const allocated = allocation ? allocation.allocated : totals.allocated;
         const spent = allocation ? spentOf(allocation) : totals.spent;
+        const openAmount = Boolean(advance.openAmount);
         const remaining = allocated - spent;
         const usage = allocated ? Math.min(100, (spent / allocated) * 100) : 0;
-        return <article className="advance-card" key={advance.id}>
+        return <article className={`advance-card ${openAmount ? 'open-amount' : ''}`} key={advance.id}>
           <div className="advance-card-top">
             <div className={`advance-type-icon ${advance.type}`}>{advance.type === 'monthly' ? '▥' : advance.type === 'event' ? '☆' : '▣'}</div>
-            <div className="advance-title"><div><span className={`advance-type-badge ${advance.type}`}>{typeLabel(advance.type)}</span><span className={`advance-status ${advance.status}`}>{t[advance.status]}</span></div><h3>{ar ? toArabicDisplay(advance.nameAr || advance.nameEn) : toEnglishDisplay(advance.nameEn || advance.nameAr)}</h3><p>{advance.id} · {advance.from} — {advance.to}</p></div>
+            <div className="advance-title"><div><span className={`advance-type-badge ${advance.type}`}>{typeLabel(advance.type)}</span><span className={`advance-status ${advance.status}`}>{t[advance.status]}</span>{advance.openAmount && <span className="advance-open-badge">{ar ? 'مبلغ مفتوح' : 'Open amount'}</span>}</div><h3>{ar ? toArabicDisplay(advance.nameAr || advance.nameEn) : toEnglishDisplay(advance.nameEn || advance.nameAr)}</h3><p>{advance.id} · {advance.from} — {advance.to}</p></div>
             <div className="advance-card-actions"><button onClick={() => setViewing({ advance, allocation })}>{t.view}</button>{!nurseryMode && <><button className={advance.status === 'open' ? 'close-advance' : 'reopen-advance'} onClick={() => toggleStatus(advance.id)}>{advance.status === 'open' ? t.close : t.reopen}</button><button className="delete-advance" onClick={() => deleteAdvance(advance)}>⌫ {t.deleteAdvance}</button></>}</div>
           </div>
-          {(()=>{
+          {!openAmount&&(()=>{
             // Over-budget warning (red): nursery sees its own; administration sees every nursery that exceeded.
             const over=nurseryMode?(remaining<0?[{name:ar?(allocation?.nurseryAr||''):(allocation?.nurseryEn||allocation?.nurseryAr||''),by:-remaining}]:[])
               :advance.allocations.map(a=>({name:ar?a.nurseryAr:(a.nurseryEn||a.nurseryAr),by:spentOf(a)-Number(a.allocated||0)})).filter(x=>x.by>0.004);
@@ -356,12 +359,12 @@ export default function Advances({ lang, profile, databaseMode }) {
               :<><strong>{ar?`${over.length} ${over.length===1?'حضانة تجاوزت':'حضانات تجاوزت'} المبلغ المخصص`:`${over.length} nurser${over.length===1?'y':'ies'} exceeded the allocation`}</strong><span>{over.map(x=>`${x.name}: ${money(x.by)} AED`).join(' • ')}</span></>}</div></div>;
           })()}
           <div className="advance-balance-grid">
-            <div><small>{t.allocated}</small><strong>{money(allocated)} AED</strong></div>
+            <div><small>{t.allocated}</small><strong>{openAmount ? (ar ? 'مفتوح' : 'Open') : `${money(allocated)} AED`}</strong></div>
             <div><small>{t.spent}</small><strong>{money(spent)} AED</strong>{(()=>{const b=allocation?breakdownOf(allocation):advance.allocations.reduce((acc,a)=>{const x=breakdownOf(a);acc.approved+=x.approved;acc.pending+=x.pending;return acc},{approved:0,pending:0});return b.pending>0?<em className="spent-breakdown">{t.approvedPart} {money(b.approved)} · {t.pendingPart} {money(b.pending)}</em>:null})()}</div>
-            <div><small>{t.remaining}</small><strong className={remaining < 0 ? 'low negative' : remaining < allocated * .2 ? 'low' : ''}>{money(remaining)} AED</strong></div>
+            <div><small>{t.remaining}</small><strong className={openAmount ? '' : remaining < 0 ? 'low negative' : remaining < allocated * .2 ? 'low' : ''}>{openAmount ? '—' : `${money(remaining)} AED`}</strong></div>
             <div><small>{t.invoicesCount}</small><strong>{allocation ? allocation.invoices.length : advance.allocations.reduce((sum,a)=>sum+a.invoices.length,0)}</strong></div>
           </div>
-          <div className="advance-progress"><div className="advance-progress-label"><span>{t.usage}</span><b>{usage.toFixed(0)}%</b></div><div className="advance-progress-track"><i style={{ width: `${usage}%` }} /></div></div>
+          {!openAmount && <div className="advance-progress"><div className="advance-progress-label"><span>{t.usage}</span><b>{usage.toFixed(0)}%</b></div><div className="advance-progress-track"><i style={{ width: `${usage}%` }} /></div></div>}
           <div className="advance-card-footer"><span className={advance.status === 'open' ? 'upload-open' : 'upload-closed'}>{advance.status === 'open' ? '● ' + t.uploadOpen : '● ' + t.uploadClosed}</span><span>{nurseryMode ? `${ar ? allocation?.nurseryAr : allocation?.nurseryEn}` : `${advance.allocations.length} ${t.nurseries}`}</span></div>
         </article>;
       })}
@@ -376,7 +379,7 @@ export default function Advances({ lang, profile, databaseMode }) {
 function CreateAdvanceModal({ ar, t, advanceTypes, nurseries, loading, onClose, onSave }) {
   const activeNurseries = (nurseries || []).filter((nursery) => nursery.active !== false);
   const availableTypes = (advanceTypes || []).length ? advanceTypes : DEFAULT_ADVANCE_TYPES;
-  const [form, setForm] = useState({ name: '', type: availableTypes[0]?.value || 'monthly', from: '2026-08-01', to: '2026-09-30', sameAmount: '', rows: activeNurseries.map((nursery) => ({ id: nursery.id, ar: nursery.name_ar, en: nursery.name_en || nursery.name_ar, selected: false, amount: '' })) });
+  const [form, setForm] = useState({ name: '', type: availableTypes[0]?.value || 'monthly', from: '2026-08-01', to: '2026-09-30', sameAmount: '', openAmount: false, rows: activeNurseries.map((nursery) => ({ id: nursery.id, ar: nursery.name_ar, en: nursery.name_en || nursery.name_ar, selected: false, amount: '' })) });
   function setRows(fn) { setForm(current => ({ ...current, rows: fn(current.rows) })); }
   function applySame() { if (!Number(form.sameAmount)) return; setRows(rows => rows.map(row => row.selected ? { ...row, amount: form.sameAmount } : row)); }
   function submit(status) { if (!form.name.trim()) return; onSave(form, status); }
@@ -388,10 +391,11 @@ function CreateAdvanceModal({ ar, t, advanceTypes, nurseries, loading, onClose, 
       <label><span>{t.fromDate}</span><input type="date" value={form.from} onChange={e => setForm({ ...form, from: e.target.value })} /></label>
       <label><span>{t.toDate}</span><input type="date" value={form.to} onChange={e => setForm({ ...form, to: e.target.value })} /></label>
     </div>
-    <div className="nursery-allocation-section">
-      <div className="allocation-heading"><div><h3>{t.chooseNurseries}</h3><p>{ar ? 'يمكن تحديد مبلغ مختلف لكل حضانة حسب احتياجها.' : 'Each nursery can receive a different amount.'}</p></div><div><button onClick={() => setRows(rows => rows.map(r => ({ ...r, selected: true })))}>{t.selectAll}</button><button onClick={() => setRows(rows => rows.map(r => ({ ...r, selected: false })))}>{t.clearAll}</button></div></div>
-      <div className="same-amount-row"><span>{t.sameAmount}</span><input type="number" min="0" step="0.01" value={form.sameAmount} onChange={e => setForm({ ...form, sameAmount: e.target.value })} placeholder="0.00" /><button onClick={applySame}>{t.apply}</button></div>
-      {loading ? <div className="advance-empty">◷<span>{t.nurseriesLoading}</span></div> : form.rows.length ? <div className="nursery-allocation-list">{form.rows.map((row, index) => <label className={row.selected ? 'selected' : ''} key={row.id || row.ar}><input type="checkbox" checked={row.selected} onChange={e => setRows(rows => rows.map((r,i) => i === index ? { ...r, selected: e.target.checked } : r))} /><strong>{ar ? row.ar : row.en}</strong><div><span>{t.amount}</span><input type="number" min="0" step="0.01" disabled={!row.selected} value={row.amount} onChange={e => setRows(rows => rows.map((r,i) => i === index ? { ...r, amount: e.target.value } : r))} /><b>AED</b></div></label>)}</div> : <div className="advance-empty">⌁<span>{t.noNurseries}</span></div>}
+    <label className={`open-advance-toggle ${form.openAmount ? 'active' : ''}`}><input type="checkbox" checked={form.openAmount} onChange={e => setForm({ ...form, openAmount: e.target.checked })} /><span><strong>{ar ? 'سلفة مفتوحة — بدون تحديد مبلغ لكل حضانة' : 'Open advance — no amount per nursery'}</strong><small>{ar ? 'للفواتير القديمة والفواتير المطلوب تعديلها وفواتير الفعاليات. يُحسب المصروف فقط بدون متبقي أو تنبيه تجاوز.' : 'For old invoices, invoices to be corrected and activity invoices. Only spending is tracked — no remaining balance or over-budget alert.'}</small></span></label>
+    <div className={`nursery-allocation-section ${form.openAmount ? 'open-amount' : ''}`}>
+      <div className="allocation-heading"><div><h3>{form.openAmount ? (ar ? 'تحديد الحضانات' : 'Choose nurseries') : t.chooseNurseries}</h3><p>{form.openAmount ? (ar ? 'اختاري الحضانات اللي تقدر ترفع فواتيرها على هذه السلفة.' : 'Choose the nurseries that can upload invoices to this advance.') : (ar ? 'يمكن تحديد مبلغ مختلف لكل حضانة حسب احتياجها.' : 'Each nursery can receive a different amount.')}</p></div><div><button onClick={() => setRows(rows => rows.map(r => ({ ...r, selected: true })))}>{t.selectAll}</button><button onClick={() => setRows(rows => rows.map(r => ({ ...r, selected: false })))}>{t.clearAll}</button></div></div>
+      {!form.openAmount && <div className="same-amount-row"><span>{t.sameAmount}</span><input type="number" min="0" step="0.01" value={form.sameAmount} onChange={e => setForm({ ...form, sameAmount: e.target.value })} placeholder="0.00" /><button onClick={applySame}>{t.apply}</button></div>}
+      {loading ? <div className="advance-empty">◷<span>{t.nurseriesLoading}</span></div> : form.rows.length ? <div className="nursery-allocation-list">{form.rows.map((row, index) => <label className={row.selected ? 'selected' : ''} key={row.id || row.ar}><input type="checkbox" checked={row.selected} onChange={e => setRows(rows => rows.map((r,i) => i === index ? { ...r, selected: e.target.checked } : r))} /><strong>{ar ? row.ar : row.en}</strong>{!form.openAmount && <div><span>{t.amount}</span><input type="number" min="0" step="0.01" disabled={!row.selected} value={row.amount} onChange={e => setRows(rows => rows.map((r,i) => i === index ? { ...r, amount: e.target.value } : r))} /><b>AED</b></div>}</label>)}</div> : <div className="advance-empty">⌁<span>{t.noNurseries}</span></div>}
     </div>
     <div className="create-advance-actions"><button className="secondary-action" onClick={onClose}>{t.cancel}</button><button className="draft-action" onClick={() => submit('draft')}>{t.saveDraft}</button><button className="primary-action" onClick={() => submit('open')}>{t.save}</button></div>
   </div></div>;
@@ -411,9 +415,12 @@ function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDelete,
       <div className="advance-nursery-tabs">{advance.allocations.map(a => <button title={ar ? a.nurseryAr : a.nurseryEn} key={a.nurseryAr} className={selected.nurseryAr === a.nurseryAr ? 'active' : ''} onClick={() => setSelected(a)}>{ar ? a.nurseryAr : a.nurseryEn}</button>)}</div>
       <div className="selected-nursery-line"><small>{ar ? 'الحضانة المحددة' : 'Selected nursery'}</small><strong>{ar ? selected.nurseryAr : selected.nurseryEn}</strong></div>
     </div>}
-    {remaining<0&&<div className="over-budget-alert" role="alert"><b>!</b><div><strong>{nurseryMode?(ar?'تجاوزتم المبلغ المخصص لهذه السلفة':'You have exceeded this advance'):(ar?`${selected.nurseryAr} تجاوزت المبلغ المخصص`:`${selected.nurseryEn||selected.nurseryAr} exceeded the allocation`)}</strong><span>{ar?`المصروف ${money(spent)} من أصل ${money(selected.allocated)} درهم — التجاوز ${money(-remaining)} درهم.`:`Spent AED ${money(spent)} of ${money(selected.allocated)} — over by AED ${money(-remaining)}.`}</span></div></div>}
-    <div className={`detail-balance-hero ${remaining<0?'over':''}`}><small>{t.nurseryBalance}</small><h3>{money(remaining)} AED</h3><div><span>{money(spent)} {t.spent}</span><span>{money(selected.allocated)} {t.allocated}</span></div><div className="advance-progress-track"><i style={{ width: `${Math.min(100, usage)}%` }} /></div></div>
-    <div className="detail-mini-stats"><div><small>{t.allocated}</small><strong>{money(selected.allocated)} AED</strong></div><div><small>{t.spent}</small><strong>{money(spent)} AED</strong>{breakdownOf(selected).pending>0&&<em className="spent-breakdown">{t.approvedPart} {money(breakdownOf(selected).approved)} · {t.pendingPart} {money(breakdownOf(selected).pending)}</em>}</div><div><small>{t.remaining}</small><strong className={remaining<0?'low negative':''}>{money(remaining)} AED</strong></div><div><small>{t.invoicesCount}</small><strong>{(selected.allInvoices || selected.invoices).length}</strong></div></div>
+    {advance.openAmount&&<div className="open-advance-note">◌ {ar?'سلفة مفتوحة بدون مبلغ محدد — يُعرض المصروف فقط.':'Open advance with no set amount — only spending is shown.'}</div>}
+    {!advance.openAmount&&remaining<0&&<div className="over-budget-alert" role="alert"><b>!</b><div><strong>{nurseryMode?(ar?'تجاوزتم المبلغ المخصص لهذه السلفة':'You have exceeded this advance'):(ar?`${selected.nurseryAr} تجاوزت المبلغ المخصص`:`${selected.nurseryEn||selected.nurseryAr} exceeded the allocation`)}</strong><span>{ar?`المصروف ${money(spent)} من أصل ${money(selected.allocated)} درهم — التجاوز ${money(-remaining)} درهم.`:`Spent AED ${money(spent)} of ${money(selected.allocated)} — over by AED ${money(-remaining)}.`}</span></div></div>}
+    {advance.openAmount
+      ? <div className="detail-balance-hero open"><small>{t.spent}</small><h3>{money(spent)} AED</h3><div><span>{ar?'سلفة مفتوحة':'Open advance'}</span><span>{(selected.allInvoices || selected.invoices).length} {t.invoicesCount}</span></div></div>
+      : <div className={`detail-balance-hero ${remaining<0?'over':''}`}><small>{t.nurseryBalance}</small><h3>{money(remaining)} AED</h3><div><span>{money(spent)} {t.spent}</span><span>{money(selected.allocated)} {t.allocated}</span></div><div className="advance-progress-track"><i style={{ width: `${Math.min(100, usage)}%` }} /></div></div>}
+    <div className="detail-mini-stats"><div><small>{t.allocated}</small><strong>{advance.openAmount?(ar?'مفتوح':'Open'):`${money(selected.allocated)} AED`}</strong></div><div><small>{t.spent}</small><strong>{money(spent)} AED</strong>{breakdownOf(selected).pending>0&&<em className="spent-breakdown">{t.approvedPart} {money(breakdownOf(selected).approved)} · {t.pendingPart} {money(breakdownOf(selected).pending)}</em>}</div><div><small>{t.remaining}</small><strong className={!advance.openAmount&&remaining<0?'low negative':''}>{advance.openAmount?'—':`${money(remaining)} AED`}</strong></div><div><small>{t.invoicesCount}</small><strong>{(selected.allInvoices || selected.invoices).length}</strong></div></div>
     <div className="advance-status-summary"><div><small>{t.approvedInvoices}</small><strong>{statusCountsOf(selected).approved}</strong></div><div><small>{t.pendingInvoices}</small><strong>{statusCountsOf(selected).review}</strong></div><div><small>{t.returnedInvoices}</small><strong>{statusCountsOf(selected).returned}</strong></div></div>
     <div className="advance-deduction-note">✓ {t.balanceRule}</div>
     <div className="invoice-deduction-note">ⓘ {t.invoiceDeductionNote}</div>
