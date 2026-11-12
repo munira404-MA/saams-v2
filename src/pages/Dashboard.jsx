@@ -1,7 +1,7 @@
 import { dashboardAccess, activityPage } from '../utils/dashboardAccess';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../supabase';
-import { getNurseryOpenBalance, listOverBudgetAllocations, listAdvances } from '../data/supabaseData';
+import { getNurseryOpenBalance, listAdvances } from '../data/supabaseData';
 import { computeLateNurseries, lateReasonText } from '../utils/lateNurseries';
 import { loadActivityFeed, isToday, activityActor, activityTime } from '../utils/activityFeed';
 import { translateAssetName } from '../utils/assetTranslations';
@@ -250,20 +250,13 @@ export default function Dashboard({ lang, setActive, profile }) {
             nextAlerts.unshift({tone:'red',pinned:true,title:ar?`تجاوزتم المبلغ المخصص للسلفة بمبلغ ${by} درهم`:`You exceeded your advance allocation by AED ${by}`,sub:ar?`المبلغ المخصص ${Number(nurseryBalance.allocated).toLocaleString('en-US',{minimumFractionDigits:2})} — المصروف ${Number(nurseryBalance.deducted).toLocaleString('en-US',{minimumFractionDigits:2})}`:`Allocated ${Number(nurseryBalance.allocated).toFixed(2)} — spent ${Number(nurseryBalance.deducted).toFixed(2)}`,target:'advances',time:new Date().toISOString()});
           }
         }else{
-          if(canInvoices&&late>0) nextAlerts.push({tone:'red',title:ar?`${late} فاتورة متأخرة لأكثر من أسبوع`:`${late} invoice(s) overdue for more than a week`,sub:ar?'بانتظار الاعتماد':'Awaiting approval'});
-          if(canInvoices&&returned>0) nextAlerts.push({tone:'orange',title:ar?`${returned} فاتورة معادة/مرفوضة`:`${returned} returned/rejected invoice(s)`,sub:ar?'تحتاج متابعة':'Needs follow-up'});
-          if(canAdvances){
-            const overList=await listOverBudgetAllocations().catch(()=>[]);
-            for(const o of overList){const by=o.over.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});nextAlerts.unshift({tone:'red',pinned:true,title:ar?`${o.nurseryAr} تجاوزت المبلغ المخصص بمبلغ ${by} درهم`:`${o.nurseryEn||o.nurseryAr} exceeded the allocation by AED ${by}`,sub:ar?`${o.advance} — المصروف ${o.deducted.toLocaleString('en-US',{minimumFractionDigits:2})} من ${o.allocated.toLocaleString('en-US',{minimumFractionDigits:2})}`:`${o.advance} — spent ${o.deducted.toFixed(2)} of ${o.allocated.toFixed(2)}`,target:'advances'});}
-          }
+          // Administration alert centre: only nurseries late in handing in invoices, plus asset requests (above).
           if(canAdvances){
             const lateList=computeLateNurseries(await listAdvances().catch(()=>[]));
-            if(lateList.length){
-              const names=lateList.map(x=>ar?x.nurseryAr:(x.nurseryEn||x.nurseryAr));
-              nextAlerts.unshift({tone:'red',pinned:true,target:'advances',title:ar?`${lateList.length} حضانة متأخرة في تسليم الفواتير`:`${lateList.length} nursery(ies) late in handing in invoices`,sub:`${names.slice(0,4).join('، ')}${names.length>4?(ar?` و${names.length-4} أخرى`:` and ${names.length-4} more`):''} — ${ar?'التفاصيل في شاشة السلف':'details on the Advances screen'}`});
+            for(const n of [...lateList].reverse()){
+              nextAlerts.unshift({tone:'red',pinned:true,target:'advances',title:ar?`${n.nurseryAr} — متأخرة في تسليم الفواتير`:`${n.nurseryEn||n.nurseryAr} — late in handing in invoices`,sub:n.items.map(i=>`${ar?i.advanceAr:i.advanceEn}: ${i.reasons.map(r=>lateReasonText(r,ar)).join('، ')}`).join(' · ')});
             }
           }
-          if(canAdvances&&openAdvances>0) nextAlerts.push({tone:'blue',title:ar?`${openAdvances} سلفة مفتوحة حالياً`:`${openAdvances} open advance(s)`,sub:ar?'من البيانات الفعلية':'Live data'});
         }
 
         const feed=await loadActivityFeed(profile,{limit:80});
