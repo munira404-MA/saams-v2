@@ -505,6 +505,17 @@ export async function createAdvance(payload) {
   return advance.id;
 }
 
+// Change one nursery's allocated amount (system administrator only, from the advance details).
+export async function updateAllocationAmount(allocationDbId, amount) {
+  if (!allocationDbId) throw new Error('ALLOCATION_NOT_FOUND');
+  const value = Math.round(Number(amount) * 100) / 100;
+  if (!Number.isFinite(value) || value < 0) throw new Error('INVALID_AMOUNT');
+  const { data, error } = await supabase.from('advance_allocations').update({ allocated: value }).eq('id', allocationDbId).select('id,allocated');
+  if (error) throw error;
+  if (!data || !data.length) throw new Error('ALLOCATION_UPDATE_BLOCKED');
+  return value;
+}
+
 export async function toggleAdvanceStatus(advance, status) {
   const query = supabase.from('advances').update({ status });
   const { error } = advance.dbId

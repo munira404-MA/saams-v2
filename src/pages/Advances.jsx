@@ -6,6 +6,7 @@ import {
   listNurseries,
   toggleAdvanceStatus,
   deleteAdvance as deleteAdvanceDb,
+  updateAllocationAmount,
 } from '../data/supabaseData';
 import { toEnglishDisplay, toArabicDisplay } from '../utils/globalI18n';
 import { computeLateNurseries, lateReasonText, IDLE_DAYS, MONTH_DAY } from '../utils/lateNurseries';
@@ -272,6 +273,28 @@ export default function Advances({ lang, profile, databaseMode }) {
     window.dispatchEvent(new CustomEvent('saams:data-updated',{detail:{table:'advances'}}));
     notify(item?.status === 'open' ? t.closedMsg : t.reopenedMsg);
   }
+  // System administrator only: edit a nursery's allocated amount from the advance details.
+  const canEditAmounts = profile?.role === 'super_admin';
+  async function changeAllocationAmount(advanceId, allocation, amount) {
+    const value = Math.round(Number(amount) * 100) / 100;
+    if (!Number.isFinite(value) || value < 0) { notify(ar ? 'اكتبي مبلغًا صحيحًا.' : 'Enter a valid amount.'); return false; }
+    if (databaseMode) {
+      try { await updateAllocationAmount(allocation.dbId, value); }
+      catch (error) {
+        console.error(error);
+        const raw = [error?.code, error?.message].filter(Boolean).join(' — ');
+        notify(`${ar ? 'تعذر تعديل المبلغ' : 'Could not update the amount'}${raw ? `: ${raw}` : '.'}`);
+        return false;
+      }
+    }
+    const before = Number(allocation.allocated || 0);
+    setAdvances(current => current.map(a => a.id !== advanceId ? a : { ...a, allocations: a.allocations.map(x => (x.dbId ? x.dbId === allocation.dbId : x.nurseryAr === allocation.nurseryAr) ? { ...x, allocated: value } : x) }));
+    setViewing(v => v && v.advance.id === advanceId ? { ...v, advance: { ...v.advance, allocations: v.advance.allocations.map(x => (x.dbId ? x.dbId === allocation.dbId : x.nurseryAr === allocation.nurseryAr) ? { ...x, allocated: value } : x) } } : v);
+    recordAudit({ profile, screen: 'السلف', action: 'تعديل مبلغ سلفة', actionType: 'update', entityType: 'advance', entityId: advanceId, nursery: allocation.nurseryAr, details: `${allocation.nurseryAr}: ${before.toFixed(2)} → ${value.toFixed(2)} AED`, before: { allocated: before }, after: { allocated: value } });
+    window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'advances' } }));
+    notify(ar ? 'تم تعديل المبلغ.' : 'Amount updated.');
+    return true;
+  }
   async function openCreateAdvance() {
     if (databaseMode) {
       setDbLoading(true);
@@ -389,7 +412,7 @@ export default function Advances({ lang, profile, databaseMode }) {
     </div>
 
     {creating && <CreateAdvanceModal ar={ar} t={t} advanceTypes={advanceTypes} nurseries={databaseMode ? dbNurseries : NURSERIES.map((n, index) => ({ id: `demo-${index}`, name_ar: n.ar, name_en: n.en, active: true }))} loading={dbLoading} onClose={() => setCreating(false)} onSave={createAdvance} />}
-    {viewing && <AdvanceDetails ar={ar} t={t} data={viewing} nurseryMode={nurseryMode} onClose={() => setViewing(null)} onToggle={() => { toggleStatus(viewing.advance.id); setViewing(null); }} onDelete={() => deleteAdvance(viewing.advance)} onDemo={allocation => addDemoInvoice(viewing.advance.id, allocation.nurseryAr)} />}
+    {viewing && <AdvanceDetails ar={ar} t={t} data={viewing} nurseryMode={nurseryMode} canEditAmounts={canEditAmounts && !nurseryMode} onAmountChange={(allocation, amount) => changeAllocationAmount(viewing.advance.id, allocation, amount)} onClose={() => setViewing(null)} onToggle={() => { toggleStatus(viewing.advance.id); setViewing(null); }} onDelete={() => deleteAdvance(viewing.advance)} onDemo={allocation => addDemoInvoice(viewing.advance.id, allocation.nurseryAr)} />}
     {toast && <div className="asset-toast">✓ {toast}</div>}
   </section>;
 }
@@ -419,9 +442,19 @@ function CreateAdvanceModal({ ar, t, advanceTypes, nurseries, loading, onClose, 
   </div></div>;
 }
 
-function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDelete, onDemo }) {
+function AdvanceDetails({ ar, t, data, nurseryMode, canEditAmounts, onAmountChange, onClose, onToggle, onDelete, onDemo }) {
   const { advance, allocation } = data;
-  const [selected, setSelected] = useState(allocation || advance.allocations[0]);
+  const [selectedKey, setSelectedKey] = useState((allocation || advance.allocations[0])?.nurseryAr);
+  const selected = advance.allocations.find(a => a.nurseryAr === selectedKey) || advance.allocations[0];
+  const setSelected = a => { setSelectedKey(a.nurseryAr); setEditingAmount(null); };
+  const [editingAmount, setEditingAmount] = useState(null);
+  const [savingAmount, setSavingAmount] = useState(false);
+  async function saveAmount() {
+    setSavingAmount(true);
+    const ok = await onAmountChange(selected, editingAmount);
+    setSavingAmount(false);
+    if (ok) setEditingAmount(null);
+  }
   const spent = spentOf(selected), remaining = selected.allocated - spent, usage = selected.allocated ? (spent / selected.allocated) * 100 : 0;
   return <div className="invoice-overlay" onClick={onClose}><aside className="advance-details-drawer" onClick={e => e.stopPropagation()}>
     <div className="drawer-header"><div><small>{t.details}</small><h2>{ar ? toArabicDisplay(advance.nameAr || advance.nameEn) : toEnglishDisplay(advance.nameEn || advance.nameAr)}</h2><p>{advance.id}</p></div><button onClick={onClose}>×</button></div>
@@ -438,6 +471,13 @@ function AdvanceDetails({ ar, t, data, nurseryMode, onClose, onToggle, onDelete,
     {advance.openAmount
       ? <div className="detail-balance-hero open"><small>{t.spent}</small><h3>{money(spent)} AED</h3><div><span>{ar?'سلفة مفتوحة':'Open advance'}</span><span>{(selected.allInvoices || selected.invoices).length} {t.invoicesCount}</span></div></div>
       : <div className={`detail-balance-hero ${remaining<0?'over':''}`}><small>{t.nurseryBalance}</small><h3>{money(remaining)} AED</h3><div><span>{money(spent)} {t.spent}</span><span>{money(selected.allocated)} {t.allocated}</span></div><div className="advance-progress-track"><i style={{ width: `${Math.min(100, usage)}%` }} /></div></div>}
+    {canEditAmounts && !advance.openAmount && <div className="allocation-amount-editor">
+      {editingAmount === null
+        ? <button type="button" onClick={() => setEditingAmount(String(selected.allocated ?? ''))}>✎ {ar ? `تعديل مبلغ ${selected.nurseryAr}` : `Edit amount — ${selected.nurseryEn || selected.nurseryAr}`}</button>
+        : <><label><span>{ar ? 'المبلغ المخصص الجديد' : 'New allocated amount'}</span><div><input type="number" min="0" step="0.01" autoFocus value={editingAmount} onChange={e => setEditingAmount(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveAmount(); if (e.key === 'Escape') setEditingAmount(null); }} /><b>AED</b></div></label>
+          <button type="button" className="save" disabled={savingAmount} onClick={saveAmount}>{savingAmount ? (ar ? 'جاري الحفظ...' : 'Saving...') : (ar ? 'حفظ' : 'Save')}</button>
+          <button type="button" disabled={savingAmount} onClick={() => setEditingAmount(null)}>{ar ? 'إلغاء' : 'Cancel'}</button></>}
+    </div>}
     <div className="detail-mini-stats"><div><small>{t.allocated}</small><strong>{advance.openAmount?(ar?'مفتوح':'Open'):`${money(selected.allocated)} AED`}</strong></div><div><small>{t.spent}</small><strong>{money(spent)} AED</strong>{breakdownOf(selected).pending>0&&<em className="spent-breakdown">{t.approvedPart} {money(breakdownOf(selected).approved)} · {t.pendingPart} {money(breakdownOf(selected).pending)}</em>}</div><div><small>{t.remaining}</small><strong className={!advance.openAmount&&remaining<0?'low negative':''}>{advance.openAmount?'—':`${money(remaining)} AED`}</strong></div><div><small>{t.invoicesCount}</small><strong>{(selected.allInvoices || selected.invoices).length}</strong></div></div>
     <div className="advance-status-summary"><div><small>{t.approvedInvoices}</small><strong>{statusCountsOf(selected).approved}</strong></div><div><small>{t.pendingInvoices}</small><strong>{statusCountsOf(selected).review}</strong></div><div><small>{t.returnedInvoices}</small><strong>{statusCountsOf(selected).returned}</strong></div></div>
     <div className="advance-deduction-note">✓ {t.balanceRule}</div>

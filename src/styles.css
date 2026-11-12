@@ -3718,3 +3718,11 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .password-help-box{margin-top:10px;padding:12px 14px;border-radius:14px;background:#f3f8fc;border:1px solid #d6e4ef;font-size:12px;line-height:1.7;color:#3b5368;text-align:start}
 .password-help-box p{margin:0 0 6px}.password-help-box b{color:#1d3a52}
 .password-help-admin{margin-top:4px;background:none;border:0;padding:0;color:#8396a8;font-size:11px;text-decoration:underline;cursor:pointer}
+/* V34 — edit allocated amount (system administrator) */
+.allocation-amount-editor{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:10px 0;padding:10px 12px;border:1px dashed #b8cce0;border-radius:14px;background:#f7fafd}
+.allocation-amount-editor>button{border:1px solid #c9d8e6;background:#fff;color:#2f5aa8;border-radius:10px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.allocation-amount-editor>button.save{background:linear-gradient(135deg,#14a39a,#3b6fd1);color:#fff;border:0}
+.allocation-amount-editor>button:disabled{opacity:.6;cursor:default}
+.allocation-amount-editor label{display:grid;gap:4px;flex:1;min-width:170px}.allocation-amount-editor label span{font-size:11px;color:#5d6b82;font-weight:700}
+.allocation-amount-editor label div{display:flex;align-items:center;border:1px solid #9db8e6;border-radius:10px;background:#fff;padding:0 10px}
+.allocation-amount-editor input{flex:1;min-width:0;border:0;outline:0;height:36px;font:inherit;background:transparent}.allocation-amount-editor label b{font-size:11px;color:#8396a8}
