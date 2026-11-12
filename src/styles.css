@@ -3714,3 +3714,7 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .late-nurseries-list article>div{display:grid;gap:2px;padding:6px 0;border-top:1px dashed #f0d5d9}
 .late-nurseries-list span{font-size:11px;font-weight:700;color:#28445c}.late-nurseries-list em{font-style:normal;color:#c8283f;font-size:11px}.late-nurseries-list small{color:#8396a8;font-size:10px}
 .late-nurseries-empty{margin:8px 0 0;color:#178b50;font-size:12px}
+/* V32 — login password help */
+.password-help-box{margin-top:10px;padding:12px 14px;border-radius:14px;background:#f3f8fc;border:1px solid #d6e4ef;font-size:12px;line-height:1.7;color:#3b5368;text-align:start}
+.password-help-box p{margin:0 0 6px}.password-help-box b{color:#1d3a52}
+.password-help-admin{margin-top:4px;background:none;border:0;padding:0;color:#8396a8;font-size:11px;text-decoration:underline;cursor:pointer}

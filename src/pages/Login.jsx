@@ -4,6 +4,7 @@ export default function Login({ lang, setLang, onLogin, busy, error, databaseMod
   const ar = lang === 'ar';
   const [form, setForm] = useState({ username: '', password: '' });
   const [recoveryOpen, setRecoveryOpen] = useState(false);
+  const [forgotOpen, setForgotOpen] = useState(false);
   const [recovery, setRecovery] = useState({ username: 'munira', password: '', confirm: '', code: '' });
   const [recoveryBusy, setRecoveryBusy] = useState(false);
   const [recoveryMessage, setRecoveryMessage] = useState('');
@@ -87,9 +88,18 @@ export default function Login({ lang, setLang, onLogin, busy, error, databaseMod
               {error && <div className="error">{error}</div>}
               <button className="primary" disabled={busy}>{busy ? (ar ? 'جاري الدخول...' : 'Signing in...') : ar ? 'تسجيل الدخول' : 'Sign In'}</button>
               {databaseMode && (
-                <button type="button" className="admin-recovery-link" onClick={() => { setRecoveryOpen(true); setRecoveryMessage(''); }}>
-                  {ar ? 'إعادة تعيين كلمة مرور مدير النظام' : 'Reset system administrator password'}
+                <button type="button" className="admin-recovery-link" onClick={() => setForgotOpen((v) => !v)}>
+                  {ar ? 'تغيير كلمة المرور / نسيت كلمة المرور؟' : 'Change / forgot password?'}
                 </button>
+              )}
+              {databaseMode && forgotOpen && (
+                <div className="password-help-box">
+                  <p><b>{ar ? 'لتغيير كلمة المرور:' : 'To change your password:'}</b> {ar ? 'سجلي الدخول، ثم من القائمة: النظام ← الإعدادات ← تغيير كلمة المرور. تحتاجين فقط كلمة المرور الحالية.' : 'Sign in, then open System → Settings → Change Password. Only your current password is needed.'}</p>
+                  <p><b>{ar ? 'نسيتي كلمة المرور؟' : 'Forgot your password?'}</b> {ar ? 'تواصلي مع إدارة النظام، وتُعاد كلمة المرور لك من شاشة المستخدمين.' : 'Contact the system administration; it is reset for you from the Users screen.'}</p>
+                  <button type="button" className="password-help-admin" onClick={() => { setRecoveryOpen(true); setRecoveryMessage(''); }}>
+                    {ar ? 'استرداد حساب مدير النظام فقط' : 'System administrator recovery only'}
+                  </button>
+                </div>
               )}
             </form>
           ) : (

@@ -1474,7 +1474,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                       <button className="view-invoice-row" type="button" onClick={() => openSavedInvoice(item)}>↗ {t.viewInvoice}</button>
                       {databaseMode && <button className="delete-invoice-button" type="button"
                         disabled={deleting || !canDeleteInvoice(profile, item)}
-                        title={canDeleteInvoice(profile, item) ? (ar ? 'حذف الفاتورة' : 'Delete invoice') : (ar ? 'الحذف للإدارة فقط بعد اعتماد الفاتورة أو إغلاق السلفة' : 'Only administrators can delete after approval or advance closure')}
+                        title={canDeleteInvoice(profile, item) ? (ar ? 'حذف الفاتورة' : 'Delete invoice') : (ar ? 'الفاتورة المعتمدة تُحذف من الإدارة فقط' : 'Only administrators can delete after approval or advance closure')}
                         onClick={() => { setDeleteError(''); setDeleteTarget(item); }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg>
                         {ar ? 'حذف' : 'Delete'}

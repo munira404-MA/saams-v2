@@ -345,9 +345,12 @@ export async function updateInvoiceStatus(invoice, status, reason = '') {
     patch.returned_by = null;
     patch.returned_at = null;
   }
-  if (status === 'returned') {
+  if (status === 'returned' || status === 'rejected') {
     patch.returned_by = userId;
     patch.returned_at = now;
+    // A returned invoice is no longer approved.
+    patch.approved_by = null;
+    patch.approved_at = null;
   }
   const query = supabase.from('invoices').update(patch);
   const { error } = invoice.dbId
