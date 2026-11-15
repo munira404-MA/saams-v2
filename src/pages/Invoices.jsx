@@ -1,11 +1,12 @@
 import { recordAudit, loadAuditLog } from '../utils/audit';
-import { canDeleteInvoice } from '../utils/invoiceDeletion';
+import { canDeleteInvoice, deleteBlockedReason, canEditInvoiceDate } from '../utils/invoiceDeletion';
 import { registerAttachment } from '../utils/attachments';
 import { detectPotentialDuplicates } from '../utils/intelligence';
-import { isSameInvoice } from '../utils/invoiceDuplicates';
+import { isSameInvoice, normalizeInvoiceDate } from '../utils/invoiceDuplicates';
 import {
   createInvoice as createInvoiceDb,
   deleteInvoice as deleteInvoiceDb,
+  updateInvoiceDate as updateInvoiceDateDb,
   findNurseryByName,
   listInvoices as listInvoicesDb,
   listOpenAdvanceAllocations,
@@ -419,6 +420,30 @@ const copy = {
 const AR_MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 const EN_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 // «الشهر / الفعالية» — only asked for invoices on an open-amount advance.
+function todayIso() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// A date the calendar input can show (YYYY-MM-DD) or '' when the OCR text is not a real date.
+function isoDateOrEmpty(value) {
+  const iso = normalizeInvoiceDate(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '';
+  const [y, m, day] = iso.split('-').map(Number);
+  const d = new Date(y, m - 1, day);
+  return y >= 2000 && y <= 2100 && d.getFullYear() === y && d.getMonth() === m - 1 && d.getDate() === day ? iso : '';
+}
+
+// Warn when the read date looks wrong — common with handwritten invoices.
+function invoiceDateWarning(value, ar) {
+  const iso = isoDateOrEmpty(value);
+  if (!iso) return ar ? 'لم يُقرأ التاريخ — اختاريه من التقويم' : 'Date not read — pick it from the calendar';
+  if (iso > todayIso()) return ar ? 'التاريخ في المستقبل — تأكدي منه' : 'Date is in the future — please check';
+  const yearAgo = new Date(); yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+  if (new Date(`${iso}T00:00:00`) < yearAgo) return ar ? 'التاريخ أقدم من سنة — تأكدي منه' : 'Date is over a year old — please check';
+  return '';
+}
+
 function invoiceNoteOf(item, ar) {
   return [item?.invoiceMonth ? formatMonth(item.invoiceMonth, ar) : '', item?.activityName || ''].filter(Boolean).join(' · ');
 }
@@ -447,6 +472,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [nursery, setNursery] = useState('all');
   const [status, setStatus] = useState('all');
   const [selected, setSelected] = useState(null);
+  const [dateEdit, setDateEdit] = useState(null);
+  const [savingDate, setSavingDate] = useState(false);
+  useEffect(() => { setDateEdit(null); }, [selected?.dbId]);
   const [showUpload, setShowUpload] = useState(false);
   const [rows, setRows] = useState(initialData);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -1115,6 +1143,11 @@ export default function Invoices({ lang, profile, databaseMode }) {
       setOcrError(t.blockedSave);
       return;
     }
+    if (!isoDateOrEmpty(ocr.invoice_date)) {
+      setOcrError(ar ? 'تأكدي من تاريخ الفاتورة واختاريه من التقويم قبل الحفظ.' : 'Check the invoice date and pick it from the calendar before saving.');
+      document.querySelector('.invoice-date-field input')?.focus();
+      return;
+    }
     if (uploadIsOpenAdvance && !uploadActivity.trim()) {
       setOcrError(ar ? 'يرجى ذكر الشهر أو الفعالية للفاتورة قبل الحفظ.' : 'Please state the month or activity for this invoice before saving.');
       document.querySelector('.invoice-month-field input')?.focus();
@@ -1135,7 +1168,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
       activityName: uploadIsOpenAdvance ? uploadActivity.trim() : '',
       supplierAr: ocr.supplier_name || ocr.supplier_name_en || 'مورد غير محدد',
       supplierEn: ocr.supplier_name_en || ocr.supplier_name || 'Unknown Supplier',
-      date: ocr.invoice_date || new Date().toLocaleDateString('en-GB'),
+      date: isoDateOrEmpty(ocr.invoice_date),
       total: Number(ocr.total_amount) || 0,
       vat: Number(ocr.vat_amount) || 0,
       payment: ocr.payment_method === 'card' ? 'card' : 'cash',
@@ -1257,6 +1290,36 @@ export default function Invoices({ lang, profile, databaseMode }) {
     window.setTimeout(() => setActionMessage(''), 3200);
   }
 
+  async function saveInvoiceDate() {
+    if (!selected || savingDate) return;
+    const value = isoDateOrEmpty(dateEdit);
+    if (!value) { showActionMessage(ar ? 'اختاري التاريخ من التقويم.' : 'Pick a date from the calendar.'); return; }
+    if (value > todayIso()) { showActionMessage(ar ? 'لا يمكن أن يكون تاريخ الفاتورة في المستقبل.' : 'The invoice date cannot be in the future.'); return; }
+    setSavingDate(true);
+    try {
+      const saved = await updateInvoiceDateDb(selected.dbId, value);
+      const before = selected.date;
+      setRows((current) => current.map((item) => item.dbId === selected.dbId ? { ...item, date: saved || value } : item));
+      setSelected((current) => current ? { ...current, date: saved || value } : current);
+      setDateEdit(null);
+      try {
+        recordAudit({ profile, screen: 'الفواتير', action: 'تعديل تاريخ فاتورة', actionType: 'update', entityType: 'invoice', entityId: selected.dbId,
+          nursery: selected.nurseryAr, details: `${selected.id}: ${before || '—'} → ${saved || value}`, before: { date: before }, after: { date: saved || value } });
+      } catch { /* ignore */ }
+      window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'invoices' } }));
+      showActionMessage(ar ? 'تم تعديل تاريخ الفاتورة.' : 'Invoice date updated.');
+    } catch (error) {
+      const raw = [error?.code, error?.message].filter(Boolean).join(' — ');
+      showActionMessage(error?.code === '23505'
+        ? (ar ? 'يوجد فاتورة بنفس المورد والرقم والتاريخ والمبلغ — لم يتم تعديل التاريخ.' : 'Another invoice has the same supplier, number, date and amount — date not changed.')
+        : /INVOICE_DATE_LOCKED/.test(raw)
+          ? (ar ? 'لا يمكن تعديل التاريخ: الفاتورة معتمدة. التعديل للإدارة فقط.' : 'Cannot change the date of an approved invoice.')
+          : `${ar ? 'تعذر تعديل التاريخ' : 'Could not update the date'}${raw ? `: ${raw}` : '.'}`);
+    } finally {
+      setSavingDate(false);
+    }
+  }
+
   async function confirmDeleteInvoice() {
     if (deleteInFlight.current || !deleteTarget) return;
     if (!databaseMode || !canDeleteInvoice(profile, deleteTarget)) {
@@ -1287,12 +1350,12 @@ export default function Invoices({ lang, profile, databaseMode }) {
     } catch (error) {
       const message = String(error?.message || '');
       setDeleteError(message.includes('INVOICE_DELETE_LOCKED')
-        ? (ar ? 'لا يمكن الحذف: الفاتورة معتمدة أو السلفة غير مفتوحة. الحذف للإدارة فقط.' : 'Approved invoices or invoices in a non-open advance require an administrator.')
+        ? (ar ? 'لا يمكن الحذف: الفاتورة معتمدة. حذف الفواتير المعتمدة للإدارة فقط. (إذا لم تكن معتمدة: يلزم تشغيل ملف 25 في Supabase)' : 'Approved invoices can only be deleted by the administration.')
         : message.includes('INVOICE_DELETE_FORBIDDEN')
           ? (ar ? 'ليس لديك صلاحية حذف هذه الفاتورة.' : 'You cannot delete this invoice.')
           : message.includes('INVOICE_NOT_FOUND')
             ? (ar ? 'الفاتورة غير موجودة. حدّثي الصفحة.' : 'Invoice no longer exists. Refresh the page.')
-            : (ar ? 'تعذر حذف الفاتورة. تحققي من الاتصال وتفعيل تحديث قاعدة البيانات ثم حاولي مجددًا.' : 'Deletion failed. Check the connection and database migration, then retry.'));
+            : `${ar ? 'تعذر حذف الفاتورة' : 'Deletion failed'}: ${[error?.code, message].filter(Boolean).join(' — ') || (ar ? 'خطأ غير معروف' : 'unknown error')}`);
     } finally {
       deleteInFlight.current = false;
       setDeleting(false);
@@ -1474,7 +1537,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                       <button className="view-invoice-row" type="button" onClick={() => openSavedInvoice(item)}>↗ {t.viewInvoice}</button>
                       {databaseMode && <button className="delete-invoice-button" type="button"
                         disabled={deleting || !canDeleteInvoice(profile, item)}
-                        title={canDeleteInvoice(profile, item) ? (ar ? 'حذف الفاتورة' : 'Delete invoice') : (ar ? 'الفاتورة المعتمدة تُحذف من الإدارة فقط' : 'Only administrators can delete after approval or advance closure')}
+                        title={canDeleteInvoice(profile, item) ? (ar ? 'حذف الفاتورة' : 'Delete invoice') : (deleteBlockedReason(profile, item, ar) || 'Only administrators can delete after approval or advance closure')}
                         onClick={() => { setDeleteError(''); setDeleteTarget(item); }}>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7M14 10v7" /></svg>
                         {ar ? 'حذف' : 'Delete'}
@@ -1528,7 +1591,11 @@ export default function Invoices({ lang, profile, databaseMode }) {
             <div className="invoice-detail-grid">
               <div><small>{t.supplier}</small><strong>{ar ? selected.supplierAr : selected.supplierEn}</strong></div>
               <div><small>{t.nurseryName}</small><strong>{ar ? selected.nurseryAr : selected.nurseryEn}</strong></div>
-              <div><small>{t.invoiceDate}</small><strong>{selected.date}</strong></div>
+              <div className={dateEdit !== null ? 'detail-wide' : ''}><small>{t.invoiceDate}</small>
+                {dateEdit === null
+                  ? <strong className="date-with-edit">{selected.date || '—'}{databaseMode && canEditInvoiceDate(profile, selected) && <button type="button" className="edit-date-button" onClick={() => setDateEdit(isoDateOrEmpty(selected.date))}>✎ {ar ? 'تعديل التاريخ' : 'Edit date'}</button>}</strong>
+                  : <div className="date-edit-row"><input type="date" value={dateEdit} max={todayIso()} autoFocus onChange={(e) => setDateEdit(e.target.value)} /><button type="button" className="save" disabled={savingDate} onClick={saveInvoiceDate}>{savingDate ? (ar ? 'جاري الحفظ...' : 'Saving...') : (ar ? 'حفظ' : 'Save')}</button><button type="button" disabled={savingDate} onClick={() => setDateEdit(null)}>{ar ? 'إلغاء' : 'Cancel'}</button></div>}
+              </div>
               {invoiceNoteOf(selected, ar) && <div><small>{ar ? 'الشهر / الفعالية' : 'Month / activity'}</small><strong>{invoiceNoteOf(selected, ar)}</strong></div>}
               <div><small>{t.payment}</small><strong>{t[selected.payment]}</strong></div>
               <div><small>{t.beforeVat}</small><strong>{(selected.total - selected.vat).toFixed(2)} AED</strong></div>
@@ -1751,7 +1818,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                     <div className={`ocr-form-grid ${ocr.document_quality === 'rejected' ? 'ocr-form-blocked' : ''}`}>
                       <label><span>{t.supplier}</span><input value={ocr.supplier_name} onChange={(e) => updateOcr('supplier_name', e.target.value)} /></label>
                       <label><span>{t.invoiceNo}</span><input value={ocr.invoice_number} onChange={(e) => updateOcr('invoice_number', e.target.value)} /></label>
-                      <label><span>{t.invoiceDate}</span><input value={ocr.invoice_date} onChange={(e) => updateOcr('invoice_date', e.target.value)} /></label>
+                      <label className={`invoice-date-field ${invoiceDateWarning(ocr.invoice_date, ar) ? 'warn' : ''}`}><span>{t.invoiceDate} *</span><input type="date" value={isoDateOrEmpty(ocr.invoice_date)} max={todayIso()} onChange={(e) => updateOcr('invoice_date', e.target.value)} />{invoiceDateWarning(ocr.invoice_date, ar) && <small>{invoiceDateWarning(ocr.invoice_date, ar)}</small>}</label>
                       <label><span>{t.trn}{manualInvoice ? ` (${ar ? 'اختياري' : 'Optional'})` : ''}</span><input value={ocr.trn} onChange={(e) => updateOcr('trn', e.target.value)} /></label>
                       <label><span>{t.beforeVat}</span><input type="number" step="0.01" value={ocr.amount_before_vat} onChange={(e) => updateOcr('amount_before_vat', e.target.value)} /></label>
                       <label><span>{t.vat}</span><input type="number" step="0.01" value={ocr.vat_amount} onChange={(e) => updateOcr('vat_amount', e.target.value)} /></label>

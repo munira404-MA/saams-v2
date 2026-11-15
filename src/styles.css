@@ -3726,3 +3726,12 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .allocation-amount-editor label{display:grid;gap:4px;flex:1;min-width:170px}.allocation-amount-editor label span{font-size:11px;color:#5d6b82;font-weight:700}
 .allocation-amount-editor label div{display:flex;align-items:center;border:1px solid #9db8e6;border-radius:10px;background:#fff;padding:0 10px}
 .allocation-amount-editor input{flex:1;min-width:0;border:0;outline:0;height:36px;font:inherit;background:transparent}.allocation-amount-editor label b{font-size:11px;color:#8396a8}
+/* V36 — invoice date edit */
+.invoice-date-field.warn input{border-color:#e7a33a!important;background:#fffaf0}
+.invoice-date-field small{color:#b5701b;font-size:11px;font-weight:700}
+.date-with-edit{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.edit-date-button{border:1px solid #c9d8e6;background:#fff;color:#2f5aa8;border-radius:9px;padding:3px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer}
+.date-edit-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:4px}
+.date-edit-row input{height:36px;border:1px solid #9db8e6;border-radius:10px;padding:0 10px;font:inherit}
+.date-edit-row button{border:1px solid #c9d8e6;background:#fff;border-radius:9px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.date-edit-row button.save{background:linear-gradient(135deg,#14a39a,#3b6fd1);color:#fff;border:0}

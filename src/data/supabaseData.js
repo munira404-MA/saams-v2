@@ -360,6 +360,16 @@ export async function updateInvoiceStatus(invoice, status, reason = '') {
   return now;
 }
 
+// Correct the invoice date (e.g. a handwritten invoice the OCR read wrongly).
+export async function updateInvoiceDate(invoiceDbId, date) {
+  const value = normalizeDate(date);
+  if (!invoiceDbId || !value) throw new Error('INVALID_DATE');
+  const { data, error } = await supabase.from('invoices').update({ invoice_date: value }).eq('id', invoiceDbId).select('id,invoice_date');
+  if (error) throw error;
+  if (!data || !data.length) throw new Error('INVOICE_DATE_LOCKED');
+  return data[0].invoice_date;
+}
+
 export async function deleteInvoice(invoiceDbId) {
   if (!invoiceDbId) throw new Error('INVOICE_NOT_FOUND');
   const { error } = await supabase.rpc('delete_saams_invoice', { p_invoice_id: invoiceDbId });
