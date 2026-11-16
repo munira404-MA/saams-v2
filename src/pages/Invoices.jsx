@@ -7,6 +7,7 @@ import {
   createInvoice as createInvoiceDb,
   deleteInvoice as deleteInvoiceDb,
   updateInvoiceDate as updateInvoiceDateDb,
+  updateInvoiceSupplier as updateInvoiceSupplierDb,
   findNurseryByName,
   listInvoices as listInvoicesDb,
   listOpenAdvanceAllocations,
@@ -474,7 +475,9 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [selected, setSelected] = useState(null);
   const [dateEdit, setDateEdit] = useState(null);
   const [savingDate, setSavingDate] = useState(false);
-  useEffect(() => { setDateEdit(null); }, [selected?.dbId]);
+  const [supplierEdit, setSupplierEdit] = useState(null);
+  const [savingSupplier, setSavingSupplier] = useState(false);
+  useEffect(() => { setDateEdit(null); setSupplierEdit(null); }, [selected?.dbId]);
   const [showUpload, setShowUpload] = useState(false);
   const [rows, setRows] = useState(initialData);
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -1290,6 +1293,35 @@ export default function Invoices({ lang, profile, databaseMode }) {
     window.setTimeout(() => setActionMessage(''), 3200);
   }
 
+  async function saveInvoiceSupplier() {
+    if (!selected || savingSupplier) return;
+    const value = String(supplierEdit || '').replace(/\s+/g, ' ').trim();
+    if (!value) { showActionMessage(ar ? 'اكتبي اسم المورد.' : 'Enter the supplier name.'); return; }
+    setSavingSupplier(true);
+    try {
+      const saved = (await updateInvoiceSupplierDb(selected.dbId, value)) || value;
+      const before = selected.supplierAr || selected.supplierEn;
+      setRows((current) => current.map((item) => item.dbId === selected.dbId ? { ...item, supplierAr: saved, supplierEn: saved } : item));
+      setSelected((current) => current ? { ...current, supplierAr: saved, supplierEn: saved } : current);
+      setSupplierEdit(null);
+      try {
+        recordAudit({ profile, screen: 'الفواتير', action: 'تعديل اسم المورد', actionType: 'update', entityType: 'invoice', entityId: selected.dbId,
+          nursery: selected.nurseryAr, details: `${selected.id}: ${before || '—'} → ${saved}`, before: { supplier: before }, after: { supplier: saved } });
+      } catch { /* ignore */ }
+      window.dispatchEvent(new CustomEvent('saams:data-updated', { detail: { table: 'invoices' } }));
+      showActionMessage(ar ? 'تم تعديل اسم المورد.' : 'Supplier name updated.');
+    } catch (error) {
+      const raw = [error?.code, error?.message].filter(Boolean).join(' — ');
+      showActionMessage(error?.code === '23505'
+        ? (ar ? 'يوجد فاتورة بنفس المورد والرقم والتاريخ والمبلغ — لم يتم تعديل اسم المورد.' : 'Another invoice has the same supplier, number, date and amount — not changed.')
+        : /INVOICE_DATE_LOCKED|INVOICE_SCOPE/.test(raw)
+          ? (ar ? 'لا يمكن التعديل: الفاتورة معتمدة. التعديل للإدارة فقط.' : 'Cannot edit an approved invoice.')
+          : `${ar ? 'تعذر تعديل اسم المورد' : 'Could not update the supplier'}${raw ? `: ${raw}` : '.'}`);
+    } finally {
+      setSavingSupplier(false);
+    }
+  }
+
   async function saveInvoiceDate() {
     if (!selected || savingDate) return;
     const value = isoDateOrEmpty(dateEdit);
@@ -1589,7 +1621,11 @@ export default function Invoices({ lang, profile, databaseMode }) {
               )}
             </div>
             <div className="invoice-detail-grid">
-              <div><small>{t.supplier}</small><strong>{ar ? selected.supplierAr : selected.supplierEn}</strong></div>
+              <div className={supplierEdit !== null ? 'detail-wide' : ''}><small>{t.supplier}</small>
+                {supplierEdit === null
+                  ? <strong className="date-with-edit">{ar ? selected.supplierAr : selected.supplierEn}{databaseMode && canEditInvoiceDate(profile, selected) && <button type="button" className="edit-date-button" onClick={() => setSupplierEdit(ar ? (selected.supplierAr || '') : (selected.supplierEn || ''))}>✎ {ar ? 'تعديل المورد' : 'Edit supplier'}</button>}</strong>
+                  : <div className="date-edit-row"><input className="supplier-edit-input" value={supplierEdit} maxLength={150} autoFocus onChange={(e) => setSupplierEdit(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') saveInvoiceSupplier(); if (e.key === 'Escape') setSupplierEdit(null); }} /><button type="button" className="save" disabled={savingSupplier} onClick={saveInvoiceSupplier}>{savingSupplier ? (ar ? 'جاري الحفظ...' : 'Saving...') : (ar ? 'حفظ' : 'Save')}</button><button type="button" disabled={savingSupplier} onClick={() => setSupplierEdit(null)}>{ar ? 'إلغاء' : 'Cancel'}</button></div>}
+              </div>
               <div><small>{t.nurseryName}</small><strong>{ar ? selected.nurseryAr : selected.nurseryEn}</strong></div>
               <div className={dateEdit !== null ? 'detail-wide' : ''}><small>{t.invoiceDate}</small>
                 {dateEdit === null

@@ -3735,3 +3735,4 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .date-edit-row input{height:36px;border:1px solid #9db8e6;border-radius:10px;padding:0 10px;font:inherit}
 .date-edit-row button{border:1px solid #c9d8e6;background:#fff;border-radius:9px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .date-edit-row button.save{background:linear-gradient(135deg,#14a39a,#3b6fd1);color:#fff;border:0}
+.supplier-edit-input{flex:1;min-width:200px}

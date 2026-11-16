@@ -360,6 +360,16 @@ export async function updateInvoiceStatus(invoice, status, reason = '') {
   return now;
 }
 
+// Correct the supplier name when the OCR read it wrongly.
+export async function updateInvoiceSupplier(invoiceDbId, supplierName) {
+  const value = String(supplierName || '').replace(/\s+/g, ' ').trim();
+  if (!invoiceDbId || !value) throw new Error('INVALID_SUPPLIER');
+  const { data, error } = await supabase.from('invoices').update({ supplier_name: value }).eq('id', invoiceDbId).select('id,supplier_name');
+  if (error) throw error;
+  if (!data || !data.length) throw new Error('INVOICE_DATE_LOCKED');
+  return data[0].supplier_name;
+}
+
 // Correct the invoice date (e.g. a handwritten invoice the OCR read wrongly).
 export async function updateInvoiceDate(invoiceDbId, date) {
   const value = normalizeDate(date);
