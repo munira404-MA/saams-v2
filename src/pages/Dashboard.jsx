@@ -34,6 +34,22 @@ const translations = {
   },
 };
 
+const LATE_CHIPS=6;
+function LateNurseriesCard({a,ar,expanded,onToggle,onOpen}){
+  const list=a.nurseries||[];
+  const shown=expanded?list:list.slice(0,LATE_CHIPS);
+  const more=list.length-shown.length;
+  return <div className="late-group-card">
+    <div className="late-group-head"><b>!</b><strong>{a.title}</strong></div>
+    <div className={`late-group-chips ${expanded?'expanded':''}`}>
+      {shown.map(n=><span key={n.name} title={n.reason}>{n.name}</span>)}
+      {more>0&&<button type="button" className="more" onClick={onToggle}>{ar?`+${more} أخرى`:`+${more} more`}</button>}
+      {expanded&&list.length>LATE_CHIPS&&<button type="button" className="more" onClick={onToggle}>{ar?'عرض أقل':'Show less'}</button>}
+    </div>
+    <button type="button" className="late-group-open" onClick={onOpen}>{ar?'التفاصيل والأسباب في شاشة السلف ←':'Details & reasons on the Advances screen →'}</button>
+  </div>;
+}
+
 function AnimatedNumber({ value }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
@@ -82,6 +98,7 @@ export default function Dashboard({ lang, setActive, profile }) {
   const [loading,setLoading]=useState(true), [error,setError]=useState('');
   const [developerOpen,setDeveloperOpen]=useState(false);
   const [showAllAlerts,setShowAllAlerts]=useState(false);
+  const [showAllLate,setShowAllLate]=useState(false);
 
   useEffect(()=>{ let alive=true;
     const loadDashboard=async()=>{
@@ -253,9 +270,9 @@ export default function Dashboard({ lang, setActive, profile }) {
           // Administration alert centre: only nurseries late in handing in invoices, plus asset requests (above).
           if(canAdvances){
             const lateList=computeLateNurseries(await listAdvances().catch(()=>[]));
-            for(const n of [...lateList].reverse()){
-              nextAlerts.unshift({tone:'red',pinned:true,target:'advances',title:ar?`${n.nurseryAr} — متأخرة في تسليم الفواتير`:`${n.nurseryEn||n.nurseryAr} — late in handing in invoices`,sub:n.items.map(i=>`${ar?i.advanceAr:i.advanceEn}: ${i.reasons.map(r=>lateReasonText(r,ar)).join('، ')}`).join(' · ')});
-            }
+            // One compact card for all late nurseries (names as chips), instead of one alert per nursery.
+            if(lateList.length) nextAlerts.unshift({kind:'late-group',tone:'red',pinned:true,target:'advances',title:ar?`${lateList.length} حضانة متأخرة في تسليم الفواتير`:`${lateList.length} nurseries late in handing in invoices`,
+              nurseries:lateList.map(n=>({name:ar?n.nurseryAr:(n.nurseryEn||n.nurseryAr),reason:n.items.map(i=>`${ar?i.advanceAr:i.advanceEn}: ${i.reasons.map(r=>lateReasonText(r,ar)).join('، ')}`).join(' · ')}))});
           }
         }
 
@@ -308,7 +325,7 @@ export default function Dashboard({ lang, setActive, profile }) {
   ].filter(card=>can(card.page)),[stats,t,ar,canAssets,canInvoices,canAdvances]);
   const today=new Intl.DateTimeFormat(ar?'ar-AE':'en-AE',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date());
   const permittedAlerts=alerts.filter(a=>a.target?can(a.target):(a.tone==='blue'?canAdvances:canInvoices));
-  const visibleAlerts=isNursery&&!showAllAlerts?permittedAlerts.slice(0,5):permittedAlerts;
+  const visibleAlerts=!showAllAlerts?permittedAlerts.slice(0,5):permittedAlerts;
   const permittedActivities=activities.filter(x=>activityPage(x)&&can(activityPage(x)));
   const visibleActivities=showAllActivity?permittedActivities.slice(0,30):permittedActivities.filter(isToday).slice(0,10);
 
@@ -317,7 +334,7 @@ export default function Dashboard({ lang, setActive, profile }) {
     {loading&&<div className="dashboard-live-note">{t.loading}</div>}{error&&<div className="dashboard-live-note error">{error}</div>}
     <section className="stat-grid" style={{gridTemplateColumns:`repeat(${Math.max(cards.length,1)},minmax(0,1fr))`}}>{cards.map((c,i)=><article className={`stat-card ${c.tone}`} key={c.label} style={{animationDelay:`${i*70}ms`}}><div className="stat-icon">{c.icon}</div><span>{c.label}</span><strong><AnimatedNumber value={c.value}/></strong><em>{c.suffix}</em><footer className={String(c.note||'').startsWith('⚠')?'over-budget-note':''}>{c.note}</footer></article>)}</section>
     <section className="dashboard-grid dashboard-grid-top">
-      <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2>{permittedAlerts.length>5&&<button type="button" onClick={()=>setShowAllAlerts(v=>!v)}>{showAllAlerts?t.showLess:t.viewAll}</button>}</div><div className="alerts-list">{visibleAlerts.length?visibleAlerts.map((a,i)=><div className={`live-alert ${a.tone} ${a.target?'clickable':''}`} key={`${a.title}-${i}`} role={a.target?'button':undefined} tabIndex={a.target?0:undefined} onClick={()=>a.target&&setActive(a.target)} onKeyDown={(e)=>{if(a.target&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setActive(a.target)}}}><b>{a.tone==='green'?'✓':a.tone==='red'?'!':a.tone==='orange'?'↩':a.tone==='teal'?'＋':'•'}</b><div><strong>{a.title}</strong><small>{a.sub}{a.target?` • ${t.tapForDetails}`:''}</small></div></div>):<div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div>}</div></article>
+      <article className="glass-panel alerts-panel"><div className="panel-heading"><h2>♧ {t.alerts}</h2>{permittedAlerts.length>5&&<button type="button" onClick={()=>setShowAllAlerts(v=>!v)}>{showAllAlerts?t.showLess:t.viewAll}</button>}</div><div className="alerts-list">{visibleAlerts.length?visibleAlerts.map((a,i)=>a.kind==='late-group'?<LateNurseriesCard key="late-group" a={a} ar={ar} expanded={showAllLate} onToggle={()=>setShowAllLate(v=>!v)} onOpen={()=>setActive('advances')}/>:<div className={`live-alert ${a.tone} ${a.target?'clickable':''}`} key={`${a.title}-${i}`} role={a.target?'button':undefined} tabIndex={a.target?0:undefined} onClick={()=>a.target&&setActive(a.target)} onKeyDown={(e)=>{if(a.target&&(e.key==='Enter'||e.key===' ')){e.preventDefault();setActive(a.target)}}}><b>{a.tone==='green'?'✓':a.tone==='red'?'!':a.tone==='orange'?'↩':a.tone==='teal'?'＋':'•'}</b><div><strong>{a.title}</strong><small>{a.sub}{a.target?` • ${t.tapForDetails}`:''}</small></div></div>):<div className="dashboard-empty-state"><strong>✓</strong><span>{t.noAlerts}</span></div>}</div></article>
       {canAssets&&<article className="glass-panel chart-panel"><div className="panel-heading"><h2>{isNursery?(ar?`أصول ${nurseryName}`:`${nurseryName} Assets`):t.assetByNursery}</h2><button type="button">{t.thisMonth}⌄</button></div><AssetDistribution t={t} rows={assetDistribution}/></article>}
       {canInvoices&&<article className="glass-panel status-panel"><div className="panel-heading"><h2>{t.invoiceStatus}</h2><button type="button">{t.thisMonth}⌄</button></div><StatusDonut t={t} counts={{approved:stats.approved,review:stats.review,returned:stats.returned,late:stats.late}}/><p className="panel-total">{t.totalInvoices}: {stats.totalInvoices}</p></article>}
     </section>
