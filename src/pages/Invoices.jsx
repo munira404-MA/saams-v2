@@ -19,6 +19,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import JSZip from 'jszip';
 import { PDFDocument } from 'pdf-lib';
+import { combineImagesToPdf } from '../utils/invoicePages';
 import { supabase } from '../supabase';
 
 const initialData = [
@@ -243,7 +244,7 @@ const copy = {
     takeInvoicePhoto: 'تصوير الفاتورة',
     takeInvoicePhotoHint: 'فتح الكاميرا والتقاط الفاتورة مباشرة',
     takeAnotherPage: 'تصوير صفحة أخرى',
-    cameraAutoRead: 'ستبدأ قراءة الفاتورة تلقائيًا بعد التصوير.',
+    cameraAutoRead: 'فاتورة من أكثر من صفحة؟ صوّري كل الصفحات ثم اقرئيها مرة وحدة.',
     photographReceipt: 'تصوير إثبات الخصم',
     uploadReceipt: 'رفع إثبات الخصم',
     save: 'رفع وحفظ الفاتورة',
@@ -361,7 +362,7 @@ const copy = {
     takeInvoicePhoto: 'Take Invoice Photo',
     takeInvoicePhotoHint: 'Open the camera and capture the invoice directly',
     takeAnotherPage: 'Take Another Page',
-    cameraAutoRead: 'Invoice reading will start automatically after capture.',
+    cameraAutoRead: 'Multi-page invoice? Photograph every page, then read it once.',
     photographReceipt: 'Photograph Payment Proof',
     uploadReceipt: 'Upload Payment Proof',
     save: 'Upload and Save Invoice',
@@ -481,6 +482,13 @@ export default function Invoices({ lang, profile, databaseMode }) {
   const [showUpload, setShowUpload] = useState(false);
   const [rows, setRows] = useState(initialData);
   const [selectedFiles, setSelectedFiles] = useState([]);
+  // Pages of ONE invoice being collected (photos / images) before reading. null = not collecting.
+  const [pageDraft, setPageDraft] = useState(null);
+  const [combiningPages, setCombiningPages] = useState(false);
+  const pageAddCameraRef = useRef(null);
+  const pageAddGalleryRef = useRef(null);
+  const pageDraftUrls = useMemo(() => (pageDraft || []).map((file) => URL.createObjectURL(file)), [pageDraft]);
+  useEffect(() => () => pageDraftUrls.forEach((url) => URL.revokeObjectURL(url)), [pageDraftUrls]);
   const [activeFileIndex, setActiveFileIndex] = useState(0);
   const selectedFile = selectedFiles[activeFileIndex] || null;
   const [selectedFileUrl, setSelectedFileUrl] = useState('');
@@ -982,7 +990,65 @@ export default function Invoices({ lang, profile, databaseMode }) {
     }
   }
 
+  function addDraftPages(fileList) {
+    const images = Array.from(fileList || []).filter((file) => /^image\//.test(file.type));
+    if (!images.length) return;
+    setOcrError('');
+    setPageDraft((current) => [...(current || []), ...images]);
+  }
+
+  function moveDraftPage(index, delta) {
+    setPageDraft((current) => {
+      const next = [...(current || [])];
+      const target = index + delta;
+      if (target < 0 || target >= next.length) return next;
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+  }
+
+  function removeDraftPage(index) {
+    setPageDraft((current) => {
+      const next = (current || []).filter((_, i) => i !== index);
+      return next.length ? next : null;
+    });
+  }
+
+  // Each image as its own invoice (old behaviour), when the selected images are different invoices.
+  function draftAsSeparateInvoices() {
+    const files = pageDraft || [];
+    setPageDraft(null);
+    addSelectedFiles(files);
+  }
+
+  async function finishDraftPages() {
+    const files = pageDraft || [];
+    if (!files.length || combiningPages) return;
+    setCombiningPages(true);
+    setOcrError('');
+    try {
+      let file = files[0];
+      if (files.length > 1 || file.size > MAX_UPLOAD_BYTES) {
+        file = await combineImagesToPdf(files, { maxBytes: MAX_UPLOAD_BYTES, name: ar ? `فاتورة-${files.length}-صفحات.pdf` : `invoice-${files.length}-pages.pdf` });
+      }
+      if (file.size > MAX_UPLOAD_BYTES) { setOcrError(t.fileTooLarge); return; }
+      setPageDraft(null);
+      await readNewInvoiceFile(file);
+    } catch (error) {
+      console.error(error);
+      setOcrError(ar ? 'تعذر تجهيز صفحات الفاتورة. حاولي تصويرها مرة أخرى.' : 'Could not prepare the invoice pages. Please try again.');
+    } finally {
+      setCombiningPages(false);
+    }
+  }
+
   async function handleInvoiceCamera(file) {
+    if (!file) return;
+    // Collect pages first: a multi-page invoice is photographed page by page, then read once.
+    addDraftPages([file]);
+  }
+
+  async function readNewInvoiceFile(file) {
     if (!file) return;
     if (file.size > MAX_UPLOAD_BYTES) {
       setOcrError(t.fileTooLarge);
@@ -1004,7 +1070,24 @@ export default function Invoices({ lang, profile, databaseMode }) {
   }
 
   function handleInvoiceFileInput(fileList) {
-    addSelectedFiles(fileList);
+    const list = Array.from(fileList || []);
+    // Several images picked together → most likely pages of one invoice: collect them as pages
+    // (with a button to treat them as separate invoices instead). PDFs keep the normal flow.
+    const images = list.filter((file) => /^image\//.test(file.type));
+    if (images.length > 1 && images.length === list.length) { addDraftPages(images); return; }
+    addSelectedFiles(list);
+  }
+
+  // «Another page» on a single photo that is already selected: turn it into a multi-page draft.
+  function addPageToSelectedImage() {
+    if (selectedFile && /^image\//.test(selectedFile.type) && !ocr) {
+      const current = selectedFile;
+      removeSelectedFile();
+      setPageDraft([current]);
+    } else if (!pageDraft) {
+      setPageDraft([]);
+    }
+    setTimeout(() => pageAddCameraRef.current?.click(), 0);
   }
 
   function handleReceiptCamera(file) {
@@ -1079,6 +1162,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
     setUploadNursery('');
     setUploadAdvance('');
     setUploadActivity('');
+    setPageDraft(null);
     setManualInvoice(false);
     setReceiptFile(null);
     setDetectedInvoices([]);
@@ -1757,10 +1841,41 @@ export default function Invoices({ lang, profile, databaseMode }) {
                   {selectedFileUrl && <button className="attachment-open-button" type="button" onClick={() => showFullAttachment({ dataUrl: selectedFileUrl, name: selectedFile?.name, type: selectedFile?.type })}>↗ {t.openFull}</button>}
                 </div>
 
-                {!selectedFile && (
+                <input ref={pageAddCameraRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={(e) => { addDraftPages(e.target.files); e.target.value = ''; }} />
+                <input ref={pageAddGalleryRef} className="hidden-file-input" type="file" multiple accept="image/png,image/jpeg,image/webp" onChange={(e) => { addDraftPages(e.target.files); e.target.value = ''; }} />
+                {pageDraft && (
+                  <div className="invoice-pages-tray">
+                    <div className="pages-tray-head">
+                      <strong>{ar ? `صفحات الفاتورة (${pageDraft.length})` : `Invoice pages (${pageDraft.length})`}</strong>
+                      <small>{ar ? 'صوّري كل صفحات نفس الفاتورة بالترتيب، ثم اضغطي «قراءة الفاتورة».' : 'Photograph every page of the same invoice in order, then press “Read invoice”.'}</small>
+                    </div>
+                    <div className="pages-tray-grid">
+                      {pageDraft.map((file, index) => (
+                        <figure key={`${file.name}-${file.lastModified}-${index}`}>
+                          <img src={pageDraftUrls[index]} alt={`${index + 1}`} />
+                          <figcaption>{ar ? `صفحة ${index + 1}` : `Page ${index + 1}`}</figcaption>
+                          <div className="page-tools">
+                            <button type="button" disabled={index === 0} onClick={() => moveDraftPage(index, -1)} title={ar ? 'قبل' : 'Earlier'}>{ar ? '→' : '←'}</button>
+                            <button type="button" className="danger" onClick={() => removeDraftPage(index)} title={ar ? 'حذف الصفحة' : 'Remove page'}>×</button>
+                            <button type="button" disabled={index === pageDraft.length - 1} onClick={() => moveDraftPage(index, 1)} title={ar ? 'بعد' : 'Later'}>{ar ? '←' : '→'}</button>
+                          </div>
+                        </figure>
+                      ))}
+                      <button type="button" className="pages-add-tile" onClick={() => pageAddCameraRef.current?.click()}><span>📷</span>{ar ? 'تصوير الصفحة التالية' : 'Photograph next page'}</button>
+                      <button type="button" className="pages-add-tile" onClick={() => pageAddGalleryRef.current?.click()}><span>🖼</span>{ar ? 'إضافة من الصور' : 'Add from photos'}</button>
+                    </div>
+                    <div className="pages-tray-actions">
+                      <button type="button" className="pages-read" disabled={!pageDraft.length || combiningPages} onClick={finishDraftPages}>{combiningPages ? (ar ? 'جاري تجهيز الصفحات...' : 'Preparing pages...') : (ar ? `✓ قراءة الفاتورة (${pageDraft.length} ${pageDraft.length === 1 ? 'صفحة' : 'صفحات'})` : `✓ Read invoice (${pageDraft.length} page${pageDraft.length === 1 ? '' : 's'})`)}</button>
+                      {pageDraft.length > 1 && <button type="button" className="pages-separate" disabled={combiningPages} onClick={draftAsSeparateInvoices}>{ar ? 'كل صورة فاتورة مستقلة' : 'Each image is a separate invoice'}</button>}
+                      <button type="button" className="pages-cancel" disabled={combiningPages} onClick={() => setPageDraft(null)}>{ar ? 'إلغاء' : 'Cancel'}</button>
+                    </div>
+                  </div>
+                )}
+
+                {!selectedFile && !pageDraft && (
                   <div className="invoice-source-picker">
                     <input ref={invoiceFileInputRef} className="hidden-file-input" type="file" multiple accept=".pdf,image/png,image/jpeg,image/webp" onChange={(e) => handleInvoiceFileInput(e.target.files)} />
-                    <input ref={invoiceCameraInputRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={(e) => handleInvoiceCamera(e.target.files?.[0])} />
+                    <input ref={invoiceCameraInputRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={(e) => { handleInvoiceCamera(e.target.files?.[0]); e.target.value = ''; }} />
                     <button type="button" className="invoice-source-card file-source" onClick={() => invoiceFileInputRef.current?.click()}>
                       <span className="source-icon">📁</span>
                       <strong>{t.uploadFromDevice}</strong>
@@ -1792,8 +1907,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
                       <div><small>{t.fileType}</small><strong>{selectedFile.type || '—'}</strong></div>
                     </div>
                     <div className="selected-attachment-actions">
-                      <input ref={invoiceCameraInputRef} className="hidden-file-input" type="file" accept="image/*" capture="environment" onChange={(e) => handleInvoiceCamera(e.target.files?.[0])} />
-                      <button className="secondary-camera-action" type="button" onClick={() => invoiceCameraInputRef.current?.click()}>📷 {t.takeAnotherPage}</button>
+                      {/^image\//.test(selectedFile.type) && !ocr && <button className="secondary-camera-action" type="button" onClick={addPageToSelectedImage}>📷 {ar ? 'إضافة صفحة لنفس الفاتورة' : 'Add a page to this invoice'}</button>}
                       <button className="remove-attachment" type="button" onClick={removeSelectedFile}>× {t.removeAttachment}</button>
                     </div>
                   </>
