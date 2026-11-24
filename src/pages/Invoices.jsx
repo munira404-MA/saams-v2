@@ -594,8 +594,22 @@ export default function Invoices({ lang, profile, databaseMode }) {
       const matchesMonth = monthFilter === 'all' || invoiceNoteOf(item, ar) === monthFilter;
       return matchesText && matchesNursery && matchesStatus && matchesMonth;
     });
-  }, [search, nursery, status, ar, scopedRows]);
+  }, [search, nursery, status, monthFilter, ar, scopedRows]);
 
+  // Pages: the list used to render every invoice at once (very long scroll).
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [pageSize, setPageSize] = useState(() => { try { return Number(localStorage.getItem('saams-invoice-page-size')) || 20; } catch { return 20; } });
+  useEffect(() => { try { localStorage.setItem('saams-invoice-page-size', String(pageSize)); } catch { /* ignore */ } }, [pageSize]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const currentPage = Math.min(invoicePage, pageCount);
+  const pageStart = (currentPage - 1) * pageSize;
+  const pageRows = filtered.slice(pageStart, pageStart + pageSize);
+  useEffect(() => { setInvoicePage(1); }, [search, status, monthFilter, nursery]);
+  const firstPageRender = useRef(true);
+  useEffect(() => {
+    if (firstPageRender.current) { firstPageRender.current = false; return; }
+    document.querySelector('.invoice-table-card')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [currentPage, pageSize]);
   const stats = [
     { label: t.total, value: scopedRows.length, icon: '▤', tone: 'blue' },
     { label: t.pending, value: scopedRows.filter((x) => x.status === 'review').length, icon: '◷', tone: 'orange' },
@@ -1553,7 +1567,7 @@ export default function Invoices({ lang, profile, databaseMode }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((item) => (
+              {pageRows.map((item) => (
                 <tr key={item.dbId || item.id}>
                   <td><strong className="invoice-id">{item.id}</strong><small>{item.pages} {t.pages}</small>{invoiceNoteOf(item, ar) && <small className="invoice-month-tag">{invoiceNoteOf(item, ar)}</small>}</td>
                   <td><strong>{ar ? item.supplierAr : item.supplierEn}</strong><small>TRN {item.trn.slice(-6)}</small></td>
@@ -1582,6 +1596,19 @@ export default function Invoices({ lang, profile, databaseMode }) {
             </tbody>
           </table>
           {!filtered.length && <div className="invoice-empty">▤<strong>{t.noResults}</strong></div>}
+          {filtered.length > 0 && <div className="asset-pagination invoice-pagination">
+            <span className="asset-pagination-summary">{ar ? `عرض ${pageStart + 1}–${Math.min(pageStart + pageSize, filtered.length)} من ${filtered.length} فاتورة` : `Showing ${pageStart + 1}–${Math.min(pageStart + pageSize, filtered.length)} of ${filtered.length} invoices`}</span>
+            <div className="asset-pagination-controls">
+              <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value)); setInvoicePage(1); }} aria-label={ar ? 'عدد الفواتير في الصفحة' : 'Invoices per page'}>
+                {[10, 20, 50, 100].map((n) => <option key={n} value={n}>{ar ? `${n} في الصفحة` : `${n} / page`}</option>)}
+              </select>
+              <button type="button" disabled={currentPage <= 1} onClick={() => setInvoicePage(1)}>«</button>
+              <button type="button" disabled={currentPage <= 1} onClick={() => setInvoicePage(currentPage - 1)}>{ar ? 'السابق' : 'Previous'}</button>
+              <span className="asset-pagination-summary">{ar ? `صفحة ${currentPage} من ${pageCount}` : `Page ${currentPage} of ${pageCount}`}</span>
+              <button type="button" disabled={currentPage >= pageCount} onClick={() => setInvoicePage(currentPage + 1)}>{ar ? 'التالي' : 'Next'}</button>
+              <button type="button" disabled={currentPage >= pageCount} onClick={() => setInvoicePage(pageCount)}>»</button>
+            </div>
+          </div>}
         </div>
       </div>
 

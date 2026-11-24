@@ -3736,3 +3736,7 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .date-edit-row button{border:1px solid #c9d8e6;background:#fff;border-radius:9px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .date-edit-row button.save{background:linear-gradient(135deg,#14a39a,#3b6fd1);color:#fff;border:0}
 .supplier-edit-input{flex:1;min-width:200px}
+/* V38 — invoice list pages */
+.invoice-pagination{position:sticky;bottom:0;z-index:2}
+.invoice-pagination select{border:1px solid #d6e4ec;background:#fff;color:#38566d;border-radius:9px;padding:6px 8px;font:inherit;font-size:11px;font-weight:800}
+.invoice-pagination .asset-pagination-controls{flex-wrap:wrap}
