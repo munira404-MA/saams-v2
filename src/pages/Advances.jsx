@@ -19,6 +19,45 @@ const DEFAULT_ADVANCE_TYPES = [
 ];
 
 // Next advance code = highest existing number + 1 (never reuses a code after a deletion).
+// Late nurseries: one quiet collapsible bar; opens to a compact table (one row per nursery + advance).
+function lateShort(reason, ar) {
+  if (reason.code === 'ended') return { tone: 'red', text: ar ? 'انتهت بدون فواتير' : 'Ended, no invoices' };
+  if (reason.code === 'idle') return { tone: 'amber', text: ar ? (reason.hasUploads ? `${reason.days} يوم بدون فاتورة` : `لا فواتير منذ البداية (${reason.days} يوم)`) : (reason.hasUploads ? `${reason.days} days idle` : `None since start (${reason.days}d)`) };
+  return { tone: 'blue', text: ar ? 'لا فواتير هذا الشهر' : 'None this month' };
+}
+function LateNurseriesPanel({ ar, list, onPick }) {
+  const [open, setOpen] = useState(false);
+  const rows = list.flatMap(n => n.items.map(i => ({ n, i, severity: i.reasons.some(r => r.code === 'ended') ? 0 : i.lastUpload ? 2 : 1 })))
+    .sort((a, b) => a.n.nurseryAr.localeCompare(b.n.nurseryAr, 'ar') || a.severity - b.severity);
+  const counts = { ended: 0, idle: 0, noMonth: 0 };
+  rows.forEach(({ i }) => i.reasons.forEach(r => { counts[r.code] = (counts[r.code] || 0) + 1; }));
+  if (!list.length) return <div className="late-bar ok">✓ {ar ? 'كل الحضانات ملتزمة بتسليم الفواتير' : 'All nurseries are up to date'}</div>;
+  return <section className={`late-bar ${open ? 'open' : ''}`}>
+    <button type="button" className="late-bar-head" onClick={() => setOpen(v => !v)} aria-expanded={open}>
+      <b>{list.length}</b>
+      <strong>{ar ? 'حضانة متأخرة في تسليم الفواتير' : 'nurseries late with invoices'}</strong>
+      <span className="late-bar-chips">
+        {counts.ended > 0 && <i className="red">{ar ? `انتهت بدون فواتير ${counts.ended}` : `Ended ${counts.ended}`}</i>}
+        {counts.idle > 0 && <i className="amber">{ar ? `بدون فاتورة 14+ يوم ${counts.idle}` : `14+ days ${counts.idle}`}</i>}
+        {counts.noMonth > 0 && <i className="blue">{ar ? `لا فواتير هذا الشهر ${counts.noMonth}` : `None this month ${counts.noMonth}`}</i>}
+      </span>
+      <em>{open ? (ar ? 'إخفاء ▲' : 'Hide ▲') : (ar ? 'عرض القائمة ▼' : 'Show list ▼')}</em>
+    </button>
+    {open && <div className="late-table-wrap"><table className="late-table">
+      <thead><tr><th>{ar ? 'الحضانة' : 'Nursery'}</th><th>{ar ? 'السلفة' : 'Advance'}</th><th>{ar ? 'الحالة' : 'Status'}</th><th>{ar ? 'فواتير مرفوعة' : 'Uploaded'}</th><th>{ar ? 'آخر رفع' : 'Last upload'}</th></tr></thead>
+      <tbody>{rows.map(({ n, i }, index) => <tr key={`${n.nurseryId || n.nurseryAr}-${i.advanceId}`} className={index > 0 && rows[index - 1].n === n ? 'same-nursery' : ''}>
+        <td>{index > 0 && rows[index - 1].n === n ? null : <button type="button" className="late-nursery-link" onClick={() => onPick(n.nurseryAr)} title={ar ? 'عرض سلف هذه الحضانة' : 'Show this nursery\'s advances'}>{ar ? n.nurseryAr : (n.nurseryEn || n.nurseryAr)}</button>}</td>
+        <td>{ar ? i.advanceAr : i.advanceEn}</td>
+        <td>{i.reasons.map(r => { const x = lateShort(r, ar); return <span key={r.code} className={`late-tag ${x.tone}`}>{x.text}</span>; })}</td>
+        <td>{i.invoices}</td>
+        <td>{i.lastUpload || '—'}</td>
+      </tr>)}</tbody>
+    </table>
+    <p className="late-rules">{ar ? 'تُحسب السلف المفتوحة بمبالغ فقط. متأخرة إذا: انتهت فترة السلفة بدون فواتير، أو 14 يوم بدون فاتورة، أو لا فواتير هذا الشهر بعد يوم 20. اضغطي اسم الحضانة لعرض سلفها.' : 'Open fixed-amount advances only. Click a nursery to show its advances.'}</p>
+    </div>}
+  </section>;
+}
+
 // Arabic-friendly search: ignores أ/إ/آ vs ا, ة vs ه, ى vs ي, diacritics and extra spaces.
 function normalizeSearch(value) {
   return String(value ?? '').toLowerCase()
@@ -378,13 +417,7 @@ export default function Advances({ lang, profile, databaseMode }) {
       <article className="opened"><span>▣</span><div><small>{t.openAdvances}</small><strong>{summary.open}</strong></div></article>
     </div>
 
-    {!nurseryMode && <details className="late-nurseries-panel" open={lateNurseries.length > 0}>
-      <summary><b>{lateNurseries.length}</b> {ar ? 'حضانة متأخرة في تسليم الفواتير' : 'nurseries late in handing in invoices'}<small>{ar ? `السلف المفتوحة بمبالغ فقط · متأخرة إذا: انتهت فترة السلفة بدون فواتير، أو ${IDLE_DAYS} يوم بدون فاتورة، أو لا فواتير هذا الشهر بعد يوم ${MONTH_DAY}` : `Open fixed-amount advances only · late if: period ended with no invoices, ${IDLE_DAYS} days without an invoice, or no invoices this month after day ${MONTH_DAY}`}</small></summary>
-      {lateNurseries.length ? <div className="late-nurseries-list">{lateNurseries.map(n => <article key={n.nurseryId || n.nurseryAr}>
-        <strong>{ar ? n.nurseryAr : (n.nurseryEn || n.nurseryAr)}</strong>
-        {n.items.map(i => <div key={i.advanceId}><span>{ar ? i.advanceAr : i.advanceEn}</span><em>{i.reasons.map(r => lateReasonText(r, ar)).join(' · ')}</em><small>{ar ? `فواتير مرفوعة: ${i.invoices}${i.lastUpload ? ` · آخر رفع ${i.lastUpload}` : ''}` : `Uploaded: ${i.invoices}${i.lastUpload ? ` · last ${i.lastUpload}` : ''}`}</small></div>)}
-      </article>)}</div> : <p className="late-nurseries-empty">✓ {ar ? 'كل الحضانات ملتزمة بتسليم الفواتير.' : 'All nurseries are up to date.'}</p>}
-    </details>}
+    {!nurseryMode && <LateNurseriesPanel ar={ar} list={lateNurseries} onPick={(name) => setSearch(name)} />}
 
     <div className="advance-toolbar">
       <div className="invoice-search"><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search} />{search && <button type="button" className="search-clear" onClick={() => setSearch('')} aria-label={ar ? 'مسح البحث' : 'Clear search'}>×</button>}</div>
