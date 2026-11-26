@@ -19,6 +19,14 @@ const DEFAULT_ADVANCE_TYPES = [
 ];
 
 // Next advance code = highest existing number + 1 (never reuses a code after a deletion).
+// Arabic-friendly search: ignores أ/إ/آ vs ا, ة vs ه, ى vs ي, diacritics and extra spaces.
+function normalizeSearch(value) {
+  return String(value ?? '').toLowerCase()
+    .replace(/[\u064B-\u0652\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+    .replace(/\s+/g, ' ').trim();
+}
+
 function nextAdvanceCode(list) {
   const year = new Date().getFullYear();
   const max = (list || []).reduce((m, a) => { const n = Number(String(a?.id || '').match(/(\d+)\s*$/)?.[1] || 0); return n > m ? n : m; }, 8);
@@ -205,13 +213,19 @@ export default function Advances({ lang, profile, databaseMode }) {
     const matched = advance.allocations.find(a => a.nurseryAr === nurseryNameAr || a.nurseryEn === nurseryNameEn);
     return matched || (previewNursery ? advance.allocations[0] : undefined);
   }
-  const visibleAdvances = useMemo(() => advances.filter(advance => {
-    if (nurseryMode && !currentNurseryAllocation(advance)) return false;
-    if (filter !== 'all' && advance.type !== filter && advance.status !== filter) return false;
-    const term = search.trim().toLowerCase();
-    if (!term) return true;
-    return [advance.id, advance.nameAr, advance.nameEn, ...advance.allocations.flatMap(a => [a.nurseryAr, a.nurseryEn])].some(v => String(v).toLowerCase().includes(term));
-  }), [advances, filter, search, nurseryMode]);
+  // Search: by advance name/code (whole advance) or by nursery name. A nursery search shows only the
+  // advances of that nursery, and every card + the summary cards show that nursery's figures only.
+  const searchTerm = normalizeSearch(search);
+  const visibleAdvances = useMemo(() => advances.flatMap(advance => {
+    if (nurseryMode && !currentNurseryAllocation(advance)) return [];
+    if (filter !== 'all' && advance.type !== filter && advance.status !== filter) return [];
+    if (!searchTerm) return [advance];
+    if ([advance.id, advance.nameAr, advance.nameEn].some(v => normalizeSearch(v).includes(searchTerm))) return [advance];
+    if (nurseryMode) return [];
+    const matched = advance.allocations.filter(a => [a.nurseryAr, a.nurseryEn].some(v => normalizeSearch(v).includes(searchTerm)));
+    return matched.length ? [{ ...advance, allocations: matched, _full: advance }] : [];
+  }), [advances, filter, searchTerm, nurseryMode]);
+  const searchedNurseries = useMemo(() => [...new Set(visibleAdvances.filter(a => a._full).flatMap(a => a.allocations.map(x => ar ? x.nurseryAr : (x.nurseryEn || x.nurseryAr))))], [visibleAdvances, ar]);
 
   const lateNurseries = useMemo(() => computeLateNurseries(advances), [advances]);
   const summary = visibleAdvances.reduce((acc, advance) => {
@@ -353,6 +367,10 @@ export default function Advances({ lang, profile, databaseMode }) {
       </div>
     </div>
 
+    {searchTerm && <div className="advance-search-scope">{searchedNurseries.length
+      ? <>{ar ? 'نتائج البحث للحضانة:' : 'Search results for:'} <b>{searchedNurseries.slice(0, 4).join('، ')}{searchedNurseries.length > 4 ? (ar ? ` و${searchedNurseries.length - 4} أخرى` : ` +${searchedNurseries.length - 4}`) : ''}</b> — {ar ? `${visibleAdvances.length} سلفة، والأرقام لهذه الحضانة فقط` : `${visibleAdvances.length} advance(s); figures for this nursery only`}</>
+      : <>{ar ? `نتائج البحث: ${visibleAdvances.length} سلفة` : `Search results: ${visibleAdvances.length} advance(s)`}</>}
+      <button type="button" onClick={() => setSearch('')}>{ar ? 'مسح البحث' : 'Clear'}</button></div>}
     <div className="advance-stat-grid">
       <article className="allocated"><span>▥</span><div><small>{t.totalAllocated}</small><strong>{money(summary.allocated)} <b>AED</b></strong></div></article>
       <article className="spent"><span>↘</span><div><small>{t.totalSpent}</small><strong>{money(summary.spent)} <b>AED</b></strong></div></article>
@@ -369,7 +387,7 @@ export default function Advances({ lang, profile, databaseMode }) {
     </details>}
 
     <div className="advance-toolbar">
-      <div className="invoice-search"><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search} /></div>
+      <div className="invoice-search"><span>⌕</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder={t.search} />{search && <button type="button" className="search-clear" onClick={() => setSearch('')} aria-label={ar ? 'مسح البحث' : 'Clear search'}>×</button>}</div>
       <div className="advance-filters">
         {[{value:'all',label:t.all}, ...advanceTypes.map(type => ({ value:type.value, label: ar ? toArabicDisplay(type.nameAr || type.nameEn) : toEnglishDisplay(type.nameEn || type.nameAr) })), {value:'open',label:t.open}, {value:'closed',label:t.closed}].map(item => <button key={item.value} className={filter === item.value ? 'active' : ''} onClick={() => setFilter(item.value)}>{item.label}</button>)}
       </div>
@@ -388,7 +406,7 @@ export default function Advances({ lang, profile, databaseMode }) {
           <div className="advance-card-top">
             <div className={`advance-type-icon ${advance.type}`}>{advance.type === 'monthly' ? '▥' : advance.type === 'event' ? '☆' : '▣'}</div>
             <div className="advance-title"><div><span className={`advance-type-badge ${advance.type}`}>{typeLabel(advance.type)}</span><span className={`advance-status ${advance.status}`}>{t[advance.status]}</span>{advance.openAmount && <span className="advance-open-badge">{ar ? 'مبلغ مفتوح' : 'Open amount'}</span>}</div><h3>{ar ? toArabicDisplay(advance.nameAr || advance.nameEn) : toEnglishDisplay(advance.nameEn || advance.nameAr)}</h3><p>{advance.id} · {advance.from} — {advance.to}</p></div>
-            <div className="advance-card-actions"><button onClick={() => setViewing({ advance, allocation })}>{t.view}</button>{!nurseryMode && <><button className={advance.status === 'open' ? 'close-advance' : 'reopen-advance'} onClick={() => toggleStatus(advance.id)}>{advance.status === 'open' ? t.close : t.reopen}</button><button className="delete-advance" onClick={() => deleteAdvance(advance)}>⌫ {t.deleteAdvance}</button></>}</div>
+            <div className="advance-card-actions"><button onClick={() => setViewing({ advance: advance._full || advance, allocation: allocation || (advance._full ? advance.allocations[0] : null) })}>{t.view}</button>{!nurseryMode && <><button className={advance.status === 'open' ? 'close-advance' : 'reopen-advance'} onClick={() => toggleStatus(advance.id)}>{advance.status === 'open' ? t.close : t.reopen}</button><button className="delete-advance" onClick={() => deleteAdvance(advance)}>⌫ {t.deleteAdvance}</button></>}</div>
           </div>
           {!openAmount&&(()=>{
             // Over-budget warning (red): nursery sees its own; administration sees every nursery that exceeded.

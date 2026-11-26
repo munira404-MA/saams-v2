@@ -3771,3 +3771,8 @@ html[lang] .topbar-user small{white-space:nowrap;overflow:hidden;text-overflow:e
 .pages-tray-actions .pages-read{background:linear-gradient(135deg,#14a39a,#3b6fd1);color:#fff;border:0;flex:1;min-width:200px}
 .pages-tray-actions button:disabled{opacity:.6;cursor:default}
 .invoice-pages-tray .pages-add-tile{font-size:11px!important;line-height:1.4!important;padding:8px!important}.invoice-pages-tray .pages-add-tile span{font-size:22px!important}.pages-tray-grid{grid-template-columns:repeat(auto-fill,minmax(105px,1fr))}
+/* V41 — advances search by nursery */
+.advance-search-scope{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px;padding:9px 14px;border-radius:14px;background:#eef4ff;border:1px solid #cfdcf3;color:#2f4f75;font-size:12px}
+.advance-search-scope b{color:#1d3a8a}
+.advance-search-scope button{margin-inline-start:auto;border:1px solid #c9d8e6;background:#fff;color:#2f5aa8;border-radius:9px;padding:4px 10px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.invoice-search .search-clear{border:0;background:#eef2f7;color:#5d6b82;width:22px;height:22px;border-radius:50%;cursor:pointer;line-height:1;padding:0;flex:none}
